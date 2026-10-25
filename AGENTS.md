@@ -73,7 +73,7 @@
 | URL 内嵌凭据 | 地址里写成「账号:口令@主机」的那种 | 远端只写 `https://host/owner/repo` |
 | 口令字面量 | `password = "…"`、`api_key: "…"`（键名像凭据 + **带引号的值**） | 本机配置文件，且写进 `.gitignore` |
 | 个人联系方式 | 手机号、QQ、微信号、私人邮箱 | 要署名就用仓库主页 |
-| 含真名的本机路径 | `C:\Users\<真名>\…`、`E:\tmp\…` | 相对路径 / `%LOCALAPPDATA%` / 环境变量 |
+| 含真名的本机路径 | `C:\Users\<真名>\…`（**机器判**）；文档里尽量别写 `E:\…` 这类本机构建路径（**人眼判**：它不泄密，但换台机器就指不到东西） | 相对路径 / `%LOCALAPPDATA%` / 环境变量 |
 
 - 例外只有一处：三方署名里的上游作者邮箱（`THIRD-PARTY-NOTICES.md` / `LICENSE`），法律要求保留。
 - 机器把关：`python scripts/check_secrets.py`（`violations: 0` 才算过；已配负向验证——
