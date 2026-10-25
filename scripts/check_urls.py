@@ -1,22 +1,26 @@
-"""把 index.json 里的下载地址**真下载一遍**，核对字节数与 sha256。
+"""把 index.json 里的下载地址**真下载一遍**，核对字节数。
 
 为什么要这个脚本：清单的 `url` 是人工填的（生成器没有网络，不臆造地址）。
-填错的后果不是"下不了"这么简单——宿主的「可下载」页会列出一堆点了 404 的按钮，
-而作者本地一切正常。2026-10-26 就撞过：旧清单里 pro/raw 指向一个不存在的
-批次 tag，四条地址里两条是 404，直到手工 curl 才发现。
+填错的后果不是"下不了"这么简单——宿主的「解码器 / 可下载」卡会列出一排点了 404 的按钮，
+而作者本地一切正常。2026-10-26 就撞过：旧清单里 pro/raw 指向一个不存在的批次 tag，
+四条地址里两条是 404，直到手工 curl 才发现。
 
 判据（任何一条不过即退出码 1）：
   1. HTTP 200（跟随重定向；gitee release 资产会跳一次）；
   2. `Content-Length` 与清单 `size` 一致；
-  3. 实际下载字节的 sha256 与清单 `sha256` 一致。
+  3. 实际下载字节数与该 `size` 一致。
+
+清单里**没有 sha256**（2026-10-26 精简：一句 `size` 顶掉 `file` + `sha256` 两个字段，
+理由见 `scripts/make_index.py` 头部）。脚本仍会打印实收字节的 sha256：人工核对、
+或者哪天要把哈希加回清单时，这里就是现成的出处。
 
 没有 `url` 的条目（尚未发布）只打印提示，不算失败——**清单如实说"还没发布"是对的**，
 不能因此判红，否则大家会把地址乱填一气来消红。
 
 用法（从仓库根）：
-    python scripts/check_urls.py            # 全部；缺地址只提示
-    python scripts/check_urls.py --strict   # 缺地址也判失败（发布前体检用）
-    python scripts/check_urls.py common     # 只查指定 id
+    py scripts/check_urls.py            # 全部；缺地址只提示
+    py scripts/check_urls.py --strict   # 缺地址也判失败（发布前体检用）
+    py scripts/check_urls.py common     # 只查指定 id
 """
 import hashlib
 import io
@@ -53,13 +57,17 @@ def main(argv):
 
     with io.open(INDEX, encoding='utf-8-sig') as f:
         doc = json.load(f)
+    if not isinstance(doc, list):
+        print('清单顶层应当是数组（一项一枚 DLL）；见到的是 '
+              f'{type(doc).__name__}。先跑 py scripts/make_index.py。')
+        return 1
 
     bad, unpublished = [], []
-    for ent in doc['plugins']:
+    for ent in doc:
         pid = ent['id']
         if only and pid not in only:
             continue
-        url = (ent.get('url') or {}).get('gitee')
+        url = ent.get('url') or ''
         if not url:
             unpublished.append(pid)
             print(f'  SKIP {pid}: 尚无下载地址（未发布）')
@@ -83,8 +91,6 @@ def main(argv):
             problems.append(f'Content-Length {length:,} != 清单 {ent["size"]:,}')
         if got != ent['size']:
             problems.append(f'实收 {got:,} B != 清单 {ent["size"]:,} B')
-        if digest != ent['sha256']:
-            problems.append(f'sha256 {digest[:16]}… != 清单 {ent["sha256"][:16]}…')
         if problems:
             bad.append(f'{pid}: ' + '; '.join(problems))
             print('       FAIL ' + '; '.join(problems))

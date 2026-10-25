@@ -20,23 +20,46 @@ RuPix 看图器的**解码插件**源码工程：三个 cargo workspace（档 / 
 | [`raw`](decoders/raw/README.md) | 0.4.0 | **40**：29 种相机 RAW（cr2 cr3 nef arw dng …）+ raw rgb rgba gray gry bgra yuv i420 yv12 nv12 yuy2 uyvy | 7,542,272 B | 未发布（本地已构建，release 还没上传） |
 | [`pro`](decoders/pro/README.md) | 0.1.0 | **33**：jp2 j2k j2c jpc jpx jpf jpt jxr wdp hdp exr ktx ktx2 dcm dicom nii nrrd mrc mrcs ccp4 map pcx pcc dcx icns wbmp xbm xcf wmf ase aseprite djvu djv | 8,266,240 B | 未发布（本地已构建，release 还没上传） |
 
-**下载地址**（release 资产，tag 与 `<id>_<version>` 同名；2026-10-26 逐条实测可下、字节数与
-sha256 与本地构建产物逐字节一致）：
+**下载地址**（release 资产，tag 与 `<id>_<version>` 同名；2026-10-26 逐条实测可下，
+实收字节数与清单里的 `size` 一致）：
 
 ```text
 [common-dl]: https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.1.0/common_0.1.0.dll
 [modern-dl]: https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.1.0/modern_0.1.0.dll
 ```
 
-| 文件 | 大小 | sha256 |
-|---|---|---|
-| `common_0.1.0.dll` | 1,967,104 B | `086fbdbdfaceb964b6ab27cc354975110dc4d89a73468a1aec75598488931037` |
-| `modern_0.1.0.dll` | 7,465,472 B | `12c6588b140630176930c5dc1a6c73d065e890aa6a153f841b840cc1956ef7ac` |
+| 文件 | 大小 |
+|---|---|
+| `common_0.1.0.dll` | 1,967,104 B |
+| `modern_0.1.0.dll` | 7,465,472 B |
 
-★ **清单里的地址是人工维护的**：`scripts/make_index.ps1` 没有网络，无从判断某个 release 到底存不存在，
+★ **清单里的地址是人工维护的**：`scripts/make_index.py` 没有网络，无从判断某个 release 到底存不存在，
 所以它**不臆造地址**——缺地址的条目会在跑完时列成 `MISSING url`，`index.json` 里该条目 `url` 为空。
 上传完一枚 DLL 就把释放资产地址填进对应条目，再跑一次生成器（地址会被原样保留）。
 `scripts/check_urls.py` 负责把清单里的地址真下载一遍核对。
+
+### `index.json` 长什么样
+
+**顶层就是一个数组，一项一枚 DLL。** 没有 `schema` / `updated` / `plugins` 包裹层——清单里只有
+一种东西（DLL），那就只写这一种东西；早先每项还带 `file` / `sha256` / `author` / `homepage` /
+`minHost` / `tag` / `notes` / `url{gitee,github}`，2026-10-26 一并砍掉（理由见
+`scripts/make_index.py` 头部：文件名能从 `id`+`version` 算出来，而 `size` 给出的完整性判据
+比一串 64 位哈希更好懂）。九个字段，顺序固定：
+
+| 字段 | 例 | 说明 |
+|---|---|---|
+| `id` | `common` | 解码器标识；宿主按它认人（**不从文件名反推**） |
+| `name` | `Common Raster Set` | 解码器名称（DLL 自述，**不是 DLL 文件名**） |
+| `version` | `0.1.0` | 版本号 |
+| `abi` | `4` | ABI 大版本，宿主按它决定收不收 |
+| `size` | `1967104` | 字节数；下载后按它比对——**这就是完整性校验** |
+| `released` | `2026-10-26` | 发布时间；未发布为空串 |
+| `desc` | `常见位图合集：…` | 一句话说明（DLL 自述） |
+| `formats` | `jpg;jpeg;jpe;…` | 认领的扩展名，**分号分隔、不带点**（与 ABI `extensions` 同形） |
+| `url` | `https://…/common_0.1.0.dll` | 下载地址；未发布为空串 |
+
+宿主的「解码器 / 可下载」卡读的就是这份：
+`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoder/raw/master/index.json`。
 
 合并的动机只有一个：**省体积**。每枚独立插件自带一份底座（空壳 + Rust 运行时，按 `qoi`
 那枚 192 KB 反推约 150 KB/枚）；合成一枚后底座只剩一份，库本体一分不少。合并**不改变
@@ -95,10 +118,10 @@ sha256 与本地构建产物逐字节一致）：
 │   ├── check_caps.py       闸值一致性：MAX_PIXELS 同值 + 与宿主/make_samples 的镜像值对齐
 │   ├── check_claims.py     后缀认领门禁：四档的 extensions 两两不相交
 │   ├── check_anchors.py    行锚嫌疑名单（advisory，恒 exit 0；名单给人判，不当结论）
-│   └── make_index.ps1      生成 index.json（在线插件源清单，读 DLL 自述；url 按 release tag 拼）
+│   └── make_index.py       生成 index.json（可下载清单：一项一枚 DLL，读 DLL 自述；url 人工维护）
 ├── 插件开发规范.md          契约正文（C-ABI 规格、认领规则、发布约定）
 ├── THIRD-PARTY-NOTICES.md  发布 DLL 的第三方库与许可证（随 release 分发）
-├── index.json              在线插件源清单（4 档，url 走 release 资产）
+├── index.json              可下载清单（顶层数组，一项一枚 DLL；宿主从 raw 读它）
 ├── AGENTS.md               本仓库硬约束 + 新增解码器操作顺序
 └── LICENSE                 AGPL-3.0
 ```
@@ -110,7 +133,7 @@ sha256 与本地构建产物逐字节一致）：
 | `../.temp/decoder-target/` | 档的 cargo 中间产物、形态 B 的 `cbuild/<id>`、`toolchain_report.txt` | `build.ps1` 从 `.cargo/config.toml` 读出这个路径；可用 `CARGO_BUILD_TARGET_DIR` 覆盖 |
 | `../../.temp/bench-target/`（相对 bench/） | 单库的 cargo 中间产物 | `bench/.cargo/config.toml` 钉死 |
 | `../.temp/pro-target/` | pro 独立 workspace 的 cargo 中间产物 | `decoders/pro/.cargo/config.toml` 钉死；`build.ps1` 把 `pro.dll` 拷回根 target 再发布 |
-| `../.temp/decoder-dist/` | 发布暂存：`<id>_<ver>.dll`（对外走 gitee release 资产，不进仓库） | `build.ps1` 写、`scripts/make_index.ps1` 读；可用 `RUPIX_DIST_DIR` 覆盖 |
+| `../.temp/decoder-dist/` | 发布暂存：`<id>_<ver>.dll`（对外走 gitee release 资产，不进仓库） | `build.ps1` 写、`scripts/make_index.py` 读；可用 `RUPIX_DIST_DIR` 覆盖 |
 | `../.temp/testdata/` | 按后缀生成的 1/10/100 MiB 雪花样本 + `manifest.json` | `testdata/make_samples.py` 写；可用 `RUPIX_SAMPLE_DIR` 覆盖 |
 
 当前构建**不依赖 `../.3rd/`**（纯 Rust 化后没有 C 源）。`../.3rd/` 里剩的
@@ -165,8 +188,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
 ```powershell
 python scripts/check_deps.py            # 依赖门禁，violations: 0 才算过
 python scripts/check_docs.py            # 文档门禁，missing: 0 才算过
-powershell -File scripts/make_index.ps1 # 生成清单 index.json（每枚一个 tag）
-python scripts/check_urls.py            # 清单里的地址真下一遍，核对大小与 sha256
+py scripts/make_index.py                # 生成清单 index.json（一项一枚 DLL，url 保留手填值）
+python scripts/check_urls.py            # 清单里的地址真下一遍，核对字节数
 ```
 
 下载地址是 **release 资产**，形如
@@ -222,14 +245,14 @@ python scripts/check_urls.py            # 清单里的地址真下一遍，核�
   发布暂存 = `../.temp/decoder-dist`。发布一次的动作顺序：
 
   1. `build.ps1` 编出 4 枚 DLL 并镜像到宿主 `../.build/decoders`；
-  2. 把发布目录里那 3 枚 DLL 传成 gitee 的一个 **release**，记下 tag（如 `decoders-2026.10.25`）；
-  3. `make_index.ps1 -Tag <同一个 tag>`，提交更新后的 `index.json`；
+  2. 每枚 DLL 传成**自己的一个 release**，tag 用 `<id>_<version>`（与资产文件名同名）；
+  3. 把资产地址填进 `index.json` 对应条目的 `url`（或 `py scripts/make_index.py --set-url <id>=<地址>`），提交；
   4. 宿主拉 `raw/master/index.json`，按 `url` 去 release 下 DLL。
 
   ⇒ **清单可以先提交、资产后上传**（那段时间 url 会 404，宿主如实报下载失败）；
   反过来不行：`index.json` 不提交，宿主不知道有新版。
-* **还没有 GitHub 镜像**。`url` 保持对象结构（当前只有 `gitee` 一项）；要加镜像时给
-  `make_index.ps1` 传 `-GithubRepo <name>`，同 tag 下再发一份资产即可。
+* **还没有 GitHub 镜像**。`url` 是单个字符串（指向 gitee release 资产）；真要加镜像，
+  那是清单结构的一次改动（加第二份地址），不是给生成器塞个参数就算完。
 * 仓库名：目录现在叫 `RuPix-Decoder/`，与 gitee 远端同名（clone 前后路径一致）。
 * 尚未做：`pro`（jp2/jxr/exr/ktx2/dicom…）、`rust-full`（并集安装档）、
   `jpegturbo` 加速包（只声明 `CAP_SCALED`）。分层与后缀路由表见宿主 `.plan/m138`。

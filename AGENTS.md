@@ -143,13 +143,18 @@
 - **同 id 只留一份 DLL**：升版本后手工删发布目录里的旧文件——
   Windows 不允许覆盖已加载 DLL，留两份会让宿主重复加载同 id 插件。
 - 无清单文件随 DLL 走：宿主扫全部 `*.dll` 读 `iv_plugin_info()` 自述。唯一的清单是
-  `index.json`（在线插件源用，由 `scripts/make_index.ps1` **从发布目录里的 DLL 自述**生成，
-  id/abi 与文件名不符即硬报错、不落盘；同 id 出现两份构建也硬报错）。下载地址是
-  **release 资产**（`.../releases/download/<tag>/<file>`），tag = `<id>_<version>`（每枚一个
-  release）。`-Tag` 只在"一次发布带上全部 DLL"的批式发布时用；否则 `url` 由人填、生成器保留。生成器只覆盖它从二进制读到的字段——`notes` 与手加的
-  额外键**原样保留**，url 变化会逐条打印 `NOTE`。
+  `index.json`（宿主「可下载」卡读的那份，由 `scripts/make_index.py` **从发布目录里的 DLL 自述**
+  生成，id/abi 与文件名不符即硬报错、不落盘；同 id 出现两份构建也硬报错）。
+  **顶层就是一个数组，一项一枚 DLL**，九个字段：`id` / `name`（自述里的解码器名，不是 DLL
+  文件名）/ `version` / `abi` / `size` / `released` / `desc` / `formats`（分号分隔、不带点，
+  与 ABI `extensions` 同形）/ `url`。2026-10-26 精简掉的东西——`schema` / `updated` /
+  `plugins` 包裹层、`file`（能从 id+version 算）、`sha256`（`size` 就够：半截 DLL 过不了
+  `iv_plugin_info` 自述校验）、`author` / `homepage` / `minHost` / `tag` / `notes`。
+  下载地址是 **release 资产**（`.../releases/download/<tag>/<file>`），tag = `<id>_<version>`
+  （每枚一个 release）。`url` 与 `released` 由人填、生成器**原样保留**；缺地址的项在收尾
+  列成 `MISSING url`，`url` 为空、`released` 也随之为空。
 - **发布清单 = `decoders/` 下的目录，别的不算**：`build.ps1` 按 `decoders/*` 枚举，
-  `make_index.ps1` 也只收 `decoders/` 里存在的 id。`decoders/` 里**只放档**
+  `make_index.py` 也只收 `decoders/` 里存在的 id。`decoders/` 里**只放档**
   （一个文件夹一枚发布 DLL）；单库住 `bench/singles/`，**永远不进发布目录**。曾有的测试夹具 `test-plugins/testred`
   （认领 `.png` 渲 1×1 纯红，用于宿主首选路由端到端）已于 2026-10-16 按用户要求移除——
   首选路由的正向判定改由 `<宿主>/src/decoders/` 层（`select.rs` 的仲裁）的
@@ -261,7 +266,7 @@
    `decoders/<tier>/README.md`（成员表 + 认领后缀）、`插件开发规范.md` §八自查清单、
    根 `README.md` 的两张表、宿主 `<宿主>/docs/架构总览.md` §四插件矩阵、
    `<宿主>/docs/图片格式与后缀名.md` 归属列、`<宿主>/README.md` 插件表、
-   本文件第二节版本现状；最后 `scripts/make_index.ps1` 重生成清单。
+   本文件第二节版本现状；最后 `py scripts/make_index.py` 重生成清单。
 8. **行锚怎么写才不会被搬漂**：`decoders/<id>/README.md` 里的 `:N-M` 只是给人导航的便利，**能站住的判据是名字**。
    写成 `` `fn_name`（`:120-135`）``，别裸写行号；改过某个 `src/lib.rs` 的行数，就把那一份的锚点重走一遍：
    - `python scripts/check_docs.py` —— **硬门禁**（越界、整段空行、以及"文件里有裸 NUL 字节"）。
@@ -294,8 +299,8 @@
 | 手动测试（档） | `cargo test --release --workspace -- --test-threads=1` | 全绿，用例数不低于上一版 |
 | 手动测试（单库） | `cd bench` → `cargo test --release --workspace -- --test-threads=1` | 全绿；单库不发布，但档的成员全靠它们，必须同步验 |
 | 产物 | 检查发布目录与宿主插件目录 | 仅 `<id>_<ver>.dll`，同 id 一份，命名合规 |
-| 清单 | `powershell -File scripts\make_index.ps1` | id/abi 与 DLL 自述逐一对齐、无重复 id，`index.json` 落盘；`tag` 按 `<id>_<version>` 派生，`url` 人工维护、缺地址在收尾列成 `MISSING url` |
-| 地址 | `python scripts\check_urls.py` | 把清单里的地址真下载一遍，核对字节数与 sha256；404 或对不上即判红 |
+| 清单 | `py scripts\make_index.py` | 一项一枚 DLL（顶层就是数组）；id/abi/name/formats 与 DLL 自述逐一对齐、无重复 id，`index.json` 落盘；`url` 人工维护、缺地址在收尾列成 `MISSING url` |
+| 地址 | `py scripts\check_urls.py` | 把清单里的地址真下载一遍，核对 `Content-Length` 与实收字节数是否等于清单 `size`；404 或对不上即判红（未发布条目只提示、不判红） |
 | 格式化 | `cargo fmt --check` | exit 0 |
 | Lint | `cargo clippy --all-targets --workspace --release -- -D warnings` | exit 0。**必须带 `-D warnings`**：不带时 clippy 打完警告照样返回 0，等于没有门禁 |
 | 宿主侧门禁（并排开发时） | `python <宿主>/build/layering_scan.py`、`python <宿主>/build/hygiene_scan.py` | 两条 `violations: 0` |

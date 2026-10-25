@@ -422,13 +422,15 @@ if ($symPlugins) { Write-Host ("symbols   -> {0} ({1} pdb)" -f $symPlugins, $sym
 Write-Host ("done: {0} plugin(s) published to {1} (abi v{2})" -f $published, $dst, $abiV)
 
 # --- catalogue freshness: does index.json still describe the DLLs just built? ---
+# index.json is a FLAT ARRAY, one object per DLL (2026-10-26 slimming: no schema /
+# plugins / file / sha256 - see scripts/make_index.py for why `size` is enough).
 # Two different things get checked, because they mean different things:
-#   * STRUCTURE (a file/version the catalogue does not list, or lists but is not
-#     here) is a real gap - the host would 404 or offer a plugin that is gone.
-#   * BYTES (sha256 differs) is expected after any relink: the cdylib embeds a
-#     fresh CodeView GUID, so `core`/`raw` can change without a source edit.
-#     Publishing a stale sha256 fails SAFE on the host (refused install), so this
-#     one is a one-liner: regenerate before you upload, do not panic.
+#   * STRUCTURE (a DLL the catalogue does not list, or lists but is not here) is a
+#     real gap - the host would 404 or offer a decoder that is gone.
+#   * BYTES (size differs) is expected after any relink: the cdylib embeds a
+#     fresh CodeView GUID, so a DLL can change without a source edit. Publishing
+#     a stale size fails SAFE on the host (refused install), so this one is a
+#     one-liner: regenerate before you upload, do not panic.
 # Neither is fatal, because the catalogue cannot be regenerated until the release
 # tag is known.
 $indexPath = Join-Path $root "index.json"
@@ -437,18 +439,26 @@ if (Test-Path $indexPath) {
     $drift = @()
     $catCount = 0
     try {
+        # NOT @(...) around the pipeline: in PS 5.1 ConvertFrom-Json emits a
+        # top-level JSON array as ONE non-enumerated object, so @(pipeline) wraps
+        # that array in a second one - count becomes 1 and $e.id is an array
+        # (measured 2026-10-26: "1" and "System.Object[]_System.Object[].dll").
+        # Plain assignment keeps Object[]; the -isnot guard covers a one-entry
+        # catalogue, where PowerShell may collapse the array to a single object.
         $cat = Get-Content -Raw -Path $indexPath -Encoding UTF8 | ConvertFrom-Json
-        $catCount = @($cat.plugins).Count
+        if ($cat -isnot [System.Array]) { $cat = @($cat) }
+        $catCount = $cat.Count
         $listed = @{}
-        foreach ($e in $cat.plugins) {
-            $listed[[string]$e.file] = $true
-            $dll = Join-Path $dst ([string]$e.file)
+        foreach ($e in $cat) {
+            # filename is derived, not stored: <id>_<version>.dll
+            $fname = "{0}_{1}.dll" -f $e.id, $e.version
+            $listed[$fname] = $true
+            $dll = Join-Path $dst $fname
             if (-not (Test-Path $dll)) {
-                $gaps += ("{0}: {1} is listed but not in the publish dir" -f $e.id, $e.file)
+                $gaps += ("{0}: {1} is listed but not in the publish dir" -f $e.id, $fname)
                 continue
             }
-            $h = (Get-FileHash -Algorithm SHA256 $dll).Hash.ToLower()
-            if ($h -ne $e.sha256) { $drift += [string]$e.id }
+            if ((Get-Item $dll).Length -ne [int64]$e.size) { $drift += [string]$e.id }
         }
         foreach ($f in (Get-ChildItem $dst -Filter "*.dll" -File)) {
             if (-not $listed[$f.Name]) { $gaps += ("{0} is built but not in the catalogue" -f $f.Name) }
@@ -460,10 +470,10 @@ if (Test-Path $indexPath) {
     if ($gaps.Count -gt 0) {
         Write-Host "WARNING: index.json does not describe this build - fix before publishing:"
         foreach ($g in $gaps) { Write-Host ("  {0}" -f $g) }
-        Write-Host ("  fix: powershell -File scripts\make_index.ps1 -Tag <release tag>")
+        Write-Host ("  fix: py scripts\make_index.py")
     } elseif ($drift.Count -gt 0) {
-        Write-Host ("catalogue : {0} of {1} sha256 differ (relinked: {2}) - rerun make_index.ps1 before" -f $drift.Count, $catCount, ($drift -join ", "))
-        Write-Host "            uploading, or the host refuses the download on a hash mismatch"
+        Write-Host ("catalogue : {0} of {1} size differ (relinked: {2}) - rerun make_index.py before" -f $drift.Count, $catCount, ($drift -join ", "))
+        Write-Host "            uploading, or the host refuses the download on a size mismatch"
     } else {
         Write-Host ("catalogue : index.json matches the {0} built DLL(s)" -f $catCount)
     }
