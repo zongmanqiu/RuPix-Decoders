@@ -1,0 +1,19 @@
+[package]
+name = "rupix-pro-sci"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：科学体数据首层（NIfTI / NRRD / MRC/CCP4）"
+
+[lib]
+name = "pro_sci"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../../pro-support" }
+flate2 = "1"

@@ -1,0 +1,32 @@
+[package]
+name = "rupix-tiff"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码插件：TIFF（tiff crate 直调，本机实测冠军）"
+
+[lib]
+# 目录名 = 插件 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "tiff"
+crate-type = ["cdylib", "rlib"]
+# 关掉 doc-test：本 crate 的 lib name 是 `tiff`，与上游 `tiff` crate **同名**，
+# 而 doc-test 会同时拿到 `--extern tiff=<本插件 rlib>` 与 `--extern tiff=<上游 rlib>`，
+# rustdoc 直接 E0464（multiple candidates）。本 crate 的文档里没有可执行示例，
+# 关掉不丢覆盖；换掉 lib name 会破「目录名 = 插件 id = lib name」这条铁律，不划算。
+doctest = false
+
+[features]
+# 独立插件形态：生成 iv_abi_version / iv_plugin_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+# G1 实测冠军（2026-10-15，run r1792006432，n=200 median，同一 run 内配对）：
+#   tiff crate 直调 27.00 ms（1.00×） / core 现走的 `image` 路线 33.51 ms（1.24×）
+#   / WIC 基线 63.55 ms（2.35×）。
+# 与 JPEG 同一结论：**快的不是库，是调用方式**——`image` 的 TIFF 适配层多一次
+# `DecodingResult` → `ImageBuffer` → `into_rgba8()` 的逐像素搬运，直调省掉它。
+# libtiff（C）没在本机测过，所以不宣称它更快——未实测的候选不进 roster。
+tiff = "0.11"

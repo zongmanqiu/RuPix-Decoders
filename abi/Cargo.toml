@@ -1,0 +1,8 @@
+[package]
+name = "rupix-abi"
+version = "0.4.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 插件 C-ABI 契约 + 插件样板 kit（guard / last-error / export_plugin!）：唯一真源，宿主与全部解码插件共同依赖"
+
+[dependencies]

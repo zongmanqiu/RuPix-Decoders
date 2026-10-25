@@ -1,0 +1,20 @@
+[package]
+name = "rupix-pro-jxr"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：JPEG XR（jxr =0.2.1，纯 Rust）"
+
+[lib]
+name = "pro_jxr"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../../pro-support" }
+# 0.3.x 要求 rustc 1.99（本机 1.97）；锁死 0.2.1。
+jxr = "=0.2.1"

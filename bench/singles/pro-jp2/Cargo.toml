@@ -1,0 +1,19 @@
+[package]
+name = "rupix-pro-jp2"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：JPEG 2000（hayro-jpeg2000，JP2 容器与裸 codestream）"
+
+[lib]
+name = "pro_jp2"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../../pro-support" }
+hayro-jpeg2000 = "0.4.1"

@@ -1,0 +1,39 @@
+[package]
+name = "rupix-av"
+version = "0.3.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码插件：现代格式（HEIC/HEIF/AVIF）"
+
+[lib]
+# 目录名 = 插件 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "av"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立插件形态：生成 iv_abi_version / iv_plugin_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+
+# ── HEIC/HEIF：heif-oxide（纯 Rust，零 unsafe，MIT/Apache）──
+# 解 ISO/IEC 23008-12 容器 + 纯 Rust HEVC（rust_h265）：iPhone 照片的 grid 拼图、
+# 8/10-bit、Display P3、irot/imir/clap 方向都在解码器内处理完，输出即 sRGB RGBA。
+# 已知限制：单色 (4:0:0) alpha 通道解不了（输出无 alpha）；AVIF 载荷会明确报错
+# （由下面的 zenavif 接管）。纯标量 HEVC，慢于 libheif——12 MP（3000×4000）实测一趟 **222 ms**
+# （`bench_decode`，2026-10-21 m77，旧注释写的"约秒级"没有背书）。同一张图的第二次请求
+# 由 `decode_cached` 的内容键缓存兜住（m77 起 HEIF 也进），不再付第二趟。
+heif-oxide = "0.1"
+
+# ── AVIF：zenavif（纯 Rust，rav1d-safe 后端，零 unsafe 解码路径）──
+# 8/10/12-bit、全部色度抽样、alpha、动图（取首帧）。容器解析自带。
+# 方向元数据（irot/imir）它不应用——宿主按 orientation 字段补转（见 lib.rs）。
+zenavif = "0.1"
+
+# zenavif 的解码输出是 rgb crate 的 RGBA 类型（8/16-bit），按描述符取像素用。
+rgb = "0.8"
+# PixelBuffer 的 PixelFormat 枚举（zenavif 只 re-export 了 PixelBuffer 本身）。
+zenpixels = "0.2"

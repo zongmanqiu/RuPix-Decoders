@@ -1,0 +1,63 @@
+# RuPix 解码插件仓库行尾治理
+#
+# 为什么需要这个文件（缺了会静默出事，同宿主 main/.gitattributes 的理由）：
+#   * `.bat` 交给 cmd.exe 解析。LF-only 的 .bat 里 cmd 会错误解析括号块，
+#     表现是「流水线每跑必停、输出却像正常结束」。
+#   * `LICENSE` 无扩展名，必须显式声明为文本，否则 git 按二进制处理。
+#   * PowerShell 5.1 把无 BOM 的 UTF-8 读成 ANSI（踩坑 K27），所以 build.ps1 /
+#     toolchain.ps1 这类脚本刻意保持纯 ASCII —— 别让编辑器顺手往 .ps1 里塞中文。
+
+# cmd.exe 脚本强制 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 源码 / 文档 / 配置统一 LF
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.ps1 text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+CMakeLists.txt text eol=lf
+LICENSE text eol=lf
+Cargo.lock text eol=lf
+
+# 二进制资产与产物：绝不碰
+*.dll binary
+*.exe binary
+*.obj binary
+*.lib binary
+*.exp binary
+*.pdb binary
+# testdata/golden/ 里实际存在的图像后缀（2026-10-25 按目录清单逐个补，
+# 不声明的后果是 git 按内容猜——猜对了没事、猜错了会把换行字节改坏，
+# 而 golden 的字节就是断言本身）。
+*.png binary
+*.jpg binary
+*.jpe binary
+*.avif binary
+*.jxl binary
+*.tif binary
+*.tiff binary
+*.gif binary
+*.webp binary
+*.bmp binary
+*.ico binary
+*.psd binary
+*.hdr binary
+# 真机 RAW 夹具（4 枚）
+*.cr2 binary
+*.cr3 binary
+*.nef binary
+*.dng binary
+*.raf binary
+*.arw binary
+*.rw2 binary
+*.svg binary
+*.gz binary
+*.zip binary

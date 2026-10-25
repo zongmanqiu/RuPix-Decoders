@@ -1,0 +1,22 @@
+[package]
+name = "rupix-modern"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 合并解码插件：现代格式（HEIC/HEIF/AVIF + JPEG XL）"
+
+[lib]
+# 目录名 = 插件 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "modern"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# 本 crate 属于仓库根的档 workspace：契约与路由内核走 workspace 继承。
+rupix-abi = { workspace = true }
+rupix-merge-router = { workspace = true }
+
+# 成员一律 `default-features = false`：关掉各自的 `standalone`，只拿 `*_impl`。
+#   av  = heic（HEVC 解码，开 `av1` feature 后连 AVIF 一起解）
+#   jxl = jxl-oxide
+rupix-av = { path = "../../bench/singles/av", default-features = false }
+rupix-jxl = { path = "../../bench/singles/jxl", default-features = false }

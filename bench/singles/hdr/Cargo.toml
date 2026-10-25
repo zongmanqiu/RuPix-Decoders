@@ -1,0 +1,25 @@
+[package]
+name = "rupix-hdr"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码插件：Radiance HDR（image 的 hdr feature，float 路径 → RGBA8）"
+
+[lib]
+# 目录名 = 插件 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "hdr"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立插件形态：生成 iv_abi_version / iv_plugin_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+# 只开 hdr 一个 feature：`hdr = []` 在上游不引入任何**新** crate
+# （bytemuck / byteorder-lite / num-traits 是 image 的固定依赖，树里早有），
+# 而默认的 `default-formats` 会把 avif（含一整个 AV1 编码器）、exr、qoi 全链进来。
+# 与 core 用的是同一个 image crate、同一个版本——DLL 里不会出现两份 HDR 解码器。
+image = { version = "0.25", default-features = false, features = ["hdr"] }

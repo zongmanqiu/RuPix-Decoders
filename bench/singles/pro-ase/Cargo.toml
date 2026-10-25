@@ -1,0 +1,19 @@
+[package]
+name = "rupix-pro-ase"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：Aseprite（aseprite-loader，渲染第 0 帧可见图层）"
+
+[lib]
+name = "pro_ase"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../../pro-support" }
+aseprite-loader = "0.4.2"

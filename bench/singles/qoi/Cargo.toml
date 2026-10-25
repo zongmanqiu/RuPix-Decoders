@@ -1,0 +1,22 @@
+[package]
+name = "rupix-qoi"
+version = "0.3.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码插件：Quite OK Image (QOI)"
+
+[lib]
+# 目录名 = 插件 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "qoi"
+# rlib 是给**合并库**准备的装配接口（`probe_impl` / `render_impl`）：
+# 合并库以 `default-features = false` 依赖本 crate，拿不到 `iv_*` 导出，只拿到 impl。
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立插件形态：生成 iv_abi_version / iv_plugin_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }

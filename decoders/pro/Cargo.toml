@@ -1,0 +1,46 @@
+[package]
+name = "rupix-pro"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 专业档：JPEG2000 / JPEG XR / EXR / KTX2 / DICOM / 科学影像 / 设计/矢量"
+readme = "README.md"
+
+[lib]
+name = "pro"
+crate-type = ["cdylib", "rlib"]
+
+# pro 是独立构建图：避免它的 image/exr/resvg 依赖把 EXR/AVIF 等后端
+# 通过 feature 统一编进 common/raw（实测 common +685 KB、raw +834 KB）。
+[workspace]
+resolver = "2"
+
+[workspace.dependencies]
+rupix-abi = { path = "../../abi" }
+rupix-merge-router = { path = "../../router" }
+rupix-pro-support = { path = "../../pro-support" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+debug = 1
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-merge-router = { workspace = true }
+rupix-pro-support = { workspace = true }
+
+rupix-pro-jp2 = { path = "../../bench/singles/pro-jp2", default-features = false }
+rupix-pro-jxr = { path = "../../bench/singles/pro-jxr", default-features = false }
+rupix-pro-exr = { path = "../../bench/singles/pro-exr", default-features = false }
+rupix-pro-ktx2 = { path = "../../bench/singles/pro-ktx2", default-features = false }
+rupix-pro-dicom = { path = "../../bench/singles/pro-dicom", default-features = false }
+rupix-pro-sci = { path = "../../bench/singles/pro-sci", default-features = false }
+rupix-pro-small = { path = "../../bench/singles/pro-small", default-features = false }
+rupix-pro-xcf = { path = "../../bench/singles/pro-xcf", default-features = false }
+rupix-pro-ase = { path = "../../bench/singles/pro-ase", default-features = false }
+rupix-pro-djvu = { path = "../../bench/singles/pro-djvu", default-features = false }
+rupix-pro-wmf = { path = "../../bench/singles/pro-wmf", default-features = false }
