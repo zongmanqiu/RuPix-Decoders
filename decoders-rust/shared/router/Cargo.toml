@@ -1,0 +1,17 @@
+[package]
+name = "rupix-merge-router"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 合并档共用的路由内核：探针取最高分，查询与渲染两阶段都按置信度让位"
+
+[lib]
+# 只有 rlib：它不是解码器，不产出 DLL（build.ps1 只发布带 cdylib 的档）。
+name = "rupix_merge_router"
+crate-type = ["rlib"]
+
+[dependencies]
+# 显式路径：router 是仓库根的顶层成员（档 workspace 的成员之一），
+# 与三个档平级；用 `workspace = true` 也可以（根 `[workspace.dependencies]`
+# 里有 rupix-abi），这里显式写路径只为与档的成员表保持同一种风格。
+rupix-abi = { workspace = true }

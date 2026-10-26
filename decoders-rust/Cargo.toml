@@ -1,0 +1,60 @@
+[workspace]
+resolver = "2"
+members = [
+    "shared/router",
+    "shared/pro-support",
+    "decoders/common",
+    "decoders/modern",
+    "decoders/raw",
+]
+# 单库（`singles/`）是**第二个构建图**，不是本 workspace 的成员。
+# 它们同时是独立解码器（`standalone` feature 生成 `#[no_mangle] iv_*`），而档以
+# `default-features = false` 依赖它们、只取 `*_impl`。同一个 cargo 调用里两种
+# 形态并存时 feature 取**并集**，档就会链进 N 份 `iv_abi_version`，链接器直接
+# 报重名（2026-10-25 实测 `LNK2005: iv_abi_version 已经在 common… 中定义`）。
+# cargo 没有"按依赖方隔离 feature"的开关，所以切成两个 workspace：
+#   `cargo build --workspace`（本目录）→ 三个档 DLL（**发布产物**）
+#   `cargo build --workspace`（singles/）→ 单库 DLL（横评、A/B 排查用）
+# 两个 target 目录互不干扰（`singles/.cargo/config.toml` 钉 `../../../.temp/singles-target`），
+# 谁也不会把谁重编一遍。
+# pro 档是**第三个构建图**（2026-10-25 实测）：它的 image/exr/resvg 等依赖会与
+# common/raw 做 feature 统一，把 EXR/AVIF 等后端无差别编进每一枚 DLL
+# （common +685 KB、raw +834 KB）。所以 pro 有自己的 [workspace] 与 Cargo.lock。
+exclude = ["singles", "decoders/pro"]
+
+# ── 本仓库（独立 cargo workspace；目录名 = gitee 远端名 RuPix-Decoder）──────
+# 解码器工程的唯一约定：
+#   * `decoders/<id>/` 的目录名 = 解码器 id = [lib] name（build.ps1 靠它找产物）；
+#     `decoders/` 下**只有档**——一个文件夹一枚发布 DLL。
+#   * 单库（每格式一枚的参考实现 + 横评目标）住在 `singles/<id>/`，
+#     不发布；档是它们的装配。
+#   * `[package] version` 显式写出（build.ps1 从这里读版本号，不走 workspace 继承）；
+#   * 产物由 `build.ps1` 统一改名发布到**仓库外** `../.temp/decoder-dist/<id>_<ver>.dll`；
+#     宿主 `.build/decoders/` 只是可选同步落点，解码器工程不依赖它。
+
+[workspace.dependencies]
+# 契约 + 解码器样板（kit）同一个 crate：宿主（main）也依赖 rupix-abi，两边永远同一份定义。
+rupix-abi = { path = "../abi" }
+# 三个档共用的路由内核（router/，只有 rlib 不是解码器）。
+rupix-merge-router = { path = "shared/router" }
+# pro 档共享小工具（尺寸闸 / RGBA 回填，只有 rlib 不是解码器）。
+rupix-pro-support = { path = "shared/pro-support" }
+
+# ── 发布 profile（档是发布主产物：全局 opt-level = 3）──────────────────────
+# panic 必须保持 unwind：宿主靠 catch_unwind 隔离坏解码器，abort 会带走整个进程。
+[profile.release]
+# ★ 不照抄 bench 那边"opt-level = z + 逐包 opt-level = 3"的清单（理由见
+#   `singles/Cargo.toml` 的 profile 注释，m138 §三）：那份清单靠人一条条加、会漂，
+#   而档的成员列表以后还会变。实测代价只有 +97 KB，换来"新增成员不必补 profile"
+#   这个一劳永逸的性质。
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+# ★ 崩溃取证：与宿主 `main/Cargo.toml` 同口径（debug = 1，m129/m130）。
+#   不开的时候解码器的 pdb **只有公开符号**——实测 `iv_probe` 有名字、
+#   `SymGetLineFromAddr64` 一行都给不出，解码器里崩了只能停在 `jpeg_0.1.0.dll+0x159C68`；
+#   开了之后 `build/dump_sym.py` 能把它落到 `decoders/jpeg/src/lib.rs:NN`。
+#   MSVC 下行表只进 pdb、不进 dll，代价只在 `.temp\symbols\decoders` 的归档体积。
+debug = 1

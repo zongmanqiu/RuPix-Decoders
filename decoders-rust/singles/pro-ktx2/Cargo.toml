@@ -1,0 +1,20 @@
+[package]
+name = "rupix-pro-ktx2"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：KTX2 纹理（未压缩 + BC1/BC3/BC7）"
+
+[lib]
+name = "pro_ktx2"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+ktx2 = "0.5.0"
+texture2ddecoder = { version = "0.1.2", features = ["alloc"] }

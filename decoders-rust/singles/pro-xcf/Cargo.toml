@@ -1,0 +1,19 @@
+[package]
+name = "rupix-pro-xcf"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：GIMP XCF（xcf crate，取最大图层）"
+
+[lib]
+name = "pro_xcf"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+xcf = "0.4.0"

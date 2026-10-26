@@ -1,4 +1,4 @@
-# RuPix 解码插件仓库（RuPix-Decoder）忽略规则
+# RuPix 解码器仓库（RuPix-Decoder）忽略规则
 #
 # 本仓当前没有 git；此文件是「若接入 git 则立即生效」的卫生底线。
 # 与宿主 main/.gitignore 同源口径（三段式 + 本仓特有的「四、随仓库走的产物」），只列本仓库真正会产生的东西。
@@ -9,6 +9,7 @@
 # 忽略 target/——源码目录保持只有自家代码。若有人用 CARGO_BUILD_TARGET_DIR
 # 指回仓库内，下面这行兜底。
 /target/
+**/target/
 
 # 发布产物 dist/ **不入库**（2026-10-25 翻案：本仓是源码仓，DLL 走 release 资产发布）；
 # 而且 build.ps1 已把发布暂存挪到仓库外 `../.temp/decoder-dist`，这里只是兜底。

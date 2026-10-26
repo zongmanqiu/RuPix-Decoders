@@ -1,4 +1,4 @@
-# RuPix 解码插件仓库行尾治理
+# RuPix 解码器仓库行尾治理
 #
 # 为什么需要这个文件（缺了会静默出事，同宿主 main/.gitattributes 的理由）：
 #   * `.bat` 交给 cmd.exe 解析。LF-only 的 .bat 里 cmd 会错误解析括号块，

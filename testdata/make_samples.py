@@ -8,10 +8,11 @@ written outside the source tree, to `<repo>/../.temp/testdata/<tier>/noise<ext>`
     python testdata/make_samples.py --only .jpg,.png # a subset (suffixes, or decoder ids)
     python testdata/make_samples.py --tier 10M
     python testdata/make_samples.py --list           # print the plan, write nothing
+    python testdata/make_samples.py --check          # verify claims coverage only
 
 WHY THE SAMPLES ARE KEYED BY SUFFIX AND NOT BY DECODER
   Many libraries can decode one format and one suffix has exactly one claiming decoder
-  (scripts/check_deps.py enforces ext -> single plugin), so "the JPEG test images" are the
+  (tools/check_deps.py enforces ext -> single decoder), so "the JPEG test images" are the
   same bytes no matter who reads them. Keeping a copy per decoder meant the same 100 MiB
   file existed up to twelve times and drifted: two decoders could be tested against two
   different "10 MB png". Here a suffix is generated once and shared; the manifest still
@@ -21,35 +22,41 @@ Four choices worth knowing before editing:
 
 * Noise is the point. It is the worst case for every entropy coder, which is what lets a
   100 MiB file exist inside the size gate at all: the viewer refuses anything over 40 MP or
-  160 MB of RGBA (plugins themselves cap at 64 MP, see MAX_PIXELS below), so a bigger sample
+  160 MB of RGBA (decoders themselves cap at 64 MP, see MAX_PIXELS below), so a bigger sample
   would be a sample the host won't open and we could not measure.
 * A tier is a **floor**, not an exact size. Dimensions grow until the encoded file clears
   it. When a format cannot clear a tier inside the pixel bound or its own ceiling (1-bit PBM,
-  256 px ICO, lossless WebP at 4096, 1 B/px GRAY8, BC1 .dds at 0.5 B/px), the row reports
+  256 px ICO, 1 B/px GRAY8, BC1 .dds at 0.5 B/px), the row reports
   `capped` with the size actually achieved rather than pretending.
-* Alias suffixes share the same bytes on purpose: `.jpe .jfif .jif .jfi .exif` are JPEG under
-  another suffix, `.dib .rle` are BMP, `.icon` is ICO, `.pnm` is PPM, `.tiff` is TIFF - that is
-  how the host routes them and the decoder never sees the suffix as a hint. They are written
-  as **hard links** (0 extra bytes; at the 100 MiB tier a copy would be 100 MiB each).
-  Caveat: `.rle` gets an uncompressed BMP, so the BMP RLE4/RLE8 code paths stay untested.
+* Alias suffixes share the same bytes on purpose: `.jpeg .jpe .jfif .jif .jfi .exif` are
+  JPEG under another suffix, `.dib .rle` are BMP, `.icon` is ICO, `.pnm` is PPM, `.tiff` is
+  TIFF, `.j2k .j2c .jpc .jpx .jpf .jpt` are JP2, `.pcc` is PCX, `.mrcs .ccp4 .map` are MRC
+  and `.dicom` is DICOM - that is how the host routes them and the decoder never sees the
+  suffix as a hint. They are written as **hard links** (0 extra bytes; at the 100 MiB tier a
+  copy would be 100 MiB each). Caveat: `.rle` gets an uncompressed BMP, so the BMP RLE4/RLE8
+  code paths stay untested.
 
 Formats with no encoder reachable from here are reported in SKIP and never faked: `.jxl`
 (needs cjxl), `.heic/.heif/.avif` (need heif-enc / SVT-AV1), camera RAW (real sensor mosaic
-plus vendor metadata - synthetic bytes only ever test "cannot decode"), and core's
-`.ff` (no magic, and unlike `.tga` the decoder gives it no extension route, so it could
-only ever be a dead sample).
+plus vendor metadata - synthetic bytes only ever test "cannot decode"), core's `.ff` (no
+magic and no extension route, so it could only ever be a dead sample), and the pro formats
+with no local encoder (`.exr/.jxr/.xcf/.wmf/.ase/.djvu/.ktx2`). `--list` fails if a suffix in
+`claims.tsv` is neither generated nor explicitly skipped, so adding a decoder claim cannot
+silently leave a hole in the corpus.
 
-Dependency: Pillow, for the containers it can save. QOI, PAM/P7, Radiance .hdr, .psd, the
-DXT1 .dds and the rawpx dumps are hand-encoded below against the same specs our DLLs read.
-The .hdr writer emits literal-only scanlines, so the ">128 repeat" branch is exercised by
-the crate's own unit tests, not by these samples. .dds is written as BC1 because that is all
-core can decode: image-rs' DDS decoder accepts only DXT1/DXT3/DXT5 (plus DX10 headers in the
-BC1-BC3 range), so uncompressed RGB/RGBA DDS and BC4-BC7 stay ERR_UNSUPPORTED - Pillow opens
-them, the DLL does not, and the compressed sample is the one that tests the real path. That
-path also insists on dimensions divisible by 4, hence ROUND below.
+Dependency: Pillow, for the containers it can save. QOI, PAM/P7, Radiance .hdr, .psd, DXT1
+.dds, DCX, WBMP, KTX1, NIfTI, NRRD, MRC and DICOM are hand-encoded below against the specs
+our DLLs read. The .hdr writer emits literal-only scanlines, so the ">128 repeat" branch is
+exercised by the crate's own unit tests, not by these samples. .dds is written as BC1 because
+that is all core can decode: image-rs' DDS decoder accepts only DXT1/DXT3/DXT5 (plus DX10
+headers in the BC1-BC3 range), so uncompressed RGB/RGBA DDS and BC4-BC7 stay
+ERR_UNSUPPORTED - Pillow opens them, the DLL does not, and the compressed sample is the one
+that tests the real path. That path also insists on dimensions divisible by 4, hence ROUND
+below.
 """
 
 import argparse
+import io
 import shutil
 import json
 import math
@@ -78,13 +85,13 @@ def pil():
 ROOT = Path(__file__).resolve().parent.parent   # this file lives in <repo>/testdata/
 TIERS = [("1M", 1 << 20), ("10M", 10 * (1 << 20)), ("100M", 100 * (1 << 20))]
 # Two gates exist and the host's is the tighter one, so samples obey the tighter one:
-# plugins answer ERR_TOO_LARGE above 64 MP (the per-decoder `const MAX_PIXELS` in
-# decoders/<id>/src/lib.rs - 12 copies, kept equal by scripts/check_caps.py, which also
+# decoders answer ERR_TOO_LARGE above 64 MP (the per-decoder `const MAX_PIXELS` in
+# each decoder crate - kept equal by tools/check_caps.py, which also
 # checks the mirror value below against main/src/core/pixels.rs), while the viewer refuses
 # anything over 40 MP or 160 MB of RGBA (main/src/core/pixels.rs MAX_PIXELS). A sample above
 # the host bound is only good for testing the refusal, so we stay under it and every row in
-# the manifest is a file the viewer can actually open. To probe the 64 MP plugin gate, call
-# the ABI directly with budget_bytes = 0 (the plugin then applies only its own cap).
+# the manifest is a file the viewer can actually open. To probe the 64 MP decoder gate, call
+# the ABI directly with budget_bytes = 0 (the decoder then applies only its own cap).
 MAX_PIXELS = 40_000_000
 MAX_SIDE = int(math.isqrt(MAX_PIXELS))  # 6324
 GROW = 1.4
@@ -94,17 +101,23 @@ GROW_ATTEMPTS = 24
 DIM_CAP = {".jpg": 65500, ".png": 65500, ".apng": 65500, ".gif": 65500, ".bmp": 65500,
            ".tif": 65500, ".psd": 30000, ".tga": 65535, ".qoi": 65500, ".pnm": 65500,
            ".pgm": 65500, ".pbm": 65500, ".pam": 65500, ".dds": 16384,
-           ".webp": 16383, ".ico": 256}
+           ".webp": 16383, ".ico": 256, ".jp2": 65535, ".pcx": 65535,
+           ".icns": 1024, ".xbm": 65535, ".wbmp": 65535, ".dcx": 65535,
+           ".ktx": 16384, ".nii": 65535, ".nrrd": 65535, ".mrc": 65535,
+           ".dcm": 65535}
 MODE = {".pgm": "L", ".pbm": "1", ".webp": "RGBA", ".png": "RGBA", ".apng": "RGBA",
-        ".ico": "RGBA", ".dds": "RGBA", ".tif": "RGB", ".gif": "RGB"}
+        ".ico": "RGBA", ".dds": "RGBA", ".tif": "RGB", ".gif": "RGB",
+        ".jp2": "RGBA", ".pcx": "RGB", ".icns": "RGBA", ".xbm": "1"}
+PIL_FORMAT = {".jp2": "JPEG2000", ".pcx": "PCX", ".icns": "ICNS", ".xbm": "XBM"}
 # image-rs' DXT path (the only one core's .dds can take) rejects any header whose width or
 # height is not a multiple of 4 - Parameter(DimensionMismatch), which core reports as
 # ERR_CORRUPT. Real odd-sized BC1 files exist and stay unopenable; the sample snaps to 4 so
 # it tests the path that is supposed to work.
-ROUND = {".dds": 4}
+ROUND = {".dds": 4, ".dcm": 2}
 # Pillow 11 cannot reopen these from the bytes alone (no sniff hook), so "verify by
 # reopening" stays quiet about them - the DLL itself is the judge for those formats.
-NO_READBACK = {".pam", ".hdr"}
+NO_READBACK = {".pam", ".hdr", ".dcm", ".ktx", ".nii", ".nrrd", ".mrc",
+                ".mrcs", ".ccp4", ".map", ".dcx", ".wbmp"}
 # Suffixes whose file name is the only thing distinguishing them from the source row.
 ALIAS_NOTE = {".rle": "无压缩 BMP，BMP 的 RLE4/RLE8 分支仍未覆盖",
               ".exif": "JPEG 字节，EXIF 段未写入"}
@@ -117,7 +130,7 @@ RAWPX = {".gray": ("GRAY8", 1), ".gry": ("GRAY8", 1), ".raw": ("GRAY8", 1),
 
 # (claimed_by, ext, kind, options). The first field is METADATA, not an output path: one
 # sample per suffix is generated once and shared by whoever claims that suffix. kind:
-# pil | apng | qoi | pam | hdr | psd | rawpx | alias
+# pil | apng | qoi | pam | hdr | psd | rawpx | alias | wbmp | dcx | ktx | nii | nrrd | mrc | dicom
 PLAN = [
     ("png", ".png", "pil", {}),
     ("jpeg", ".jpg", "pil", {"quality": 100, "subsampling": 0}),
@@ -137,22 +150,87 @@ PLAN = [
     ("core", ".tga", "pil", {}),
     ("core", ".dds", "dds", {}),
 ]
-PLAN += [("jpeg", e, "alias", {"src": ".jpg"}) for e in (".jpe", ".jfif", ".jif", ".jfi", ".exif")]
+PLAN += [("jpeg", e, "alias", {"src": ".jpg"})
+         for e in (".jpeg", ".jpe", ".jfif", ".jif", ".jfi", ".exif")]
 PLAN += [("tiff", ".tiff", "alias", {"src": ".tif"})]
 PLAN += [("core", e, "alias", {"src": s})
          for e, s in ((".dib", ".bmp"), (".rle", ".bmp"), (".icon", ".ico"), (".pnm", ".ppm"))]
 PLAN += [("rawpx", e, "rawpx", {}) for e in sorted(RAWPX)]
 
+# pro tier. Only formats with a reachable encoder are generated; the rest stay in SKIP.
+PLAN += [
+    ("pro-jp2", ".jp2", "pil", {"format": "JPEG2000"}),
+    ("pro-small", ".pcx", "pil", {"format": "PCX"}),
+    ("pro-small", ".icns", "pil", {"format": "ICNS"}),
+    ("pro-small", ".xbm", "pil", {"format": "XBM"}),
+    ("pro-small", ".wbmp", "wbmp", {}),
+    ("pro-small", ".dcx", "dcx", {}),
+    ("pro-ktx2", ".ktx", "ktx", {}),
+    ("pro-sci", ".nii", "nii", {}),
+    ("pro-sci", ".nrrd", "nrrd", {}),
+    ("pro-sci", ".mrc", "mrc", {}),
+    ("pro-dicom", ".dcm", "dicom", {}),
+]
+PLAN += [("pro-jp2", e, "alias", {"src": ".jp2"})
+         for e in (".j2k", ".j2c", ".jpc", ".jpx", ".jpf", ".jpt")]
+PLAN += [("pro-small", ".pcc", "alias", {"src": ".pcx"})]
+PLAN += [("pro-sci", e, "alias", {"src": ".mrc"})
+         for e in (".mrcs", ".ccp4", ".map")]
+PLAN += [("pro-dicom", ".dicom", "alias", {"src": ".dcm"})]
+
 SKIP = [
     ("jxl", ".jxl", "没有 cjxl / imagecodecs，本机无法编码"),
     ("av", ".heic .heif .hif .avif .avifs", "需要 heif-enc / SVT-AV1 / x265"),
-    ("raw", ".arw .cr2 .cr3 .dng .nef .rw2 ...", "相机 RAW 载荷是真传感器马赛克 + 厂商元数据，合成字节只能测'解不出来'"),
-    ("thumbdoc", ".skp .ppt .pps .sldprt .sldasm .ipt .iam", "专有容器，只能由对应应用产出"),
+    ("raw", ".3fr .ari .arw .cr2 .cr3 .crm .crw .dcr .dcs .dng .erf .fff .iiq .kdc .mef .mos .mrw .nef .nrw .orf .ori .pef .qtk .raf .rw2 .rwl .srw .x3f",
+     "相机 RAW 载荷是真传感器马赛克 + 厂商元数据，合成字节只能测'解不出来'"),
+    ("pro-exr", ".exr", "没有可用的 EXR 编码器"),
+    ("pro-jxr", ".jxr .wdp .hdp", "没有可用的 JPEG XR 编码器"),
+    ("pro-xcf", ".xcf", "没有可用的 XCF 编码器"),
+    ("pro-wmf", ".wmf", "Pillow 的本机 WMF save handler 未安装"),
+    ("pro-ase", ".ase .aseprite", "没有可用的 Aseprite 编码器"),
+    ("pro-djvu", ".djvu .djv", "没有可用的 DjVu 编码器"),
+    ("pro-ktx2", ".ktx2", "KTX2 需要 DFD/超压缩头；当前只生成 KTX1（.ktx）"),
     ("core", ".ff", "image-rs 认不出魔数，core 也没给 .ff 留 ext 通道，造出来是死样本"),
 ]
 
-# The 12 DLL ids, so --only can reject a typo instead of silently generating nothing.
-PLUGINS = sorted({p for p, *_ in PLAN} | {p for p, _, _ in SKIP})
+# Every suffix in the claim ledger must be either generated or explicitly skipped.
+CLAIMS = ROOT / "testdata" / "claims.tsv"
+
+
+def coverage_errors():
+    planned = {ext for _, ext, _, _ in PLAN}
+    skipped = set()
+    for _, exts, _ in SKIP:
+        skipped |= {e for e in exts.replace(",", " ").split() if e.startswith(".")}
+    if not CLAIMS.is_file():
+        return ["claims ledger missing: %s" % CLAIMS]
+    claimed = {}
+    for line in CLAIMS.read_text(encoding="utf-8").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        tier, member, exts, status, evidence, note = line.split("\t")
+        for ext in exts.split(";"):
+            claimed["." + ext] = member
+    missing = sorted(set(claimed) - planned - skipped)
+    extra = sorted((planned | skipped) - set(claimed))
+    out = []
+    if missing:
+        out.append("claimed but not generated/skipped: %s" % " ".join(missing))
+    if extra:
+        out.append("generated/skipped but not claimed: %s" % " ".join(extra))
+    return out
+
+
+# The four published DLL ids map to their members. `--only common` therefore means every
+# suffix the common DLL can read, not just the one member literally named "common".
+TIER_MEMBERS = {
+    "common": ["jpeg", "png", "gif", "tiff", "qoi", "common", "core"],
+    "modern": ["av", "jxl"],
+    "raw": ["rawpx", "raw"],
+    "pro": ["pro-jp2", "pro-jxr", "pro-exr", "pro-ktx2", "pro-dicom",
+            "pro-sci", "pro-small", "pro-xcf", "pro-ase", "pro-djvu", "pro-wmf"],
+}
+DECODER_IDS = sorted({p for p, *_ in PLAN} | {p for p, _, _ in SKIP})
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +351,112 @@ def encode_dds(side, rng):
     return head + noise_bytes(blocks * 8, rng)
 
 
+def encode_dcx(side, rng):
+    """DCX is a tiny wrapper around the first PCX page. pro-small's detector only
+    needs the magic, the first-page offset and a valid PCX page at that offset."""
+    buf = io.BytesIO()
+    snow("RGB", side, rng).save(buf, format="PCX")
+    return struct.pack("<II", 0x3ADE68B1, 8) + buf.getvalue()
+
+
+def _mbf(n):
+    """WBMP multi-byte integer (7-bit groups, high bit = more bytes)."""
+    out = [n & 0x7F]
+    n >>= 7
+    while n:
+        out.append((n & 0x7F) | 0x80)
+        n >>= 7
+    return bytes(reversed(out))
+
+
+def encode_wbmp(side, rng):
+    """WBMP type 0, 1 bit per pixel; header is type/fix + MBF width/height."""
+    row = (side + 7) // 8
+    bits = bytearray(noise_bytes(row * side, rng))
+    if side % 8:
+        mask = (0xFF << (8 - side % 8)) & 0xFF
+        for y in range(side):
+            bits[y * row + row - 1] &= mask
+    return b"\x00\x00" + _mbf(side) + _mbf(side) + bytes(bits)
+
+
+def encode_ktx1(side, rng):
+    """KTX1 uncompressed R8G8B8A8_UNORM; enough for pro-ktx2's KTX1 path."""
+    ident = b"\xABKTX 11\xBB\r\n\x1A\n"
+    header = struct.pack("<13I", 0x04030201, 0x1401, 1, 0x1908, 0x8058, 0x1908,
+                         side, side, 0, 0, 1, 1, 0)
+    pixels = noise_bytes(side * side * 4, rng)
+    return ident + header + struct.pack("<I", len(pixels)) + pixels
+
+
+def encode_nii(side, rng):
+    """NIfTI-1 single-file, uint8 2D slice (pro-sci's minimal path)."""
+    h = bytearray(348)
+    h[0:4] = struct.pack("<i", 348)
+    for off, value in ((40, 2), (42, side), (44, side), (46, 1), (70, 2), (72, 8)):
+        h[off:off + 2] = struct.pack("<h", value)
+    h[76:80] = struct.pack("<f", 1.0)
+    h[108:112] = struct.pack("<f", 352.0)
+    h[112:116] = struct.pack("<f", 1.0)
+    h[344:348] = b"n+1\0"
+    return bytes(h) + b"\0\0\0\0" + noise_bytes(side * side, rng)
+
+
+def encode_nrrd(side, rng):
+    head = ("NRRD0004\ntype: uchar\ndimension: 2\nsizes: %d %d\nencoding: raw\n\n"
+            % (side, side)).encode()
+    return head + noise_bytes(side * side, rng)
+
+
+def encode_mrc(side, rng):
+    """MRC mode 0 (signed int8), one 2D slice; pro-sci reads the first 1024-byte header."""
+    h = bytearray(1024)
+    for off, value in ((0, side), (4, side), (8, 1)):
+        h[off:off + 4] = struct.pack("<i", value)
+    h[208:212] = b"MAP "
+    return bytes(h) + noise_bytes(side * side, rng)
+
+
+def _dcm_elem(group, elem, vr, value):
+    value = bytes(value)
+    if len(value) % 2:
+        value += b"\0" if vr in (b"UI", b"OB") else b" "
+    vrvr = vr.encode() if isinstance(vr, str) else vr
+    if vrvr in (b"OB", b"OW", b"SQ", b"UN", b"UT"):
+        return struct.pack("<HH", group, elem) + vrvr + b"\0\0" + struct.pack("<I", len(value)) + value
+    return struct.pack("<HH", group, elem) + vrvr + struct.pack("<H", len(value)) + value
+
+
+def encode_dicom(side, rng):
+    """Minimal explicit-VR little-endian Secondary Capture: RGB8 pixel data."""
+    sop = b"1.2.840.10008.5.1.4.1.1.7"
+    uid = b"1.2.826.0.1.3680043.8.498.1.1"
+    meta = b"".join([
+        _dcm_elem(0x0002, 0x0001, b"OB", b"\0\1"),
+        _dcm_elem(0x0002, 0x0002, b"UI", sop),
+        _dcm_elem(0x0002, 0x0003, b"UI", uid),
+        _dcm_elem(0x0002, 0x0010, b"UI", b"1.2.840.10008.1.2.1"),
+        _dcm_elem(0x0002, 0x0012, b"UI", uid),
+    ])
+    meta = _dcm_elem(0x0002, 0x0000, b"UL", struct.pack("<I", len(meta))) + meta
+    pixels = noise_bytes(side * side * 3, rng)
+    dataset = b"".join([
+        _dcm_elem(0x0008, 0x0016, b"UI", sop),
+        _dcm_elem(0x0008, 0x0018, b"UI", uid),
+        _dcm_elem(0x0008, 0x0060, b"CS", b"OT"),
+        _dcm_elem(0x0028, 0x0002, b"US", struct.pack("<H", 3)),
+        _dcm_elem(0x0028, 0x0004, b"CS", b"RGB"),
+        _dcm_elem(0x0028, 0x0010, b"US", struct.pack("<H", side)),
+        _dcm_elem(0x0028, 0x0011, b"US", struct.pack("<H", side)),
+        _dcm_elem(0x0028, 0x0100, b"US", struct.pack("<H", 8)),
+        _dcm_elem(0x0028, 0x0101, b"US", struct.pack("<H", 8)),
+        _dcm_elem(0x0028, 0x0102, b"US", struct.pack("<H", 7)),
+        _dcm_elem(0x0028, 0x0103, b"US", struct.pack("<H", 0)),
+        _dcm_elem(0x7FE0, 0x0010, b"OB", pixels),
+    ])
+    return b"\0" * 128 + b"DICM" + meta + dataset
+
+
 def encode_rawpx(layout, w, h, rng):
     if layout in ("I420", "YV12", "NV12"):
         y = noise_bytes(w * h, rng)
@@ -299,7 +483,9 @@ def encode_rawpx(layout, w, h, rng):
 # ---------------------------------------------------------------------------
 
 HAND = {".qoi": encode_qoi, ".pam": encode_pam, ".psd": encode_psd, ".hdr": encode_hdr,
-      ".dds": encode_dds}
+        ".dds": encode_dds, ".dcx": encode_dcx, ".wbmp": encode_wbmp,
+        ".ktx": encode_ktx1, ".nii": encode_nii, ".nrrd": encode_nrrd,
+        ".mrc": encode_mrc, ".dcm": encode_dicom}
 
 
 def write_one(path, kind, ext, side, rng, opts):
@@ -313,10 +499,12 @@ def write_one(path, kind, ext, side, rng, opts):
         kw = dict(opts)
         kw["mode"] = MODE.get(ext, "RGB")
         img = snow(kw.pop("mode"), side, rng)
-        if ext in (".jpg", ".jpe", ".jfif", ".jif", ".jfi", ".exif"):
+        if ext in (".jpg", ".jpeg", ".jpe", ".jfif", ".jif", ".jfi", ".exif"):
             kw["format"] = "JPEG"
         elif ext == ".ico":
             kw["format"] = "ICO"
+        elif ext in PIL_FORMAT:
+            kw["format"] = PIL_FORMAT[ext]
         img.save(path, **kw)
 
 
@@ -411,7 +599,24 @@ def main():
     ap.add_argument("--seed", type=int, default=20261016,
                     help="fixed by default, so two runs give byte-identical samples")
     ap.add_argument("--list", action="store_true", help="print the plan and exit")
+    ap.add_argument("--check", action="store_true",
+                    help="verify that every claims.tsv suffix is generated or skipped, write nothing")
     args = ap.parse_args()
+
+    coverage = coverage_errors()
+    if coverage:
+        for line in coverage:
+            print("COVERAGE: " + line, file=sys.stderr)
+        return 1
+
+    if args.check:
+        planned = {ext for _, ext, _, _ in PLAN}
+        skipped = set()
+        for _, exts, _ in SKIP:
+            skipped |= {e for e in exts.replace(",", " ").split() if e.startswith(".")}
+        print("sample-plan: %d generated, %d skipped, %d covered"
+              % (len(planned), len(skipped), len(planned | skipped)))
+        return 0
 
     if args.list:
         print("%-11s %-8s %-6s %s" % ("claimed_by", "suffix", "kind", "options"))
@@ -426,10 +631,13 @@ def main():
     tiers = TIERS if args.tier == "all" else [t for t in TIERS if t[0] == args.tier]
     known_exts = {ext for _, ext, *_ in PLAN}
     only_exts = set()
+    only_filter = bool(args.only.strip())
     for tok in (t.strip() for t in args.only.split(",")):
         if not tok:
             continue
-        if tok in PLUGINS:                                   # decoder id -> all its suffixes
+        if tok in TIER_MEMBERS:                                  # DLL id -> all its members
+            only_exts |= {e for p, e, *_ in PLAN if p in TIER_MEMBERS[tok]}
+        elif tok in DECODER_IDS:                                 # member id -> all its suffixes
             only_exts |= {e for p, e, *_ in PLAN if p == tok}
         elif tok in known_exts:                              # ".jpg"
             only_exts.add(tok)
@@ -438,6 +646,24 @@ def main():
         else:
             ap.error("unknown suffix or decoder id %r; suffixes: %s"
                      % (tok, " ".join(sorted(known_exts))))
+
+    # An alias reads from its canonical file, so asking for only `.jpeg` must also build
+    # `.jpg` (resolve chains such as alias -> alias defensively).
+    alias_src = {ext: opts["src"] for _, ext, kind, opts in PLAN if kind == "alias"}
+    changed = True
+    while changed:
+        changed = False
+        for ext in list(only_exts):
+            src = alias_src.get(ext)
+            if src and src not in only_exts:
+                only_exts.add(src)
+                changed = True
+
+    if only_filter and not only_exts:
+        print("no encodable suffix in %r; see --list for the explicit SKIP reasons"
+              % args.only, file=sys.stderr)
+        return 0
+
     rows = []
     canonical = {}   # (ext, tier) -> row, so aliases can inherit dims and bytes
     out_root = Path(args.out)

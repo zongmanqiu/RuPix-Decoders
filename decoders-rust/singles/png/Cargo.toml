@@ -1,0 +1,32 @@
+[package]
+name = "rupix-png"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码器：PNG（png crate 直调，本机实测冠军）"
+
+[lib]
+# 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "png"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立解码器形态：生成 iv_abi_version / iv_decoder_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+# G1 实测冠军（2026-10-15，run r1792006637，n=200 median，同一 run 内配对）：
+#   png crate 直调 55.68 ms（1.00×） / core 现走的 `image` 路线 65.99 ms（1.19×）
+#   / lodepng(C) 103.37 ms / spng(C) 140.23 ms（C 绑定在本机可编译，实测更慢，落选）。
+# 与 JPEG / TIFF 同一结论：**快的不是库，是调用方式**。
+#
+# ★ 依赖名必须别名：本 crate 的 `[lib] name = "png"`（= 解码器 id），与依赖同名会撞
+#   extern prelude，所以代码里用 `png_crate::`。
+png_crate = { package = "png", version = "0.18" }
+
+[dev-dependencies]
+# 冠军不许自称正确：像素与 core 的 `image` 路线逐字节比对（同 core 的 gif 测试做法）。
+image = { version = "0.25", default-features = false, features = ["png"] }

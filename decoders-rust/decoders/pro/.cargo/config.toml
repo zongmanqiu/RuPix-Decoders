@@ -1,0 +1,7 @@
+# pro 是独立构建图（见 Cargo.toml 顶部注释）。中间产物仍落工作区 .temp/：
+#   decoders/pro -> decoders -> RuPix-Decoder -> RuPix，所以 ../../../.temp = RuPix/.temp
+[build]
+target-dir = "../../../../.temp/pro-target"
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,0 +1,30 @@
+# Claim -> implementation -> evidence ledger.
+# Columns: tier<TAB>member<TAB>suffixes (semicolon) <TAB>status<TAB>evidence<TAB>note
+# status: verified | unverified
+# evidence: golden:<file under testdata/golden/> | tests:<bench/singles package> | -
+# Every suffix claimed by decoders/*/src/lib.rs must appear exactly once.
+common	jpeg	jpg;jpeg;jpe;jfif;jif;jfi;exif	verified	golden:golden_16x12.jpg	16x12 JPEG; aliases share the same decode path
+common	png	png	verified	golden:red_1x1.png	1x1 RGBA PNG
+common	gif	gif	verified	golden:anim_2x2_2f.gif	2-frame GIF
+common	tiff	tif;tiff	verified	golden:cmyk_8x8.tif	CMYK / 16-bit / palette fixtures in tests
+common	qoi	qoi	verified	tests:rupix-qoi	inline QOI codec tests
+common	psd	psd	verified	golden:psd_red_2x2.psd	2x2 PSD
+common	hdr	hdr	verified	golden:hdr_red_2x2.hdr	2x2 Radiance HDR
+common	core	apng;webp;bmp;dib;rle;ico;icon;pnm;ppm;pgm;pbm;pam;dds;tga	verified	tests:rupix-core	general fallback member tests
+common	core	ff	unverified	-	no image-rs magic and no .ff fixture; core has no ext path
+modern	av	heic;heif;hif	unverified	-	no HEIC/HEIF fixture; only AVIF is covered
+modern	av	avif;avifs	verified	golden:1x1_red.avif	1x1/4x4/gray/alpha/rotation AVIF fixtures
+modern	jxl	jxl	verified	golden:1x1_red.jxl	codestream and container fixtures
+raw	rawler	3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f	unverified	-	probe/decode only on .temp/raw-samples; committed RAW golden is sniff-only
+raw	rawpx	rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy	verified	tests:rupix-rawpx	11 parameterized raw-pixel suffixes; .raw is counted in the camera group
+pro	pro-jp2	jp2;j2k;j2c;jpc;jpx;jpf;jpt	verified	tests:rupix-pro-jp2	member tests; no per-suffix golden
+pro	pro-jxr	jxr;wdp;hdp	verified	tests:rupix-pro-jxr	member tests; no per-suffix golden
+pro	pro-exr	exr	verified	tests:rupix-pro-exr	member tests; no per-suffix golden
+pro	pro-ktx2	ktx;ktx2	verified	tests:rupix-pro-ktx2	member tests; no per-suffix golden
+pro	pro-dicom	dcm;dicom	verified	tests:rupix-pro-dicom	member tests; no per-suffix golden
+pro	pro-sci	nii;nrrd;mrc;mrcs;ccp4;map	verified	tests:rupix-pro-sci	member tests; no per-suffix golden
+pro	pro-small	pcx;pcc;dcx;icns;wbmp;xbm	verified	tests:rupix-pro-small	member tests; no per-suffix golden
+pro	pro-xcf	xcf	verified	tests:rupix-pro-xcf	member tests; no per-suffix golden
+pro	pro-ase	ase;aseprite	verified	tests:rupix-pro-ase	member tests; no per-suffix golden
+pro	pro-djvu	djvu;djv	verified	tests:rupix-pro-djvu	member tests; no per-suffix golden
+pro	pro-wmf	wmf	verified	tests:rupix-pro-wmf	member tests; no per-suffix golden

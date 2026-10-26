@@ -1,0 +1,19 @@
+[package]
+name = "rupix-pro-djvu"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：DjVu（djvu-rs，纯 Rust MIT）"
+
+[lib]
+name = "pro_djvu"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+djvu-rs = "0.42.0"

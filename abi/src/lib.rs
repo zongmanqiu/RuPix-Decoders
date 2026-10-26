@@ -1,17 +1,17 @@
-//! RuPix 插件 ABI 契约 —— **唯一真源**。
+//! RuPix 解码器 ABI 契约 —— **唯一真源**。
 //!
 //! # 这个文件是什么
 //!
-//! 插件（`cdylib`）和宿主（`main`）是两个**独立编译**的二进制。Rust 没有稳定 ABI，
+//! 解码器（`cdylib`）和宿主（`main`）是两个**独立编译**的二进制。Rust 没有稳定 ABI，
 //! 跨 DLL 边界只能走 C ABI：扁平函数 + `#[repr(C)]` 结构体，不许传 `String`/`Vec`/
 //! 泛型/trait object。
 //!
-//! 本 crate 就是这份契约的**唯一副本**：宿主 `main/src/core/abi.rs` 与全部解码插件
+//! 本 crate 就是这份契约的**唯一副本**：宿主 `main/src/core/abi.rs` 与全部解码器
 //! 都通过 path 依赖引用这里。历史上契约被手抄成三份（宿主一份 + qoi/jxl 各一份），
 //! 改一处要人肉同步两处——现在物理上不可能失同步。
 //!
-//! 后半段还装着**插件样板（kit）**：`guard` / `set_last_error` / `write_last_error` /
-//! `export_plugin!`（原 `plugin-kit` crate，2026-10-16 并入，插件因此只依赖 `rupix-abi`
+//! 后半段还装着**解码器样板（kit）**：`guard` / `set_last_error` / `write_last_error` /
+//! `export_decoder!`（原 `decoder-kit` crate，2026-10-16 并入，解码器因此只依赖 `rupix-abi`
 //! 一项）。宿主不碰这些，但快照是逐字节复制，**不许在宿主侧删改这一段**。
 //!
 //! # 为什么结构体长度要写死断言
@@ -19,11 +19,11 @@
 //! `#[repr(C)]` 只保证「字段顺序与 C 一致」，不保证别的编译器/别的版本不插入填充。
 //! `assert!(size_of::<T>() == N)` 把这件事变成**编译错误**：谁在结构体里加了个字段、
 //! 换了字段类型，立刻炸在编译期，而不是发出一份布局对不上的 `bytes_needed`、
-//! 让宿主按错误长度分配缓冲、再由插件越界写。
+//! 让宿主按错误长度分配缓冲、再由解码器越界写。
 //!
 //! # 一处对规格的更正
 //!
-//! `docs/插件开发规范.md` §三 里 `IvRenderReq` 的断言历史占位值 20 曾与实际不符；
+//! `docs/解码器开发规范.md` §三 里 `IvRenderReq` 的断言历史占位值 20 曾与实际不符；
 //! v3 给 Req 加了 `frame_index` 后恰好就是真实值 **20**（5×u32）。`IvRenderOut`
 //! 的 **40** = 8（u64 对齐）+ 4×6。
 
@@ -39,34 +39,41 @@
 /// ICO 尺寸档、PDF/CBZ/DICOM 页、MPO 双目、DDS mip），`IvRenderOut` 加 `page_count`
 /// + `icc_len`（ICC 色彩配置透传协议，像素后附加段）。为 60-70 个目标格式的地基。
 ///
-/// **v4 内可选导出（不 bump 版本）**：`iv_render_raw(data, len, width, height,
+/// **v4 内可选导出（v5 继续保留，不 bump 版本）**：`iv_render_raw(data, len, width, height,
 /// layout, req, out, out_cap, info) -> i32` —— 裸像素数据（.raw/.rgba 等，无魔数
 /// 无头）的**参数化解码**。宽/高/布局由宿主向用户收集后传入；`layout` 取 `PF_*`
-/// 值（含 [`PF_BGRA8`]）。老宿主/无此导出的插件照常：规范 §四 允许新增导出，
+/// 值（含 [`PF_BGRA8`]）。老宿主/无此导出的解码器照常：规范 §四 允许新增导出，
 /// 宿主用 `GetProcAddress` 探测，缺席即视为不支持裸数据语义。
-/// **v4 内可选导出（不 bump 版本）**：`iv_caps() -> uint32` —— **解码能力位图**，
+/// **v4 内可选导出（v5 继续保留，不 bump 版本）**：`iv_caps() -> uint32` —— **解码能力位图**，
 /// 见 [`CAP_FULL`] 一族。宿主探测缺席 = 按既有字段推定（[`CAP_FULL`] ∪ `is_vector`
 /// ∪ 有 `iv_render_raw` 则 [`CAP_RAW_PARAM`]），不是错误。做这件事的动机是把散在
-/// `iv_render_raw` 符号、`frame_index`、`page_index`、`is_vector` 四处的"这台插件
+/// `iv_render_raw` 符号、`frame_index`、`page_index`、`is_vector` 四处的"这台解码器
 /// 会哪种解码"收进**一个显式维度**，宿主按类型路由，而不是按 DLL 身份猜。
 ///
-/// **为什么不是给 `IvPluginInfo` 加字段**：规范 §九 立约「v4 起已发布的导出签名与
+/// **v5（2026-10-26）**：术语清理，自述导出、自述结构体与样板宏统一改为 decoder
+/// 命名；旧 v4 名称不再提供，宿主与全部解码器必须同步重编。
+///
+/// **v5 内可选导出（不 bump 版本）**：`iv_metadata()` 返回可扩展键值表
+/// （[`IvMetadata`]）。新增元数据 = 往 `fields` 追加 key/value，不改自述结构体、
+/// 不改 ABI 版本；宿主读取自己认识的 key，未知 key 忽略。
+///
+/// **为什么不是给 `IvDecoderInfo` 加字段**：规范 §九 立约「v5 起已发布的导出签名与
 /// 结构体永不再改，新能力一律走新增可选导出」。实测也支持这条纪律——往结构体**末尾**
-/// 追加字段会让宿主对旧 DLL 越界读，12/12 枚现役插件在该处读到的是相邻 `.data` 的
+/// 追加字段会让宿主对旧 DLL 越界读，12/12 枚现役解码器在该处读到的是相邻 `.data` 的
 /// 垃圾值（`0x74726556`、`0x61746166`…）；塞进 `abi_version` 之后的 4 字节填充虽然
 /// `size_of` 不变，但依赖"rustc 把 static 的 padding 清零"这一**实现行为**，不是语言
 /// 保证。取证与对比见宿主仓库 `.plan/m28-规格-解码类型接口A与C实测对比-2026-10-18.md`。
-pub const IV_ABI_VERSION: u32 = 4;
+pub const IV_ABI_VERSION: u32 = 5;
 
-// 兼容性立约（规范 §九）：**自 v4 起已发布的导出签名与结构体永不再改**。
+// 兼容性立约（规范 §九）：**自 v5 起已发布的导出签名与结构体永不再改**。
 // 新能力一律走新增可选导出（如 `iv_render_raw`），宿主探测缺席 = 缺能力。
-// 宿主按 `MIN_ABI_VERSION(=4) ≤ 插件 abi ≤ IV_ABI_VERSION` 区间收载——
-// 宿主将来升级，老 DLL 无需重编。改任何既有签名/结构体 = 重新走一遍 v1→v4 的
-// 全体重编，除非走投无路不允许。
+// 宿主按 `MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION` 区间收载——
+// v4 及更早的 DLL 不兼容（v5 是改名断点）；改任何既有签名/结构体 = 重新走一遍
+// v1→v5 的全体重编，除非走投无路不允许。
 //
 // ★ 这一段是 `//` 而不是 `///`：它不描述下面任何一个错误码常量（`///` 挂在这里
 //   等于给 `ERR_OK` 写了一段与它无关的文档，clippy 的 `empty_line_after_doc_comments`
-//   照得出来）。契约正文的正本在 `docs/插件开发规范.md` §九 与本节顶部的
+//   照得出来）。契约正文的正本在 `docs/解码器开发规范.md` §九 与本节顶部的
 //   [`IV_ABI_VERSION`] 文档里，这里只作就近提示，不作第二正本。
 
 // ── 错误码（宿主必须能逐类区分，不能整个吞成"打不开"）──────────────────
@@ -79,13 +86,13 @@ pub const ERR_OK: i32 = 0;
 pub const ERR_UNRECOGNIZED: i32 = 1;
 /// 数据损坏 → UI「文件已损坏」。
 pub const ERR_CORRUPT: i32 = 2;
-/// 不支持的子格式 → UI「该文件用了本插件不支持的特性」。
+/// 不支持的子格式 → UI「该文件用了本解码器不支持的特性」。
 pub const ERR_UNSUPPORTED: i32 = 3;
 /// 缓冲不足（第二阶段 `out_cap` 太小）→ UI「内部错误」+ 日志。
 pub const ERR_BUFFER_TOO_SMALL: i32 = 4;
 /// 内存不足 → UI「图片过大，内存不足」。
 pub const ERR_OOM: i32 = 5;
-/// panic 已被插件侧捕获 → UI「插件遇到问题，已隔离」。
+/// panic 已被解码器侧捕获 → UI「解码器遇到问题，已隔离」。
 pub const ERR_PANIC: i32 = 6;
 /// 超出上限（budget / 尺寸）→ UI「图片超出可处理范围」。
 pub const ERR_TOO_LARGE: i32 = 7;
@@ -93,7 +100,7 @@ pub const ERR_TOO_LARGE: i32 = 7;
 // ── pixel_format 枚举（规范 §三 的表）──────────────────────────────
 pub const PF_GRAY8: u32 = 0;
 pub const PF_RGB8: u32 = 1;
-/// 默认传输格式，绝大多数插件用它即可。
+/// 默认传输格式，绝大多数解码器用它即可。
 pub const PF_RGBA8: u32 = 2;
 pub const PF_GRAY16: u32 = 3;
 pub const PF_RGB16: u32 = 4;
@@ -116,7 +123,7 @@ pub const PF_NV12: u32 = 13;
 //
 // YUV 布局统一约定（规范 §十二）：**BT.601、limited range**（视频行业标准，
 // Y ∈ [16,235]）；宽高必须为偶数（色度 2×2 / 2×1 下采样）。宿主弹窗只收集
-// 布局号，矩阵约定由插件实现方按本注释与规范执行，宿主不参与换算。
+// 布局号，矩阵约定由解码器实现方按本注释与规范执行，宿主不参与换算。
 
 use std::ffi::c_char;
 use std::mem::size_of;
@@ -124,12 +131,12 @@ use std::mem::size_of;
 // ── 解码能力位图（可选导出 `iv_caps` 的返回值；v4 内增量，不 bump 版本）──────
 //
 // **位 = 支持**。宿主的路由判据是这张表，不是 DLL 的名字或身份：同一个后缀由同一枚
-// 插件按类型分派（整解 / 缩放解）属正当，不是"重叠认领"。
+// 解码器按类型分派（整解 / 缩放解）属正当，不是"重叠认领"。
 //
 // 铁律：**只增不减、位号永不重排**。要加第 7 类就占 `1 << 7`，已发布的位含义不许改——
-// 它们和错误码一样是 ABI 的一部分，挪号等于让老插件谎报能力。
+// 它们和错误码一样是 ABI 的一部分，挪号等于让老解码器谎报能力。
 
-/// 整解：把整张图解成 RGBA8（今天所有插件的默认能力，`iv_render` 的语义）。
+/// 整解：把整张图解成 RGBA8（今天所有解码器的默认能力，`iv_render` 的语义）。
 pub const CAP_FULL: u32 = 1 << 0;
 /// 按 `target_w/target_h` **原生降采样**解码（JPEG 的 DCT 1/8、HEIF/AVIF 的分辨率层、
 /// JXL 的可变精度）。回填的 `actual_*` **允许小于** `target_*`，缩放补齐由宿主负责。
@@ -149,11 +156,11 @@ pub const CAP_VECTOR: u32 = 1 << 5;
 ///
 /// 为什么必须有这一位、不能只看 `target_w/h`：主画面**也**传非零 target（视口尺寸，
 /// 见宿主 `desired_pixels()`），而它要的是清晰——按 target 就动手缩放会把主画面解糊。
-/// 能力位图只回答「这枚插件会不会缩放解码」，不回答「这一次要不要」：意图是**每次
-/// 请求**的属性，只能跟在请求里。未置位时插件一律整解（现役行为，零变化）。
+/// 能力位图只回答「这枚解码器会不会缩放解码」，不回答「这一次要不要」：意图是**每次
+/// 请求**的属性，只能跟在请求里。未置位时解码器一律整解（现役行为，零变化）。
 pub const REQ_ALLOW_SCALED: u32 = 1 << 2;
 
-/// 宿主在**插件没有 `iv_caps` 导出**时的推定规则——纯函数，可测。
+/// 宿主在**解码器没有 `iv_caps` 导出**时的推定规则——纯函数，可测。
 ///
 /// 为什么敢推定：这三类在 v4 里已经有别处的证据（`is_vector` 字段、`iv_render_raw`
 /// 符号在不在），推定只是把既有事实换算成位图，不引入新信息。`CAP_SCALED` **绝不**
@@ -169,13 +176,13 @@ pub fn caps_from_legacy(is_vector: bool, has_render_raw: bool) -> u32 {
     caps
 }
 
-/// 插件自述（`iv_plugin_info` 的返回值）。字段全是指向**静态只读** C 串的裸指针。
+/// 解码器自述（`iv_decoder_info` 的返回值）。字段全是指向**静态只读** C 串的裸指针。
 ///
-/// 宿主只读、不释放；串的生命周期由插件负责（通常是 `b"..\0"` 的 `'static`）。
+/// 宿主只读、不释放；串的生命周期由解码器负责（通常是 `b"..\0"` 的 `'static`）。
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct IvPluginInfo {
-    /// 插件唯一标识，小写字母/数字/连字符，如 `qoi`。
+pub struct IvDecoderInfo {
+    /// 解码器唯一标识，小写字母/数字/连字符，如 `qoi`。
     pub id: *const c_char,
     /// 显示名，如 `Quite OK Image`。
     pub display_name: *const c_char,
@@ -191,7 +198,50 @@ pub struct IvPluginInfo {
     pub description: *const c_char,
 }
 
-/// 渲染请求（宿主 → 插件）。`size_of == 24`。
+/// 可扩展的键值元数据（可选导出 `iv_metadata` 的返回值表项）。
+///
+/// 这是 ABI v5 的“无限加字段”入口：`IvDecoderInfo` 的 7 个身份字段保持冻结，
+/// 以后只往 `fields` 里追加键值，不修改既有结构体、不 bump ABI。
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct IvMetadataField {
+    /// NUL 结尾的 UTF-8 键，如 `license`。
+    pub key: *const c_char,
+    /// NUL 结尾的 UTF-8 值；复杂值可放 JSON 文本，但键本身必须稳定。
+    pub value: *const c_char,
+}
+
+/// 可扩展元数据表头（可选导出 `iv_metadata`）。
+///
+/// `size` 让未来追加表头字段时旧宿主只读前缀；`fields` 指向解码器静态拥有的
+/// 键值数组。**增加新字段 = 在数组末尾追加一项**，不改这里的字段和 `IvDecoderInfo`。
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct IvMetadata {
+    /// 本表头字节数；宿主先读它，未来表头增长也不会越界。
+    pub size: u32,
+    /// 键语义版本；只增字段不改既有键含义时保持不变。
+    pub version: u32,
+    /// `fields` 的元素个数。
+    pub field_count: u32,
+    /// 保留，当前必须为 0。
+    pub reserved: u32,
+    /// 指向 `field_count` 个静态表项，生命周期由解码器保证。
+    pub fields: *const IvMetadataField,
+}
+
+/// 元数据键语义版本（与 ABI 版本无关）。
+pub const METADATA_VERSION: u32 = 1;
+
+/// `IvMetadata` 的 `Sync` 外壳（裸指针表项仍是只读静态数据）。
+pub struct MetadataHolder(pub IvMetadata);
+unsafe impl Sync for MetadataHolder {}
+
+/// `IvMetadataField` 切片的 `Sync` 外壳。
+pub struct MetadataFields(pub &'static [IvMetadataField]);
+unsafe impl Sync for MetadataFields {}
+
+/// 渲染请求（宿主 → 解码器）。`size_of == 24`。
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IvRenderReq {
@@ -201,16 +251,16 @@ pub struct IvRenderReq {
     /// 宿主给的像素预算上限（0 = 不限）。
     pub budget_bytes: u32,
     /// 位标志：[`REQ_ALLOW_SCALED`] = 接受原生降采样。1/2（优先速度 / 优先质量）是
-    /// v1 就写进文档的占位，今天宿主恒传 0、无插件读取。
+    /// v1 就写进文档的占位，今天宿主恒传 0、无解码器读取。
     pub flags: u32,
-    /// 要第几帧（0 起）。静态图恒 0，插件可忽略。
+    /// 要第几帧（0 起）。静态图恒 0，解码器可忽略。
     pub frame_index: u32,
     /// 要第几页/子图（0 起）：多页 TIFF 的页、ICO 的尺寸档、PDF/CBZ/DICOM 的页、
     /// MPO 的视角、DDS 的 mip 级。单页/动画格式忽略（动画帧选 `frame_index`）。
     pub page_index: u32,
 }
 
-/// 渲染结果（插件 → 宿主）。`size_of == 48`。查询阶段只回填不写像素。
+/// 渲染结果（解码器 → 宿主）。`size_of == 48`。查询阶段只回填不写像素。
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IvRenderOut {
@@ -227,13 +277,13 @@ pub struct IvRenderOut {
     pub orientation: i32,
     /// 1 = 解码时已应用方向，宿主不得再转一次。
     pub already_oriented: i32,
-    /// 总帧数。静态格式必须 = 1；0 = 插件暂时无法确定（动画还没扫到 EOF），
+    /// 总帧数。静态格式必须 = 1；0 = 解码器暂时无法确定（动画还没扫到 EOF），
     /// 宿主不得把 0 当静态，应看 `frame_delay_ms`。
     pub frame_count: u32,
-    /// 本帧展示时长（毫秒）。0 = 静态图。动画帧插件侧钳到 ≥10。
+    /// 本帧展示时长（毫秒）。0 = 静态图。动画帧解码器侧钳到 ≥10。
     pub frame_delay_ms: u32,
     /// 子资源总数。**单页静态图恒 = 1**（页数总能立刻知道，没有"惰性数页"场景，
-    /// 与 `frame_count` 的 0=未知语义刻意不同）；0 = 插件未实现多页语义。
+    /// 与 `frame_count` 的 0=未知语义刻意不同）；0 = 解码器未实现多页语义。
     pub page_count: u32,
     /// ICC 色彩配置字节数，查询阶段回填；0 = 无。传输协议见规范 §十一：
     /// 宿主分配 `bytes_needed + icc_len`，渲染时 ICC 紧跟像素之后。
@@ -242,43 +292,46 @@ pub struct IvRenderOut {
 
 // ── 编译期断言：布局对不上就在这里炸，不等运行时 ────────────────────
 //
-// `IvPluginInfo` 在 x64 上是 48：4 个裸指针（32）+ `abi_version`（4）+ 4 字节对齐填充
+// `IvDecoderInfo` 在 x64 上是 48：4 个裸指针（32）+ `abi_version`（4）+ 4 字节对齐填充
 // + `is_vector`/`has_alpha`（8）。填充那 4 字节容易被忽略，正是断言要钉的东西。
 // `IvRenderReq` 6×u32 = 24，对齐 4，无填充。`IvRenderOut` 是 48：
 // 8（u64 的 8 字节对齐在 two u32 后补 4）+ 4×8 = 48，48%8==0，尾部无填充。
-const _: () = assert!(size_of::<IvPluginInfo>() == 48);
+const _: () = assert!(size_of::<IvDecoderInfo>() == 48);
+// `IvMetadata` = 4 个 u32 + 指针（x64 8）= 24；`IvMetadataField` = 2 个指针 = 16。
+const _: () = assert!(size_of::<IvMetadata>() == 24);
+const _: () = assert!(size_of::<IvMetadataField>() == 16);
 const _: () = assert!(size_of::<IvRenderReq>() == 24);
 const _: () = assert!(size_of::<IvRenderOut>() == 48);
 
-// ══ 插件样板（kit）══════════════════════════════════════════════════
+// ══ 解码器样板（kit）══════════════════════════════════════════════════
 //
-// 原 `plugin-kit` crate，2026-10-16 并进本 crate：契约 + 样板同一个 crate，
-// 插件只依赖 `rupix-abi` 一项。宿主用不到这一段（它只用结构体与常量），
+// 原 `decoder-kit` crate，2026-10-16 并进本 crate：契约 + 样板同一个 crate，
+// 解码器只依赖 `rupix-abi` 一项。宿主用不到这一段（它只用结构体与常量），
 // 但**不许把这段拆出去或删掉**——本文件与宿主 `vendor/rupix-abi/src/lib.rs`
 // 是逐字节快照关系（见 `core::abi::tests::abi_snapshot_matches_upstream_when_present`）。
 //
-// 解决什么问题：历史上 qoi / jxl 两个插件各手抄一份 panic gate、线程本地
-// last-error、`PluginInfoHolder(Sync)` 包装和 `iv_abi_version` / `iv_plugin_info` /
+// 解决什么问题：历史上 qoi / jxl 两个解码器各手抄一份 panic gate、线程本地
+// last-error、`DecoderInfoHolder(Sync)` 包装和 `iv_abi_version` / `iv_decoder_info` /
 // `iv_last_error` 三个导出。抄错一处（比如 gate 忘套）宿主的隔离承诺就破了。
-// 现在插件只写一行 `export_plugin!`，样板由这里保证正确。
+// 现在解码器只写一行 `export_decoder!`，样板由这里保证正确。
 //
-// 插件还需要自己写的只有两个业务导出：`iv_probe`（魔数嗅探）与 `iv_render`
+// 解码器还需要自己写的只有两个业务导出：`iv_probe`（魔数嗅探）与 `iv_render`
 // （两阶段解码），它们必须套 [`guard`]，错误路径调 [`set_last_error`]。
 
-/// panic gate：宿主侧 `catch_unwind` 的插件侧对偶。
+/// panic gate：宿主侧 `catch_unwind` 的解码器侧对偶。
 ///
 /// 任何导出函数体都必须套它——内部 panic 被拦下并转成 [`ERR_PANIC`]，
-/// 宿主据此把插件拉黑（三振出局）而不是整个进程消失。
+/// 宿主据此把解码器拉黑（三振出局）而不是整个进程消失。
 ///
 /// 进入时先清空线程本地 last-error：规范 §六之二把 `iv_last_error` 定义为
 /// "当前这条解码线程上、**最近一次调用**的失败原因"。不清就会串味——上一次
 /// 失败的文案会一直挂到下一次成功的调用上，宿主 UI 于是能拿出一句与本次无关的
-/// 错误。让样板保证这条语义，比让每个插件记得去清更可靠（历史上 qoi 的单测就是
+/// 错误。让样板保证这条语义，比让每个解码器记得去清更可靠（历史上 qoi 的单测就是
 /// 靠测试顺序侥幸通过这类断言的）。
 pub fn guard(f: impl FnOnce() -> i32) -> i32 {
     LAST_ERROR.with(|e| e.borrow_mut().clear());
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|_| {
-        set_last_error("panic caught by plugin gate");
+        set_last_error("panic caught by decoder gate");
         ERR_PANIC
     })
 }
@@ -286,13 +339,13 @@ pub fn guard(f: impl FnOnce() -> i32) -> i32 {
 /// 同一道 panic 栅栏，但**不清** last-error——只给 `iv_last_error` 用。
 ///
 /// `guard` 的进门清理对读消息的函数本身是致命的：`iv_last_error` 套它等于
-/// "先把要看的那行字擦掉再去看"，任何插件的错误文案都永远取不到（2026-10-16
+/// "先把要看的那行字擦掉再去看"，任何解码器的错误文案都永远取不到（2026-10-16
 /// 真 DLL 实测：`iv_render` 返回 4 并 set 了 "null out-info pointer"，
 /// 紧接着的 `iv_last_error` 回报 need=1，宿主永远拿到空串）。
 /// 栅栏照留：`write_last_error` 理论上仍可能因 RefCell 中毒而 panic。
 pub fn guard_preserve_error(f: impl FnOnce() -> i32) -> i32 {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|_| {
-        set_last_error("panic caught by plugin gate");
+        set_last_error("panic caught by decoder gate");
         ERR_PANIC
     })
 }
@@ -324,7 +377,7 @@ pub fn last_error_text() -> String {
     LAST_ERROR.with(|e| e.borrow().clone())
 }
 
-/// `iv_last_error` 的实现（由 [`export_plugin!`] 导出的函数转发到这里）。
+/// `iv_last_error` 的实现（由 [`export_decoder!`] 导出的函数转发到这里）。
 ///
 /// 返回**完整串长 + 1**（含结尾 NUL）：宿主可据此判断缓冲是否截断。
 /// `buf` 为空或 `len == 0` 时只回报长度。
@@ -352,7 +405,7 @@ pub unsafe fn write_last_error(buf: *mut std::ffi::c_char, len: usize) -> i32 {
 /// 把宿主传来的扩展名指针读成 `Option<&str>`：`NULL` → `None`，非 UTF-8 → `None`。
 ///
 /// 供**合并库**使用：合并后 `iv_probe` 只写一份，各业务库的 `probe_impl` 拿的是 `&[u8]`
-/// 与 `Option<&str>`，不再各自解指针。单库插件也可以用它，省掉一处重复的 `from_raw_parts`。
+/// 与 `Option<&str>`，不再各自解指针。单库解码器也可以用它，省掉一处重复的 `from_raw_parts`。
 ///
 /// # Safety
 /// `ptr` 必须是 null，或指向一段以 NUL 结尾的有效字节。返回引用的生命周期是
@@ -370,18 +423,18 @@ pub unsafe fn ext_str<'a>(ptr: *const std::ffi::c_char) -> Option<&'a str> {
     std::str::from_utf8(bytes).ok()
 }
 
-/// `IvPluginInfo` 含裸指针，本身不是 `Sync`，不能直接进 `static`。
+/// `IvDecoderInfo` 含裸指针，本身不是 `Sync`，不能直接进 `static`。
 /// 这个 newtype 手工声明 `Sync`：指针始终指向 `'static` 字节字面量，只读共享安全。
 #[doc(hidden)]
-pub struct PluginInfoHolder(pub IvPluginInfo);
-unsafe impl Sync for PluginInfoHolder {}
+pub struct DecoderInfoHolder(pub IvDecoderInfo);
+unsafe impl Sync for DecoderInfoHolder {}
 
-/// 生成插件的静态自述与三个固定导出：`iv_abi_version` / `iv_plugin_info` / `iv_last_error`。
+/// 生成解码器的静态自述与三个固定导出：`iv_abi_version` / `iv_decoder_info` / `iv_last_error`。
 ///
 /// 在 crate 顶层调用一次；四个串参数必须是**字符串字面量**（编进 DLL 的 `'static` 数据）。
 ///
 /// ```ignore
-/// rupix_abi::export_plugin! {
+/// rupix_abi::export_decoder! {
 ///     id: "qoi",
 ///     name: "Quite OK Image",
 ///     extensions: "qoi",
@@ -391,7 +444,7 @@ unsafe impl Sync for PluginInfoHolder {}
 /// }
 /// ```
 #[macro_export]
-macro_rules! export_plugin {
+macro_rules! export_decoder {
     (
         id: $id:expr,
         name: $name:expr,
@@ -405,8 +458,8 @@ macro_rules! export_plugin {
         static __SV_EXTS: &[u8] = concat!($exts, "\0").as_bytes();
         static __SV_DESC: &[u8] = concat!($desc, "\0").as_bytes();
 
-        static __SV_INFO: $crate::PluginInfoHolder =
-            $crate::PluginInfoHolder($crate::IvPluginInfo {
+        static __SV_INFO: $crate::DecoderInfoHolder =
+            $crate::DecoderInfoHolder($crate::IvDecoderInfo {
                 id: __SV_ID.as_ptr() as *const std::ffi::c_char,
                 display_name: __SV_NAME.as_ptr() as *const std::ffi::c_char,
                 abi_version: $crate::IV_ABI_VERSION,
@@ -422,9 +475,9 @@ macro_rules! export_plugin {
         }
 
         #[no_mangle]
-        pub extern "C" fn iv_plugin_info() -> *const $crate::IvPluginInfo {
+        pub extern "C" fn iv_decoder_info() -> *const $crate::IvDecoderInfo {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                &__SV_INFO.0 as *const $crate::IvPluginInfo
+                &__SV_INFO.0 as *const $crate::IvDecoderInfo
             }))
             .unwrap_or(std::ptr::null())
         }
@@ -439,16 +492,16 @@ macro_rules! export_plugin {
     };
 }
 
-/// 声明**解码能力位图**：生成可选导出 `iv_caps()`。放在 `export_plugin!` 之后一行：
+/// 声明**解码能力位图**：生成可选导出 `iv_caps()`。放在 `export_decoder!` 之后一行：
 ///
 /// ```text
-/// rupix_abi::export_plugin! { id, name, exts, desc, is_vector, has_alpha }
+/// rupix_abi::export_decoder! { id, name, exts, desc, is_vector, has_alpha }
 /// rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_SCALED);
 /// ```
 ///
 /// 不写这一行也合法——宿主按 [`caps_from_legacy`] 推定，代价是永远拿不到
 /// [`CAP_SCALED`] 这类新维度。**位图必须如实**：谎报的结果不是崩溃，而是宿主把缩放
-/// 请求发给只会整解的插件，白付一次整图解码——这种错测不出来也不报错，所以宁缺勿滥。
+/// 请求发给只会整解的解码器，白付一次整图解码——这种错测不出来也不报错，所以宁缺勿滥。
 #[macro_export]
 macro_rules! export_caps {
     ($($bits:tt)+) => {
@@ -460,15 +513,53 @@ macro_rules! export_caps {
     };
 }
 
+/// 声明**可扩展元数据**：生成可选导出 `iv_metadata()`。
+///
+/// 参数是任意数量的 `"key" => "value"` 字符串字面量对；新增字段只改这里，
+/// 不修改 `IvDecoderInfo`、不 bump ABI。宿主按 key 取自己认识的项，未知 key 忽略。
+///
+/// ```ignore
+/// rupix_abi::export_metadata! {
+///     "license" => "AGPL-3.0",
+///     "source" => "https://example.invalid/source",
+/// }
+/// ```
+#[macro_export]
+macro_rules! export_metadata {
+    ($($key:literal => $value:literal),* $(,)?) => {
+        static __SV_META_FIELDS: $crate::MetadataFields = $crate::MetadataFields(&[
+            $($crate::IvMetadataField {
+                key: concat!($key, "\0").as_ptr() as *const std::ffi::c_char,
+                value: concat!($value, "\0").as_ptr() as *const std::ffi::c_char,
+            }),*
+        ]);
+        static __SV_META: $crate::MetadataHolder = $crate::MetadataHolder($crate::IvMetadata {
+            size: std::mem::size_of::<$crate::IvMetadata>() as u32,
+            version: $crate::METADATA_VERSION,
+            field_count: __SV_META_FIELDS.0.len() as u32,
+            reserved: 0,
+            fields: __SV_META_FIELDS.0.as_ptr(),
+        });
+
+        /// 可扩展元数据表（可选导出；旧宿主可忽略）。
+        #[no_mangle]
+        pub extern "C" fn iv_metadata() -> *const $crate::IvMetadata {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| &__SV_META.0))
+                .map(|p| p as *const _)
+                .unwrap_or(std::ptr::null())
+        }
+    };
+}
+
 // ---------------------------------------------------------------------------
-// kit：EXIF 方向取值（插件侧共用，2026-10-19 m48）
+// kit：EXIF 方向取值（解码器侧共用，2026-10-19 m48）
 // ---------------------------------------------------------------------------
 
 /// 从一段 EXIF / TIFF 结构里只取**方向标签** `0x0112`（`IvRenderOut::orientation` 的来处）。
 ///
 /// # 为什么值得放进 kit
 /// 方向是**容器知识**：JPEG 在 APP1、PNG 在 `eXIf` 块、WebP 在 RIFF 的 `EXIF` chunk、
-/// TIFF 整个文件就是这段结构。容器切块各家不同（留在各插件里），但**切出来之后的那一小段
+/// TIFF 整个文件就是这段结构。容器切块各家不同（留在各解码器里），但**切出来之后的那一小段
 /// TIFF 走读完全一样**——这一份复制 4 次，就是把"count 撒谎"这类坑也复制 4 次。
 /// 各 DLL 本来就静态链接自己的副本，共用不省体积，省的是**正确性的维护面**。
 ///
@@ -728,17 +819,17 @@ mod tests {
 
     /// 两个跨边界结构体的长度必须冻结。这条测试是编译期断言的"看得见"版本。
     ///
-    /// `IvPluginInfo` 也必须在这张表里：它的 48 字节含 4 字节对齐填充，那 4 字节
+    /// `IvDecoderInfo` 也必须在这张表里：它的 48 字节含 4 字节对齐填充，那 4 字节
     /// 是"新字段不能靠追加蒙过去"的最后一道防线（实测往末尾追加会让宿主对旧 DLL
     /// 越界读到相邻 `.data` 的垃圾值）。谁改了这个数，就是在改契约。
     #[test]
     fn ffi_struct_sizes_are_frozen() {
-        assert_eq!(size_of::<IvPluginInfo>(), 48);
+        assert_eq!(size_of::<IvDecoderInfo>(), 48);
         assert_eq!(size_of::<IvRenderReq>(), 24);
         assert_eq!(size_of::<IvRenderOut>(), 48);
     }
 
-    /// 能力位是 ABI 的一部分，和错误码同样逐个钉死——挪号等于让老插件谎报能力。
+    /// 能力位是 ABI 的一部分，和错误码同样逐个钉死——挪号等于让老解码器谎报能力。
     #[test]
     fn capability_bits_are_stable() {
         assert_eq!(
@@ -752,7 +843,7 @@ mod tests {
             ],
             [0b1, 0b10, 0b100, 0b1000, 0b1_0000, 0b10_0000]
         );
-        // 请求位标志也在发布出去的契约里：宿主与插件各读一半，位号一样不许挪。
+        // 请求位标志也在发布出去的契约里：宿主与解码器各读一半，位号一样不许挪。
         assert_eq!(REQ_ALLOW_SCALED, 0b100);
     }
 
@@ -790,7 +881,7 @@ mod tests {
     /// `iv_last_error` 的读取路径必须保住消息本身。
     ///
     /// 曾经的事故：导出样板把 `write_last_error` 也套进 [`guard`]，而 `guard` 进门先清
-    /// last-error——读消息的函数把要读的那行字擦掉了，所有 Rust 插件的错误文案一律取不到
+    /// last-error——读消息的函数把要读的那行字擦掉了，所有 Rust 解码器的错误文案一律取不到
     /// （真 DLL 实测 need=1、宿主拿到空串）。这条测试钉住两个栅栏的分工。
     #[test]
     fn reading_last_error_keeps_the_message() {

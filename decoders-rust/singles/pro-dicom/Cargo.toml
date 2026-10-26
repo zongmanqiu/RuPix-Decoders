@@ -1,0 +1,21 @@
+[package]
+name = "rupix-pro-dicom"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：DICOM（dicom-pixeldata，首帧 + VOI normalize）"
+
+[lib]
+name = "pro_dicom"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+dicom-object = "0.10.0"
+dicom-pixeldata = { version = "0.10.0", features = ["image"] }
+image = { version = "0.25", default-features = false }

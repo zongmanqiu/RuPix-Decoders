@@ -1,0 +1,68 @@
+[package]
+name = "rupix-core"
+version = "0.3.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码器：常用位图兜底（APNG/WebP/BMP/ICO/TGA/DDS/PNM；JPEG/PNG/TIFF/GIF 已由冠军解码器认领）"
+
+[lib]
+# 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "core"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立解码器形态：生成 iv_abi_version / iv_decoder_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone", "webp-c"]
+standalone = []
+# WebP 后端二选一（见 lib.rs 的 `decode_webp`）：
+#   webp-c    = libwebp（C 静态库，3 MP 实测 50.3 ms）——独立 core 解码器用这条；
+#   webp-rust = image-webp（纯 Rust，90.6 ms，慢 44%）——合并档 `common` 用这条，
+#               换来"一个 C 字符都不带"。合并进 zenwebp 之后这条也可以退役。
+webp-c = ["dep:libwebp-sys2"]
+webp-rust = ["dep:image-webp"]
+
+[dependencies]
+rupix-abi = { workspace = true }
+
+# 一个库覆盖全部常用位图，避免手写 BMP/ICO/DDS/PNM 这类"几十行但坑很多"的格式。
+#
+# ★ 必须 default-features = false：默认会开 `default-formats`，把 avif（ravif，
+# 含一整个 AV1 编码器）、exr、hdr、qoi 全链进来 —— 那些该归 av / pro / 独立解码器。
+#
+# 内部解码器就是业界主流实现：jpeg = zune-jpeg 0.5、png = png 0.18、gif = gif 0.14、
+# tiff = tiff 0.10；webp 单独走 libwebp（见下）。
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "gif",
+    # webp 例外：image-webp 0.2 比 libwebp（C）慢 44%（3MP 实测 90.6 vs 50.3ms），
+    # WebP 路由到 libwebp-sys2，见 lib.rs 的 `is_webp`。单测经 dev-dependencies 的
+    # image webp feature 造样本（feature 统一只发生在测试构建，DLL 构建不含它）。
+    "bmp",
+    "ico", # = bmp + png（Windows 图标可以是内嵌 PNG）
+    "tiff",
+    "pnm",
+    "tga",
+    "dds",
+    "ff",
+] }
+
+# ── GIF 表头遍历：`next_frame_info` 配 OutputBuffer::None 只跳块不解像素，
+#    用来在第一帧之前就数出总帧数（宿主信息条不再写 `帧 1/?`）。
+#    与 image 内部用的是同一个 crate、同一个版本，DLL 不会多一分代码。
+gif = "0.14"
+
+# ── WebP 专用解码：libwebp（C 库，编译进 DLL，无运行时依赖）──
+# P2 实测 image-webp 90.6ms → libwebp 50.3ms（-44%），看图器"打开速度最快"红线优先。
+libwebp-sys2 = { version = "0.1", features = ["1_1"], optional = true }
+
+# ── 纯 Rust WebP 后端（`webp-rust` feature）：合并库用，见 [features] ──
+image-webp = { version = "0.2", optional = true }
+
+# ── P2 实验/单测辅助：bench_webp 对比与 webp 编码样本 ──
+[dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["webp"] }
+# 测试专用：image 的 GifEncoder 走 NeuQuant 有损量化，4x3 小图纯色会被毁掉，
+# 造测试样本必须用 gif crate 直写精确索引调色板（与 image 内部用的是同一个库；
+# 现在 gif 已是正式依赖，这里不再单列）。

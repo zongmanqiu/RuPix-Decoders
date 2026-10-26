@@ -1,0 +1,32 @@
+[package]
+name = "rupix-gif"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码器：GIF（gif crate 直调，本机实测冠军）"
+
+[lib]
+# 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "gif"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立解码器形态：生成 iv_abi_version / iv_decoder_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+# G1 实测冠军（2026-10-15，run r1792006432，n=200 median，同一 run 内配对）：
+#   gif crate 直调 1.18× 于 core 现走的 `image` 路线（与 PNG/JPEG/TIFF 同一结论：
+#   快的不是库，是调用方式——image 的 DynamicImage → into_rgba8() 再交一遍包装税）。
+#
+# ★ 依赖名必须别名：本 crate 的 `[lib] name = "gif"`（= 解码器 id），与依赖同名会撞
+#   extern prelude，所以代码里用 `gif_crate::`（png 解码器同款处理）。
+gif_crate = { package = "gif", version = "0.14" }
+
+[dev-dependencies]
+# 冠军不许自称正确：首帧画布与 core 的 `image` 路线（into_frames）逐字节比对——
+# 这也是让位链衔接的根基（frame 0 由冠军出、frame ≥1 由 core 出，两边必须同像素）。
+image = { version = "0.25", default-features = false, features = ["gif"] }

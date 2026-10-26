@@ -1,0 +1,30 @@
+[package]
+name = "rupix-psd"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix 解码器：Photoshop PSD（zune-psd，8/16 位 RGB/RGBA/灰度，RLE 或无压缩）"
+
+[lib]
+# 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
+name = "psd"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# 独立解码器形态：生成 iv_abi_version / iv_decoder_info / iv_last_error / iv_probe / iv_render。
+# 合并库依赖时关掉它，否则多个 crate 的 #[no_mangle] iv_* 会在同一枚 DLL 里重名。
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+# crates.io 上唯一的纯 Rust PSD 解码器（zune-image 家族）。与本仓已依赖的
+# zune-jpeg 同一个 zune-core 底座，所以替掉 stb 之后净增依赖就是这一个 crate
+# （约 12 KB 源码、无 C、无 build.rs）——全仓至此零 C 编译。
+# ★ 只用它的头解析：0.5.1 的像素路径有三处实测缺陷（8 位无压缩少读写乱、
+#   16 位无压缩字节序反、16 位 RLE 未实现），像素由本 crate 自解，见 src/lib.rs 模块头。
+zune-psd = "0.5.1"
+# 直依赖理由：PSDDecoder 的输入/选项/结果三个类型都住在 zune-core
+# （ZCursor / DecoderOptions / DecodingResult + ColorSpace），解码器要自己
+# 读它们，不能只透传。
+zune-core = "0.5"

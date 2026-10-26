@@ -1,0 +1,20 @@
+[package]
+name = "rupix-pro-wmf"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix pro 档成员：WMF（wmf-core → SVG → resvg 光栅化）"
+
+[lib]
+name = "pro_wmf"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+wmf-core = { version = "0.1.2", default-features = false, features = ["svg"] }
+resvg = "0.49"
