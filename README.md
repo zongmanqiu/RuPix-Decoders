@@ -1,5 +1,7 @@
 # RuPix 解码器仓库
 
+> **仓库入口**：[**Gitee**](https://gitee.com/qiuzongman/RuPix-Decoder) | [**GitHub**](https://github.com/zongmanqiu/RuPix-Decoder)
+
 RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交互、几何变换、路由与缓存，
 启动时扫描 exe 同级 `decoders/` 目录，按每个 DLL 的 `iv_decoder_info()` 自述认领后缀。
 本仓库是这些 DLL 的源码、契约与构建入口；当前四档**纯 Rust**，无 C 编译依赖。
