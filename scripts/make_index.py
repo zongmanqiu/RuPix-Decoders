@@ -7,7 +7,7 @@
 包裹层——那些只是把"一个列表"翻译成"一个对象的字段"，宿主每读一次都要多剥两层，
 人眼也得先跳过三行才知道正文在哪。清单里只有一种东西（DLL），那就只写这一种东西。
 
-每项九个字段，顺序固定：
+每项十个字段，顺序固定：
 
     id        解码器标识（小写；停用表与下载目录都按它认人，**不从文件名反推**）
     name      解码器名称（DLL 自述的 display_name，**不是 DLL 文件名**）
@@ -18,7 +18,8 @@
     desc      一句话说明（DLL 自述）
     formats   认领的扩展名，**分号分隔、不带点**（与 ABI `IvPluginInfo.extensions`
               同一个形状：`jpg;jpeg;jpe`——宿主读自述时怎么切，这里就怎么切）
-    url       DLL 下载地址（未发布为空串）
+    gitee     DLL 下载地址（Gitee 源；未发布为空串）
+    github    DLL 下载地址（GitHub 源；未发布为空串；默认由 gitee 推导，可显式覆盖）
 
 # 为什么没有 sha256
 
@@ -34,17 +35,20 @@
 - **生成器覆盖**：id / name / version / abi / size / desc / formats —— 全部从**发布目录里
   那枚 DLL 自己**读出来（`iv_plugin_info`），所以"清单说 A、DLL 说 B"这种脱节
   **物理上不可能发生**，不需要靠纪律维持。
-- **你可以手改**：`url`、`released`。生成器没有网络，无从判断某个 release 到底存不存在，
-  所以它**不臆造地址**：缺地址的项 `url` 留空，收尾会列成 `MISSING url`，由
-  `scripts/check_urls.py` 真下载一遍核对。手填过的地址会被**原样保留**。
-  `released` 同理：已填的保留；`url` 为空的项一律清空（没发布就没有发布日）。
+- **你可以手改**：`gitee`、`github`、`released`。生成器没有网络，无从判断某个 release
+  到底存不存在，所以它**不臆造地址**：缺 gitee 地址的项 `gitee` 留空，收尾会列成
+  `MISSING gitee`，由 `scripts/check_urls.py` 真下载一遍核对。手填过的地址会被**原样保留**。
+  `github` 默认按 gitee 推导（`derive_github_url`：只换主机名），你显式填了就覆盖推导值
+  （镜像还没同步那枚 release 时，可以把它清空成 `ID=`）。
+  `released` 同理：已填的保留；`gitee` 为空的项一律清空（没发布就没有发布日）。
 
 # 用法
 
     py scripts/make_index.py                 # 用默认发布目录 <repo>/../.temp/decoder-dist
     py scripts/make_index.py --dist DIR      # 指定发布目录（RUPIX_DIST_DIR 也行）
     py scripts/make_index.py --out FILE      # 指定输出（默认 <repo>/index.json）
-    py scripts/make_index.py --set-url common=https://...   # 顺手填地址（可重复）
+    py scripts/make_index.py --set-url common=https://...   # 填 gitee 地址（可重复，自动推导 github）
+    py scripts/make_index.py --set-github-url common=https://...  # 显式覆盖 github（可重复；ID= 清空）
 
 ★ 用 **`py`** 跑，不要用 `python`：本机 `python` 是 WorkBuddy 自带的那套，加载不了
 x64 DLL（ctypes 拿不到自述）。脚本会先自检位数再动手。
@@ -61,7 +65,22 @@ import pathlib
 import sys
 
 # 清单里的字段顺序 = 契约。改顺序会让 git diff 变得难读，也可能骗过"我只看了一眼"的评审。
-FIELDS = ("id", "name", "version", "abi", "size", "released", "desc", "formats", "url")
+FIELDS = ("id", "name", "version", "abi", "size", "released", "desc", "formats", "gitee", "github")
+
+
+def derive_github_url(gitee_url: str) -> str:
+    """从 gitee 下载地址推 github 地址：**只换主机名**。
+
+    两边的 release 路径约定一致（同一 `<id>_<version>` tag、`releases/download/...`），
+    所以 github 地址就是 gitee 地址把 `gitee.com` 换成 `github.com`
+    （`raw.giteeusercontent.com` 换成 `raw.githubusercontent.com`，备用）。
+    没有 gitee 地址时返回空串（镜像无从谈起）。
+    """
+    if not gitee_url:
+        return ""
+    return gitee_url.replace(
+        "raw.giteeusercontent.com", "raw.githubusercontent.com"
+    ).replace("gitee.com", "github.com")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -110,10 +129,11 @@ def parse_file_name(name: str) -> tuple[str, str] | None:
 
 
 def load_previous(path: pathlib.Path) -> dict[str, dict]:
-    """读上一份清单，按 id 建索引——`url` / `released` / 条目顺序从它继承。
+    """读上一份清单，按 id 建索引——`gitee` / `github` / `released` / 条目顺序从它继承。
 
-    兼容旧结构（`{"plugins": [...]}`）：这次结构精简之前留下的文件也能直接吃，
-    省得手上一堆"结构改了、地址全丢"的返工。
+    兼容旧结构（`{"plugins": [...]}`、单 `url` 字段）：这次结构精简之前留下的文件也能
+    直接吃，省得手上一堆"结构改了、地址全丢"的返工。`url` 字段会被迁移成 `gitee`
+    （`github` 按 `derive_github_url` 推导）。
     """
     if not path.is_file():
         return {}
@@ -131,7 +151,9 @@ def main() -> int:
     ap.add_argument("--dist", default=os.environ.get("RUPIX_DIST_DIR") or (ROOT.parent / ".temp" / "decoder-dist"))
     ap.add_argument("--out", default=ROOT / "index.json")
     ap.add_argument("--set-url", action="append", default=[], metavar="ID=URL",
-                    help="顺手写入下载地址（可重复；写进去的地址之后每次生成都会被保留）")
+                    help="顺手写入 gitee 下载地址（可重复；自动推导 github；写进去的地址之后每次生成都会被保留）")
+    ap.add_argument("--set-github-url", action="append", default=[], metavar="ID=URL",
+                    help="显式覆盖 github 下载地址（可重复；ID= 清空该来源推导值）")
     args = ap.parse_args()
 
     if ctypes.sizeof(ctypes.c_void_p) != 8:
@@ -172,12 +194,20 @@ def main() -> int:
             return 1
 
         prev = previous.get(pid) or {}
-        url = prev.get("url") or ""
-        if isinstance(url, dict):                       # 旧结构：{"gitee": ..., "github": ...}
-            url = url.get("gitee") or url.get("github") or ""
+        gitee = prev.get("gitee") or ""
+        if isinstance(gitee, dict):                     # 旧结构：{"gitee": ..., "github": ...}
+            gitee = gitee.get("gitee") or gitee.get("github") or ""
+        elif not gitee and isinstance(prev.get("url"), str):   # 更旧：单 url 字段
+            gitee = prev["url"]
+        github = prev.get("github") or ""
+        if isinstance(github, dict):
+            github = github.get("github") or github.get("gitee") or ""
+        if not github:
+            github = derive_github_url(gitee)            # 默认按 gitee 推导
         released = prev.get("released") or ""
-        if not url:
+        if not gitee:
             released = ""                               # 没发布就没有发布日
+            github = ""                                 # 没发布就没有镜像地址
         elif not released:
             released = today
 
@@ -190,7 +220,8 @@ def main() -> int:
             "released": released,
             "desc": sd["desc"],
             "formats": sd["formats"],
-            "url": url,
+            "gitee": gitee,
+            "github": github,
         })
 
     for item in args.set_url:
@@ -199,8 +230,17 @@ def main() -> int:
         if hit is None:
             print(f"错误：--set-url 的 id {pid!r} 不在清单里", file=sys.stderr)
             return 1
-        hit["url"] = url.strip()
+        hit["gitee"] = url.strip()
+        hit["github"] = derive_github_url(url.strip())   # 自动推导镜像
         hit["released"] = hit["released"] or today
+
+    for item in args.set_github_url:
+        pid, _, url = item.partition("=")
+        hit = next((e for e in entries if e["id"] == pid.strip()), None)
+        if hit is None:
+            print(f"错误：--set-github-url 的 id {pid!r} 不在清单里", file=sys.stderr)
+            return 1
+        hit["github"] = url.strip()                      # 显式覆盖推导值（ID= 即清空）
 
     # 人工排过的顺序：按上一份清单里出现的先后，新条目接在后面。
     order = {pid: i for i, pid in enumerate(previous)}
@@ -212,15 +252,16 @@ def main() -> int:
 
     print(f"写入 {out}（{len(entries)} 枚，{len(text.encode('utf-8'))} B）")
     for e in entries:
-        state = e["url"] or "未发布"
+        gstate = e["gitee"] or "未发布"
+        hstate = e["github"] or "（无镜像）"
         print(f"  {e['id']:7} {e['version']:8} abi={e['abi']} {e['size']:>9,} B  "
-              f"{len(e['formats'].split(';')):>2} 格式  {state}")
+              f"{len(e['formats'].split(';')):>2} 格式  gitee={gstate}  github={hstate}")
     for s in skipped:
         print(f"  跳过 {s}")
-    missing = [e["id"] for e in entries if not e["url"]]
+    missing = [e["id"] for e in entries if not e["gitee"]]
     if missing:
-        print(f"MISSING url（还没上传 release）：{', '.join(missing)}")
-        print("  上传后把地址写进该条的 url（或 --set-url <id>=<地址>），再跑一次即可；地址会被保留。")
+        print(f"MISSING gitee（还没上传 release）：{', '.join(missing)}")
+        print("  上传后把 gitee 地址写进该条（或 --set-url <id>=<地址>），再跑一次即可；github 会自动推导。")
     return 0
 
 

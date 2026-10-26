@@ -1,25 +1,27 @@
 """把 index.json 里的下载地址**真下载一遍**，核对字节数。
 
-为什么要这个脚本：清单的 `url` 是人工填的（生成器没有网络，不臆造地址）。
+为什么要这个脚本：清单的 `gitee` / `github` 是人工填的（生成器没有网络，不臆造地址）。
 填错的后果不是"下不了"这么简单——宿主的「解码器 / 可下载」卡会列出一排点了 404 的按钮，
 而作者本地一切正常。2026-10-26 就撞过：旧清单里 pro/raw 指向一个不存在的批次 tag，
 四条地址里两条是 404，直到手工 curl 才发现。
 
+每个条目有**两列地址**（`gitee` 主源、`github` 镜像），对应宿主里「来源」下拉的两个选项。
 判据（任何一条不过即退出码 1）：
-  1. HTTP 200（跟随重定向；gitee release 资产会跳一次）；
+  1. HTTP 200（跟随重定向；gitee / github release 资产都会跳一次）；
   2. `Content-Length` 与清单 `size` 一致；
   3. 实际下载字节数与该 `size` 一致。
+
+`gitee` 是主发布源：没有 `gitee` 的条目算"未发布"，只提示、在 `--strict` 下才判失败。
+`github` 是镜像：有 `gitee` 但 `github` 为空 = "镜像还没同步"，只 WARN（切到 GitHub 来源时
+那枚会显示成灰的「下载」），`--strict` 下判失败。
 
 清单里**没有 sha256**（2026-10-26 精简：一句 `size` 顶掉 `file` + `sha256` 两个字段，
 理由见 `scripts/make_index.py` 头部）。脚本仍会打印实收字节的 sha256：人工核对、
 或者哪天要把哈希加回清单时，这里就是现成的出处。
 
-没有 `url` 的条目（尚未发布）只打印提示，不算失败——**清单如实说"还没发布"是对的**，
-不能因此判红，否则大家会把地址乱填一气来消红。
-
 用法（从仓库根）：
-    py scripts/check_urls.py            # 全部；缺地址只提示
-    py scripts/check_urls.py --strict   # 缺地址也判失败（发布前体检用）
+    py scripts/check_urls.py            # 全部；未发布只提示，镜像未同步只 WARN
+    py scripts/check_urls.py --strict   # 未发布 / 镜像未同步也判失败（发布前体检用）
     py scripts/check_urls.py common     # 只查指定 id
 """
 import hashlib
@@ -51,6 +53,34 @@ def fetch(url):
     return status, (int(length) if length else None), h.hexdigest(), got
 
 
+def validate(pid, url, size, label, bad):
+    """下载一条地址并核对状态/字节数；不过把问题写进 `bad`，返回 None。"""
+    print(f'  GET  {pid} [{label}]: {url}')
+    try:
+        status, length, digest, got = fetch(url)
+    except urllib.error.HTTPError as e:
+        bad.append(f'{pid}/{label}: HTTP {e.code}')
+        print(f'       FAIL HTTP {e.code}')
+        return
+    except Exception as e:  # 网络/超时/证书
+        bad.append(f'{pid}/{label}: {e}')
+        print(f'       FAIL {e}')
+        return
+
+    problems = []
+    if status != 200:
+        problems.append(f'HTTP {status}')
+    if length is not None and length != size:
+        problems.append(f'Content-Length {length:,} != 清单 {size:,}')
+    if got != size:
+        problems.append(f'实收 {got:,} B != 清单 {size:,} B')
+    if problems:
+        bad.append(f'{pid}/{label}: ' + '; '.join(problems))
+        print('       FAIL ' + '; '.join(problems))
+    else:
+        print(f'       OK   {got:,} B  sha256 {digest[:16]}…')
+
+
 def main(argv):
     strict = '--strict' in argv
     only = [a for a in argv[1:] if not a.startswith('-')]
@@ -62,51 +92,40 @@ def main(argv):
               f'{type(doc).__name__}。先跑 py scripts/make_index.py。')
         return 1
 
-    bad, unpublished = [], []
+    bad, unpublished, unsynced = [], [], []
     for ent in doc:
         pid = ent['id']
         if only and pid not in only:
             continue
-        url = ent.get('url') or ''
-        if not url:
+        gitee = ent.get('gitee') or ''
+        github = ent.get('github') or ''
+        if not gitee:
             unpublished.append(pid)
-            print(f'  SKIP {pid}: 尚无下载地址（未发布）')
+            extra = f'；但填了 github={github}' if github else ''
+            print(f'  SKIP {pid}: 未发布（gitee 无地址）{extra}')
             continue
-        print(f'  GET  {pid}: {url}')
-        try:
-            status, length, digest, got = fetch(url)
-        except urllib.error.HTTPError as e:
-            bad.append(f'{pid}: HTTP {e.code}')
-            print(f'       FAIL HTTP {e.code}')
-            continue
-        except Exception as e:  # 网络/超时/证书
-            bad.append(f'{pid}: {e}')
-            print(f'       FAIL {e}')
-            continue
-
-        problems = []
-        if status != 200:
-            problems.append(f'HTTP {status}')
-        if length is not None and length != ent['size']:
-            problems.append(f'Content-Length {length:,} != 清单 {ent["size"]:,}')
-        if got != ent['size']:
-            problems.append(f'实收 {got:,} B != 清单 {ent["size"]:,} B')
-        if problems:
-            bad.append(f'{pid}: ' + '; '.join(problems))
-            print('       FAIL ' + '; '.join(problems))
+        # gitee 主源：必查。
+        validate(pid, gitee, ent['size'], 'gitee', bad)
+        # github 镜像：有则查；没有则 WARN（不算硬失败，除非 --strict）。
+        if not github:
+            unsynced.append(pid)
+            print('       WARN github 镜像未同步（gitee 已发布，github 为空）'
+                  '—— 切到 GitHub 来源时这枚会显示成灰的「下载」')
         else:
-            print(f'       OK   {got:,} B  sha256 {digest[:16]}…')
+            validate(pid, github, ent['size'], 'github', bad)
 
     print()
     if unpublished:
         print(f'未发布（{len(unpublished)}）：' + ', '.join(unpublished))
+    if unsynced:
+        print(f'github 镜像未同步（{len(unsynced)}）：' + ', '.join(unsynced))
     if bad:
         print(f'FAILED {len(bad)}:')
         for b in bad:
             print('  - ' + b)
         return 1
-    if strict and unpublished:
-        print('--strict：存在未发布条目，判失败')
+    if strict and (unpublished or unsynced):
+        print('--strict：存在未发布 / 镜像未同步条目，判失败')
         return 1
     print('urls: 0 failure(s)')
     return 0
