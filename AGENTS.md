@@ -145,14 +145,17 @@
 - 无清单文件随 DLL 走：宿主扫全部 `*.dll` 读 `iv_plugin_info()` 自述。唯一的清单是
   `index.json`（宿主「可下载」卡读的那份，由 `scripts/make_index.py` **从发布目录里的 DLL 自述**
   生成，id/abi 与文件名不符即硬报错、不落盘；同 id 出现两份构建也硬报错）。
-  **顶层就是一个数组，一项一枚 DLL**，九个字段：`id` / `name`（自述里的解码器名，不是 DLL
+  **顶层就是一个数组，一项一枚 DLL**，十个字段：`id` / `name`（自述里的解码器名，不是 DLL
   文件名）/ `version` / `abi` / `size` / `released` / `desc` / `formats`（分号分隔、不带点，
-  与 ABI `extensions` 同形）/ `url`。2026-10-26 精简掉的东西——`schema` / `updated` /
-  `plugins` 包裹层、`file`（能从 id+version 算）、`sha256`（`size` 就够：半截 DLL 过不了
-  `iv_plugin_info` 自述校验）、`author` / `homepage` / `minHost` / `tag` / `notes`。
+  与 ABI `extensions` 同形）/ `gitee` / `github`。2026-10-26 精简掉的东西——`schema` /
+  `updated` / `plugins` 包裹层、`file`（能从 id+version 算）、`sha256`（`size` 就够：半截 DLL
+  过不了 `iv_plugin_info` 自述校验）、`author` / `homepage` / `minHost` / `tag` / `notes`。
   下载地址是 **release 资产**（`.../releases/download/<tag>/<file>`），tag = `<id>_<version>`
-  （每枚一个 release）。`url` 与 `released` 由人填、生成器**原样保留**；缺地址的项在收尾
-  列成 `MISSING url`，`url` 为空、`released` 也随之为空。
+  （每枚一个 release）。`gitee` / `released` 由人填、生成器**原样保留**；`github` 默认由
+  `gitee` 推导（`derive_github_url`：**主机名与 owner 一起换**——Gitee `qiuzongman` /
+  GitHub `zongmanqiu` 不是同一用户名），可用 `--set-github-url` 覆盖。GitHub 侧也要上传
+  同一批 release；未上传前该列会 404，由 `check_urls.py` 如实报。缺 `gitee` 的项在收尾
+  列成 `MISSING gitee`，`released` 也随之为空。
 - **发布清单 = `decoders/` 下的目录，别的不算**：`build.ps1` 按 `decoders/*` 枚举，
   `make_index.py` 也只收 `decoders/` 里存在的 id。`decoders/` 里**只放档**
   （一个文件夹一枚发布 DLL）；单库住 `bench/singles/`，**永远不进发布目录**。曾有的测试夹具 `test-plugins/testred`
@@ -299,7 +302,7 @@
 | 手动测试（档） | `cargo test --release --workspace -- --test-threads=1` | 全绿，用例数不低于上一版 |
 | 手动测试（单库） | `cd bench` → `cargo test --release --workspace -- --test-threads=1` | 全绿；单库不发布，但档的成员全靠它们，必须同步验 |
 | 产物 | 检查发布目录与宿主插件目录 | 仅 `<id>_<ver>.dll`，同 id 一份，命名合规 |
-| 清单 | `py scripts\make_index.py` | 一项一枚 DLL（顶层就是数组）；id/abi/name/formats 与 DLL 自述逐一对齐、无重复 id，`index.json` 落盘；`url` 人工维护、缺地址在收尾列成 `MISSING url` |
+| 清单 | `py scripts\make_index.py` | 一项一枚 DLL（顶层就是数组）；id/abi/name/formats 与 DLL 自述逐一对齐、无重复 id，`index.json` 落盘；`gitee` 人工维护、`github` 由 gitee 推导（主机名 + owner）、缺 gitee 地址在收尾列成 `MISSING gitee` |
 | 地址 | `py scripts\check_urls.py` | 把清单里的地址真下载一遍，核对 `Content-Length` 与实收字节数是否等于清单 `size`；404 或对不上即判红（未发布条目只提示、不判红） |
 | 格式化 | `cargo fmt --check` | exit 0 |
 | Lint | `cargo clippy --all-targets --workspace --release -- -D warnings` | exit 0。**必须带 `-D warnings`**：不带时 clippy 打完警告照样返回 0，等于没有门禁 |

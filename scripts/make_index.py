@@ -38,8 +38,9 @@
 - **你可以手改**：`gitee`、`github`、`released`。生成器没有网络，无从判断某个 release
   到底存不存在，所以它**不臆造地址**：缺 gitee 地址的项 `gitee` 留空，收尾会列成
   `MISSING gitee`，由 `scripts/check_urls.py` 真下载一遍核对。手填过的地址会被**原样保留**。
-  `github` 默认按 gitee 推导（`derive_github_url`：只换主机名），你显式填了就覆盖推导值
-  （镜像还没同步那枚 release 时，可以把它清空成 `ID=`）。
+  `github` 默认按 gitee 推导（`derive_github_url`：**主机名和 owner 一起换**——Gitee
+  `qiuzongman` / GitHub `zongmanqiu` 不是同一用户名，只换主机名会得到 404）。显式填了
+  就覆盖推导值（`--set-github-url <id>=<url>`）。
   `released` 同理：已填的保留；`gitee` 为空的项一律清空（没发布就没有发布日）。
 
 # 用法
@@ -69,18 +70,26 @@ FIELDS = ("id", "name", "version", "abi", "size", "released", "desc", "formats",
 
 
 def derive_github_url(gitee_url: str) -> str:
-    """从 gitee 下载地址推 github 地址：**只换主机名**。
+    """从 Gitee 下载地址推 GitHub 地址：**主机名和 owner 一起换**。
 
-    两边的 release 路径约定一致（同一 `<id>_<version>` tag、`releases/download/...`），
-    所以 github 地址就是 gitee 地址把 `gitee.com` 换成 `github.com`
-    （`raw.giteeusercontent.com` 换成 `raw.githubusercontent.com`，备用）。
-    没有 gitee 地址时返回空串（镜像无从谈起）。
+    Gitee owner = `qiuzongman`，GitHub owner = `zongmanqiu`，不是同一个用户名；
+    只把 `gitee.com` 换成 `github.com` 会得到 404（2026-10-26 实测）。对不上本仓前缀
+    的地址返回空串——生成器不臆造地址。
     """
     if not gitee_url:
         return ""
-    return gitee_url.replace(
-        "raw.giteeusercontent.com", "raw.githubusercontent.com"
-    ).replace("gitee.com", "github.com")
+    pairs = (
+        ("https://gitee.com/qiuzongman/", "https://github.com/zongmanqiu/"),
+        (
+            "https://raw.giteeusercontent.com/qiuzongman/",
+            "https://raw.githubusercontent.com/zongmanqiu/",
+        ),
+    )
+    for old, new in pairs:
+        if gitee_url.startswith(old):
+            return new + gitee_url[len(old):]
+    return ""
+
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -133,7 +142,7 @@ def load_previous(path: pathlib.Path) -> dict[str, dict]:
 
     兼容旧结构（`{"plugins": [...]}`、单 `url` 字段）：这次结构精简之前留下的文件也能
     直接吃，省得手上一堆"结构改了、地址全丢"的返工。`url` 字段会被迁移成 `gitee`
-    （`github` 按 `derive_github_url` 推导）。
+    （`github` 按 `derive_github_url` 推导：主机名 + owner 一起换）。
     """
     if not path.is_file():
         return {}
@@ -203,7 +212,7 @@ def main() -> int:
         if isinstance(github, dict):
             github = github.get("github") or github.get("gitee") or ""
         if not github:
-            github = derive_github_url(gitee)            # 默认按 gitee 推导
+            github = derive_github_url(gitee)            # 主机名 + owner 一起换
         released = prev.get("released") or ""
         if not gitee:
             released = ""                               # 没发布就没有发布日
@@ -231,7 +240,7 @@ def main() -> int:
             print(f"错误：--set-url 的 id {pid!r} 不在清单里", file=sys.stderr)
             return 1
         hit["gitee"] = url.strip()
-        hit["github"] = derive_github_url(url.strip())   # 自动推导镜像
+        hit["github"] = derive_github_url(url.strip())   # 主机名 + owner 一起换
         hit["released"] = hit["released"] or today
 
     for item in args.set_github_url:
@@ -261,7 +270,8 @@ def main() -> int:
     missing = [e["id"] for e in entries if not e["gitee"]]
     if missing:
         print(f"MISSING gitee（还没上传 release）：{', '.join(missing)}")
-        print("  上传后把 gitee 地址写进该条（或 --set-url <id>=<地址>），再跑一次即可；github 会自动推导。")
+        print("  上传后把 gitee 地址写进该条（或 --set-url <id>=<地址>），再跑一次即可；")
+        print("  github 地址会按 gitee 推导（主机名 + owner 一起换）。")
     return 0
 
 

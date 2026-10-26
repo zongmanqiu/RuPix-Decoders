@@ -44,7 +44,7 @@ RuPix 看图器的**解码插件**源码工程：三个 cargo workspace（档 / 
 一种东西（DLL），那就只写这一种东西；早先每项还带 `file` / `sha256` / `author` / `homepage` /
 `minHost` / `tag` / `notes` / `url{gitee,github}`，2026-10-26 一并砍掉（理由见
 `scripts/make_index.py` 头部：文件名能从 `id`+`version` 算出来，而 `size` 给出的完整性判据
-比一串 64 位哈希更好懂）。九个字段，顺序固定：
+比一串 64 位哈希更好懂）。十个字段，顺序固定：
 
 | 字段 | 例 | 说明 |
 |---|---|---|
@@ -56,10 +56,13 @@ RuPix 看图器的**解码插件**源码工程：三个 cargo workspace（档 / 
 | `released` | `2026-10-26` | 发布时间；未发布为空串 |
 | `desc` | `常见位图合集：…` | 一句话说明（DLL 自述） |
 | `formats` | `jpg;jpeg;jpe;…` | 认领的扩展名，**分号分隔、不带点**（与 ABI `extensions` 同形） |
-| `url` | `https://…/common_0.1.0.dll` | 下载地址；未发布为空串 |
+| `gitee` | `https://gitee.com/…/common_0.1.0.dll` | Gitee 主源下载地址；未发布为空串 |
+| `github` | `https://github.com/…/common_0.1.0.dll` | GitHub 镜像下载地址；默认由 `gitee` 推导（主机名 + owner 一起换），可显式覆盖 |
 
-宿主的「解码器 / 可下载」卡读的就是这份：
-`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoder/raw/master/index.json`。
+宿主的「解码器 / 可下载」卡读的就是这份，两份只读镜像：
+
+- Gitee：`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoder/raw/master/index.json`
+- GitHub：`https://raw.githubusercontent.com/zongmanqiu/RuPix-Decoder/refs/heads/master/index.json`
 
 合并的动机只有一个：**省体积**。每枚独立插件自带一份底座（空壳 + Rust 运行时，按 `qoi`
 那枚 192 KB 反推约 150 KB/枚）；合成一枚后底座只剩一份，库本体一分不少。合并**不改变
@@ -246,13 +249,18 @@ python scripts/check_urls.py            # 清单里的地址真下一遍，核�
 
   1. `build.ps1` 编出 4 枚 DLL 并镜像到宿主 `../.build/decoders`；
   2. 每枚 DLL 传成**自己的一个 release**，tag 用 `<id>_<version>`（与资产文件名同名）；
-  3. 把资产地址填进 `index.json` 对应条目的 `url`（或 `py scripts/make_index.py --set-url <id>=<地址>`），提交；
-  4. 宿主拉 `raw/master/index.json`，按 `url` 去 release 下 DLL。
+  3. 把资产地址填进 `index.json` 对应条目的 `gitee`（或 `py scripts/make_index.py --set-url <id>=<地址>`），提交；
+  4. 宿主拉两份 raw 清单之一（Gitee / GitHub），按当前来源的 `gitee` / `github` 列去 release 下 DLL。
+     GitHub 侧也要把同一批 DLL 传成 release（tag 同名）；`github` 列由 `gitee` 推导得到，
+     需要特殊地址时用 `--set-github-url` 覆盖。
 
-  ⇒ **清单可以先提交、资产后上传**（那段时间 url 会 404，宿主如实报下载失败）；
+  ⇒ **清单可以先提交、资产后上传**（那段时间该列地址会 404，宿主如实报下载失败）；
   反过来不行：`index.json` 不提交，宿主不知道有新版。
-* **还没有 GitHub 镜像**。`url` 是单个字符串（指向 gitee release 资产）；真要加镜像，
-  那是清单结构的一次改动（加第二份地址），不是给生成器塞个参数就算完。
+* **GitHub 的 raw 清单镜像已开通**（`zongmanqiu/RuPix-Decoder`，与 Gitee 的 owner
+  `qiuzongman` 不是同一个用户名，清单地址各自写死）。下载列默认由 `gitee` 推导，
+  推导时主机名与 owner 一起换；**GitHub release 资产也要单独上传**，未上传前那几枚
+  的 `github` 地址会 404，`check_urls.py` 会如实报错。宿主的 `accepts_download_url` 会把
+  owner 对不上的地址判成该来源无地址（灰「下载」），不会给一个点了 404 的按钮。
 * 仓库名：目录现在叫 `RuPix-Decoder/`，与 gitee 远端同名（clone 前后路径一致）。
 * 尚未做：`pro`（jp2/jxr/exr/ktx2/dicom…）、`rust-full`（并集安装档）、
   `jpegturbo` 加速包（只声明 `CAP_SCALED`）。分层与后缀路由表见宿主 `.plan/m138`。

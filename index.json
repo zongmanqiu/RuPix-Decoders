@@ -9,7 +9,7 @@
     "desc": "常见位图合集：JPEG/PNG/APNG/GIF/TIFF/QOI/WebP/BMP/ICO/TGA/DDS/PNM/PSD/HDR（每后缀各用最快的纯 Rust 库）",
     "formats": "jpg;jpeg;jpe;jfif;jif;jfi;exif;png;apng;gif;tif;tiff;qoi;webp;bmp;dib;rle;ico;icon;pnm;ppm;pgm;pbm;pam;dds;ff;tga;psd;hdr",
     "gitee": "https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.1.0/common_0.1.0.dll",
-    "github": "https://github.com/qiuzongman/RuPix-Decoder/releases/download/common_0.1.0/common_0.1.0.dll"
+    "github": "https://github.com/zongmanqiu/RuPix-Decoder/releases/download/common_0.1.0/common_0.1.0.dll"
   },
   {
     "id": "modern",
@@ -21,7 +21,7 @@
     "desc": "现代格式：HEIC/HEIF（iPhone 照片）、AVIF 与 JPEG XL",
     "formats": "heic;heif;hif;avif;avifs;jxl",
     "gitee": "https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.1.0/modern_0.1.0.dll",
-    "github": "https://github.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.1.0/modern_0.1.0.dll"
+    "github": "https://github.com/zongmanqiu/RuPix-Decoder/releases/download/modern_0.1.0/modern_0.1.0.dll"
   },
   {
     "id": "pro",
