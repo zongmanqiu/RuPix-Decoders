@@ -10,10 +10,10 @@
   {
     "id": "common",
     "name": "Common Raster Set",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "abi": 5,
-    "size": 1968128,
-    "released": "2026-10-26",
+    "size": 1969664,
+    "released": "2026-10-27",
     "desc": "常见位图合集：…",
     "formats": "jpg;jpeg;…",
     "author": "RuPix",
@@ -30,11 +30,11 @@
 |---|---|---|
 | `id` | `common` | 解码器标识；宿主按它认人，不从文件名反推 |
 | `name` | `Common Raster Set` | DLL 自述名称，不是 DLL 文件名 |
-| `version` | `0.2.0` | DLL 版本；来自 `decoders-rust/decoders/<id>/Cargo.toml` |
+| `version` | `0.2.1` | DLL 版本；来自 `decoders-rust/decoders/<id>/Cargo.toml` |
 | `abi` | `5` | ABI 大版本；宿主按区间决定收不收 |
-| `size` | `1967104` | 字节数；下载后先按它挡截断/多收 |
+| `size` | `1969664` | 字节数；下载后先按它挡截断/多收 |
 | `sha256` | `e3b0…` | DLL 的 SHA-256；与实收字节逐项核对，挡同字节数替换 |
-| `released` | `2026-10-26` | 发布时间；未发布为空串 |
+| `released` | `2026-10-27` | 发布时间；未发布为空串 |
 | `desc` | `常见位图合集：…` | 一句话说明，来自 DLL 自述 |
 | `formats` | `jpg;jpeg;…` | 认领的扩展名，分号分隔、不带点，与 ABI `extensions` 同形 |
 | `author` | `RuPix` | 作者标识；来自 DLL 的 `iv_metadata()`；第三方可署自己的名字 |
