@@ -2,9 +2,9 @@
 
 | 里面是什么 | 在仓库里吗 | 量级 | 引用方式 |
 |---|---|---|---|
-| `make_samples.py` + `samples.json`：1/10/100 MiB 雪花/真实 seed 生成器 | **是**（只有脚本和配置） | — | — |
+| `make_samples.py` + `samples.json`：1/10/100 MiB 雪花/真实 seed 生成器（默认 10M） | **是**（只有脚本和配置） | — | — |
 | `golden/`：29 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、2 帧最小 GIF、最小 PSD/HDR、无 alpha JXR、公版 DjVu 扫描…） | **是** | 449 KB | `include_bytes!` **编译期**进测试二进制 |
-| 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 324 个（108 后缀 × 3 档；别名/seed 保证每档大小唯一） | 运行时读文件 |
+| 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 默认 10M 档 112 个；`--tier all` 时 336 个（112 后缀 × 3 档） | 运行时读文件 |
 
 划分标准是两条，缺一不可：**能不能用脚本算出来** + **算出来的字节能不能保证永远不变**。
 - 能算且字节恒定（雪花噪声、按尺寸增长的 1/10/100 MB）→ **不进仓库**，一条命令随时重建；
@@ -29,7 +29,7 @@
 
 ## `golden/` 的规矩
 
-- **新增样本放这里，不要放进 `decoders-rust/decoders/<tier>/` 或 `decoders-rust/singles/<id>/`**：
+- **新增样本放这里，不要放进 `workspace/decoders/<tier>/` 或 `workspace/singles/<id>/`**：
   文件名自带信息（`grey16_4x4.tif`、`prog_64x48.jpg`），后缀就是格式；两个 crate 想看同一份样本时
   直接引用同一路径，不需要拷贝。
 - 引用方式（`include_bytes!` 要编译期常量，所以路径得从 crate 里拼出来）：
@@ -75,7 +75,7 @@
 相对路径按解码器仓库根解析。命令行可以覆盖：
 
 ```text
-python testdata/make_samples.py                   # 按 samples.json 一次生成全部
+python testdata/make_samples.py                   # 全部后缀（默认 10M 档；--tier all 才三档）
 python testdata/make_samples.py --config FILE     # 换一个总开关文件
 python testdata/make_samples.py --out DIR         # 只覆盖输出位置
 python testdata/make_samples.py --seed-dir DIR    # 只覆盖 seed 根目录
@@ -96,7 +96,7 @@ seed 按档位选：1M/10M 优先选**最接近目标**且能打开的小样本�
 .temp/corpus/real/<ext>/<file>   # HEIC/AVIF/JXL/EXR/JXR/XCF/WMF/ASE/DjVu/KTX2/FF
 ```
 
-`--check` 仍只验清单覆盖（61 generated + 47 seeds = 108）；`--strict` 才会检查
+`--check` 仍只验清单覆盖（65 generated + 47 seeds = 112）；`--strict` 才会检查
 每个 seed 文件真的存在。`build.ps1` 只跑 `--check`，不把外部语料变成构建依赖。
 
 `--only modern` 现在会生成/复制 JXL、HEIC、AVIF 的真实 seed；`raw` 会复制 29 个
@@ -105,8 +105,8 @@ seed 按档位选：1M/10M 优先选**最接近目标**且能打开的小样本�
 ## 档位是下限，不是精确值
 
 边长一路长到文件**超过**该档为止；格式/像素/seed 上限不足以达到该档时，manifest
-写 `capped(...)` 并给出真实尺寸，不填充、不伪造。当前实测：**61 个可编码后缀 +
-47 个真实 seed，共 108 个后缀 × 3 档 = 324 个样本**。
+写 `capped(...)` 并给出真实尺寸，不填充、不伪造。当前默认 **10M 档 112 个样本**；
+`--tier all` 时为 112 个后缀 × 3 档 = 336 个样本。
 
 典型物理上限：
 
@@ -128,7 +128,7 @@ seed 按档位选：1M/10M 优先选**最接近目标**且能打开的小样本�
 | 谁 | 后缀 | 来源 |
 |---|---|---|
 | raw | `.3fr .ari .arw .cr2 .cr3 .crm .crw .dcr .dcs .dng .erf .fff .iiq .kdc .mef .mos .mrw .nef .nrw .orf .ori .pef .qtk .raf .raw .rw2 .rwl .srw .x3f` | raw.pixls.us CC0；`.dcs` raw.pixls.us CC0（DCS460D）；`.crm` dnglab test media 与 `.qtk` qtkn_decoder 仅 local-only |
-| modern | `.heic .heif .hif .avif .avifs .jxl` | `.plan/bench/corpus-real` 真实样本 + BandiSoft 的 Canon HIF |
+| modern | `.heic .heif .hif .avif .avifs .jxl` | 本仓基准记录 真实样本 + BandiSoft 的 Canon HIF |
 | pro | `.exr .jxr .wdp .hdp .xcf .wmf .ase .aseprite .djvu .djv .ktx2` | OpenEXR-images、kimageformats、xcf-rs、ImageMagick、Aseprite、Wikimedia、KTX-Software |
 | core | `.ff` | 按 farbfeld 规范手写真实 RGBA16 样本 |
 
@@ -158,28 +158,28 @@ corpus**，只在 local-only 目录测试。不得用 0 字节文件、改名 DN
 
 - 每一行：`tier` / `member` / `suffixes`（分号分隔）/ `status` / `evidence` / `note`；
 - `verified` 的证据只能是 `golden:<file>`（文件存在且被某个 `.rs` 引用）或
-  `tests:<decoders-rust/singles package>`（该包至少有一个 `#[test]`）；
+  `tests:<workspace/singles package>`（该包至少有一个 `#[test]`）；
 - `unverified` 必须写 `-` 和原因；
-- `decoders-rust/decoders/*/src/lib.rs` 声明的每个后缀必须**恰好出现一次**；新增认领不补台账，
+- `workspace/decoders/*/src/lib.rs` 声明的每个后缀必须**恰好出现一次**；新增认领不补台账，
   `tools/check_claims.py` 直接红。
 
-当前 `check_claims.py` 读数：**108 个后缀，verified 75，unverified 33**。未验证的主要缺口是
+当前 `check_claims.py` 读数：**112 个后缀，verified 79，unverified 33**。未验证的主要缺口是
 `.heic/.heif/.hif`、相机 RAW、`.ff` 等无本机编码器的格式全部使用 `.temp/corpus`
 真实 seed（见 `make_samples.py --seed-dir`）；别名后缀共用同一个成员证据。
 
 ## 与 `golden/` 的分工
 
-| | `golden/`（入库，449 KB，29 个） | 生成器产物（仓库外，逻辑 8.7 GB，324 个 = 108 后缀 × 3 档） |
+| | `golden/`（入库，449 KB，29 个） | 生成器产物（仓库外，默认 112 个；`--tier all` 为 336 个 = 112 后缀 × 3 档） |
 |---|---|---|
 | 用途 | **断言正确性**：能不能解、值对不对、该不该拒绝 | **压性能与尺寸/内存门** |
 | 入口 | `include_bytes!` 编译期嵌入测试二进制 | 运行时读文件（`main/examples/core_smoke.rs`、`main/examples/decoder_smoke.rs`） |
 | 尺寸 | 24 B – 52 KB，全是"最小可复现" | 1 / 10 / 100 MiB 三档 |
-| 能否重建 | 11 个不能、16 个能但需要冻结字节（见上） | 能，一条命令 |
+| 能否重建 | 12 个不能、17 个能但需要冻结字节（见上） | 能，一条命令 |
 
 噪声是每种熵编码的最坏情况，所以同一个后缀在三档下的解码耗时、内存峰值才有可比性；
 而 golden 只关心"这条路径通不通、这个值对不对"，用 100 MB 图去断言"CMYK 必须报
 `ERR_UNSUPPORTED`"不会多出任何信息。
 
-★ **`decoders-rust/decoders/<tier>/` 与 `decoders-rust/singles/<id>/` 下都不放任何图片**
+★ **`workspace/decoders/<tier>/` 与 `workspace/singles/<id>/` 下都不放任何图片**
 （2026-10-25 迁完）：需要样本就引用 `/../../../testdata/golden/<file>`。同一后缀只有一枚认领者，
 换解码库时样本不该跟着丢。

@@ -20,9 +20,9 @@ from pathlib import Path
 from lib import ROOT
 
 MANIFESTS = [
-    ROOT / "decoders-rust" / "Cargo.toml",
-    ROOT / "decoders-rust" / "singles" / "Cargo.toml",
-    ROOT / "decoders-rust" / "decoders" / "pro" / "Cargo.toml",
+    ROOT / "workspace" / "Cargo.toml",
+    ROOT / "workspace" / "singles" / "Cargo.toml",
+    ROOT / "workspace" / "decoders" / "pro" / "Cargo.toml",
 ]
 ALLOWED = {
     "0BSD",

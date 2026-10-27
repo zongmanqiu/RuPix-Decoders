@@ -18,9 +18,9 @@ from pathlib import Path
 
 from lib import ROOT
 MANIFESTS = [
-    (ROOT / "decoders-rust" / "Cargo.toml", "root"),
-    (ROOT / "decoders-rust" / "singles" / "Cargo.toml", "singles"),
-    (ROOT / "decoders-rust" / "decoders" / "pro" / "Cargo.toml", "pro"),
+    (ROOT / "workspace" / "Cargo.toml", "root"),
+    (ROOT / "workspace" / "singles" / "Cargo.toml", "singles"),
+    (ROOT / "workspace" / "decoders" / "pro" / "Cargo.toml", "pro"),
 ]
 
 
@@ -47,12 +47,12 @@ def allowed_for(name: str, path: str):
     p = rel(path) or ""
     if p == "abi":
         return set()
-    if p in ("decoders-rust/shared/router", "decoders-rust/shared/pro-support"):
+    if p in ("workspace/shared/router", "workspace/shared/pro-support"):
         return {"rupix-abi"}
-    if p.startswith("decoders-rust/singles/"):
+    if p.startswith("workspace/singles/"):
         return {"rupix-abi", "rupix-pro-support"}
-    if p.startswith("decoders-rust/decoders/"):
-        if p.startswith("decoders-rust/decoders/pro"):
+    if p.startswith("workspace/decoders/"):
+        if p.startswith("workspace/decoders/pro"):
             return {"rupix-abi", "rupix-merge-router", "rupix-pro-support"}
         return {"rupix-abi", "rupix-merge-router", "rupix-pro-support"}
     return None
@@ -91,10 +91,10 @@ def main():
                 if dep_name in allowed:
                     continue
                 # A tier may assemble singles; pro only assembles pro-* singles.
-                if pkg_path.startswith("decoders-rust/decoders/pro"):
-                    if dep_rel.startswith("decoders-rust/singles/pro-"):
+                if pkg_path.startswith("workspace/decoders/pro"):
+                    if dep_rel.startswith("workspace/singles/pro-"):
                         continue
-                elif pkg_path.startswith("decoders-rust/decoders/") and dep_rel.startswith("decoders-rust/singles/"):
+                elif pkg_path.startswith("workspace/decoders/") and dep_rel.startswith("workspace/singles/"):
                     continue
                 violations.append(
                     "%s (%s) -> %s (%s): not allowed by direction rules"

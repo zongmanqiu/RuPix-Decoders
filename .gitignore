@@ -13,7 +13,7 @@
 
 # 发布产物 dist/ **不入库**（2026-10-25 翻案：本仓是源码仓，DLL 走 release 资产发布）；
 # 而且 build.ps1 已把发布暂存挪到仓库外 `../.temp/decoder-dist`，这里只是兜底。
-# ★ 清单 index.json **必须随仓库走**：宿主先拿到清单才知道去哪个 release 下 DLL，
+# ★ 清单 decoders.json **必须随仓库走**：宿主先拿到清单才知道去哪个 release 下 DLL，
 #   它是一个约 16 KB 的文本文件，走 raw 拉取（Gitee raw 小文件匿名可读，实测 200）。
 dist/
 
@@ -44,6 +44,6 @@ desktop.ini
 # ── 四、随仓库走的产物（本仓特有，宿主无此节）─────────────────────
 # 2026-10-25：发布产物不进仓库（DLL 走 release 资产），所以这里**不再需要**
 # 那条把 `dist/*.dll` 从上面 `*.dll` 规则里捞回来的白名单。
-# index.json 不撞任何忽略规则，列出只为明示「它随仓库走」的意图。
-!index.json
+# decoders.json 不撞任何忽略规则，列出只为明示「它随仓库走」的意图。
+!decoders.json
 

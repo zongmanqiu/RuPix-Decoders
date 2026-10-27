@@ -1,4 +1,4 @@
-"""把 index.json 里的下载地址**真下载一遍**，核对字节数。
+"""把 decoders.json 里的下载地址**真下载一遍**，核对字节数。
 
 为什么要这个脚本：清单的 `gitee` / `github` 是人工填的（生成器没有网络，不臆造地址）。
 填错的后果不是"下不了"这么简单——宿主的「解码器 / 可下载」卡会列出一排点了 404 的按钮，
@@ -27,10 +27,11 @@ import hashlib
 import io
 import json
 import sys
+import zipfile
 import urllib.error
 import urllib.request
 
-INDEX = 'index.json'
+INDEX = 'decoders.json'
 CHUNK = 1 << 20
 TIMEOUT = 60
 

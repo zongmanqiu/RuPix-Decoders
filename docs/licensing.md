@@ -44,7 +44,7 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 python tools/check_licenses.py
 ```
 
-它读 root / bench / pro 三个 workspace 的完整 `cargo metadata`：
+它读 root / singles / pro 三个 workspace 的完整 `cargo metadata`：
 
 - 每个包必须有 `license` 或 `license_file`；
 - `license` 按 SPDX 的 `OR` / `AND` / 旧式 `/` 拆分，每个 id 都必须在允许表里；

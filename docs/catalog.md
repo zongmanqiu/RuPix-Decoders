@@ -1,4 +1,4 @@
-# `index.json`
+# `decoders.json`
 
 ## 形状
 
@@ -13,6 +13,7 @@
     "version": "<version>",
     "abi": 5,
     "size": 1234567,
+    "sha256": "e3b0…",
     "released": "YYYY-MM-DD",
     "desc": "常见位图合集：…",
     "formats": "jpg;jpeg;…",
@@ -30,7 +31,7 @@
 |---|---|---|
 | `id` | `common` | 解码器标识；宿主按它认人，不从文件名反推 |
 | `name` | `Common Raster Set` | DLL 自述名称，不是 DLL 文件名 |
-| `version` | `<version>` | DLL 版本；来自 `decoders-rust/decoders/<id>/Cargo.toml` |
+| `version` | `<version>` | DLL 版本；来自 `workspace/decoders/<id>/Cargo.toml` |
 | `abi` | `5` | ABI 大版本；宿主按区间决定收不收 |
 | `size` | `1234567` | 字节数（示例）；下载后先按它挡截断/多收 |
 | `sha256` | `e3b0…` | DLL 的 SHA-256；与实收字节逐项核对，挡同字节数替换 |
@@ -44,8 +45,8 @@
 
 ## 两个 raw 镜像
 
-- Gitee：`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoder/raw/master/index.json`
-- GitHub：`https://raw.githubusercontent.com/zongmanqiu/RuPix-Decoder/refs/heads/master/index.json`
+- Gitee：`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoder/raw/master/decoders.json`
+- GitHub：`https://raw.githubusercontent.com/zongmanqiu/RuPix-Decoder/refs/heads/master/decoders.json`
 
 宿主「解码器 / 可下载」卡读其中一份，按当前来源取 `gitee` 或 `github` 列。
 两个 owner 不是同一个用户名（Gitee `qiuzongman` / GitHub `zongmanqiu`），
@@ -66,7 +67,7 @@
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1   # 先有 DLL
-py tools/make_index.py                                        # 生成 index.json
+py tools/make_index.py                                        # 生成 decoders.json
 py tools/make_index.py --set-url '<id>=https://…/<id>_<version>.zip'
 py tools/make_index.py --set-github-url '<id>=https://…/<id>_<version>.zip'
 py tools/check_urls.py                                        # 有网时逐条下载核对
@@ -83,7 +84,7 @@ py tools/check_urls.py                                        # 有网时逐条�
 3. 安装到 `<exe>/decoders/<id>_<version>.dll`；宿主扫描目录，读 DLL 自述。
 4. `released` 为空 = 未发布；对应列也为空，宿主不会给一个点了 404 的按钮。
 5. 清单可以先提交、资产后上传；那段时间地址会 404，宿主如实报下载失败。
-   反过来不行：`index.json` 不提交，宿主不知道有新版。
+   反过来不行：`decoders.json` 不提交，宿主不知道有新版。
 
 ## 发布前核对
 

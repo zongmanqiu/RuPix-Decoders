@@ -2,15 +2,15 @@
 
 ## 粒度
 
-- 只给**四个发布 DLL** 写历史：`decoders-rust/decoders/{common,modern,raw,pro}/HISTORY.md`。
+- 只给**四个发布 DLL** 写历史：`workspace/decoders/{common,modern,raw,pro}/HISTORY.md`。
 - 22 个单库不单独写历史：它们不是独立发布物，历史由所属档的记录覆盖；
   单库 README 只写当前实现与限制。
 - ABI 版本史不放在这里，放 `解码器开发规范.md` §九。档历史只写“DLL 对用户/宿主可见的变化”。
 
 ## 版本号与日期
 
-- `HISTORY.md` 的标题版本 = `decoders-rust/decoders/<id>/Cargo.toml` 的 `[package] version`。
-- 标题日期 = 该版本发布日；必须与 `index.json` 的 `released` 一致。
+- `HISTORY.md` 的标题版本 = `workspace/decoders/<id>/Cargo.toml` 的 `[package] version`。
+- 标题日期 = 该版本发布日；必须与 `decoders.json` 的 `released` 一致。
 - ABI = `abi/src/lib.rs` 的 `IV_ABI_VERSION`（当前 5）。
 - 版本号只在 `Cargo.toml` 改；`HISTORY.md` 跟着加条目，不复制版本号到别处。
 
@@ -23,7 +23,7 @@
 - 不写 `release tag`、Gitee/GitHub URL、资产文件名或 ZIP 是否已生成；
 - 不写“未发布”条目。未发布版本的改动并入下一次正式发布条目，不单独留在历史里。
 
-发布是否完成、ZIP 是否生成、地址是否可下载，唯一真源是 `index.json`。
+发布是否完成、ZIP 是否生成、地址是否可下载，唯一真源是 `decoders.json`。
 `HISTORY.md` 的日期是**发布日**，不是上传开始日；发布由维护者手动操作，不改变代码事实。
 
 ## 条目格式
@@ -33,11 +33,11 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
-## 0.2.0 — 2026-11-01 — abi 5
+## 0.2.0 — 2026-10-27 — abi 5
 
 - **变更**：新格式 / 换库 / 修缺陷 / 性能 / 兼容性
 - **影响**：一句话说清用户或宿主感知到什么
-- **后缀**：33（`foo` `bar` `baz`）；总数 32
+- **后缀**：33（`foo` `bar` `baz`）
 - **能力位**：`CAP_*` 变化；新增/移除可选导出
 - **限制**：新增或解除的已知空白
 - **证据**：测试名 / golden / 可复现命令
@@ -88,7 +88,7 @@
 - 四份 `HISTORY.md` 存在；
 - 最新标题的版本 = `Cargo.toml` 版本；
 - 标题格式必须是 `## <version> — <YYYY-MM-DD> — abi <N>`；不接受 `未发布` 标题；
-- 最新标题日期 = `index.json.released`（已发布时）；日期不能在未来；
+- 最新标题日期 = `decoders.json.released`（已发布时）；日期不能在未来；
 - 版本不重复；
 - 禁止出现 `- **状态**`、`待上传`、`发布包已生成`、`等待 Gitee/GitHub`、`未发布`、
   `release tag`、Gitee/GitHub URL。

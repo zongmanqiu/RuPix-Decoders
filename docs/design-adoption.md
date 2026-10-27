@@ -7,18 +7,19 @@
 
 | ID | 决策 | 理由 | 落点 |
 |---|---|---|---|
-| A01 | 三个 cargo workspace（根 / bench / pro） | feature 并集导致 `LNK2005`；pro 依赖会污染前三档 | 根 `Cargo.toml`、`decoders-rust/singles/Cargo.toml`、`decoders-rust/decoders/pro/Cargo.toml` |
+| A01 | 三个 cargo workspace（根 / singles / pro） | feature 并集导致 `LNK2005`；pro 依赖会污染前三档 | 根 `Cargo.toml`、`workspace/singles/Cargo.toml`、`workspace/decoders/pro/Cargo.toml` |
 | A02 | 档 workspace 全局 `opt-level = 3` | 逐包清单靠人记会漂；实测代价约 +97 KB | 根 `[profile.release]` |
 | A03 | 四档纯 Rust | 无 C 工具链、无 `-sys`/`cc`/`bindgen`；分发简单 | 各档依赖与 `THIRD-PARTY-NOTICES.md` |
-| A04 | 合并档（common/modern/raw/pro） | 每枚独立解码器自带底座；合并省体积，不改变速度 | `decoders-rust/decoders/*` |
-| A05 | `pro` 独立 workspace | 防 EXR/AVIF 后端被 feature 统一编进每一枚 DLL | `decoders-rust/decoders/pro/Cargo.toml` |
-| A06 | `index.json` 扁平数组 + `size` 完整性 | 只有一种东西；文件名可算；`size` 比哈希更好懂 | `index.json`、`make_index.py` |
-| A07 | 每档 `README.md` + `HISTORY.md` | 用户/维护者能按 DLL 判断是否升级 | `decoders-rust/decoders/<id>/` |
+| A04 | 合并档（common/modern/raw/pro） | 每枚独立解码器自带底座；合并省体积，不改变速度 | `workspace/decoders/*` |
+| A05 | `pro` 独立 workspace | 防 EXR/AVIF 后端被 feature 统一编进每一枚 DLL | `workspace/decoders/pro/Cargo.toml` |
+| A06 | `decoders.json` 扁平数组 + `size` 完整性 | 只有一种东西；文件名可算；`size` 比哈希更好懂 | `decoders.json`、`make_index.py` |
+| A07 | 每档 `README.md` + `HISTORY.md` | 用户/维护者能按 DLL 判断是否升级 | `workspace/decoders/<id>/` |
 | A08 | `解码器开发规范.md` 留仓库根 | 宿主已有指针；移动会牵动 `main/DOCS_MANIFEST`、`abi.rs`、j1 | 根规范 |
 | A09 | `docs/` 只放跨模块流程/设计 | 不造第二棵逐文件目录树；DLL 状态贴代码 | `docs/` |
 | A10 | 每枚 DLL 一个 release/tag | 旧的四档共用一个日期 tag 会让未上传的条目 404 | `docs/releasing.md` |
-| A11 | `raw` 拆成 `probe/frame/cache/develop/binning/tests` 模块，不拆 crate | 行为保持、单测逐步验证；避免拆 crate 带来 target/命名成本 | `decoders-rust/decoders/raw/src/` |
-| A12 | 清单加 `sha256`，宿主下载后校验 | `size` 只能挡截断/多收；同字节数替换必须靠哈希。端到端已接通，宿主 exe +9,728 B | `tools/make_index.py`、`core::hash`、`decoders::install` |\n| A13 | ABI v5：把自述导出/结构体/样板宏统一改为 decoder 命名 | 当前只有自家解码器、无第三方 DLL，是唯一无兼容包袱的窗口；旧 v4 拒载 | `abi/src/lib.rs`、C kit、宿主 DLL 加载器 |"}]
+| A11 | `raw` 拆成 `probe/frame/cache/develop/binning/tests` 模块，不拆 crate | 行为保持、单测逐步验证；避免拆 crate 带来 target/命名成本 | `workspace/decoders/raw/src/` |
+| A12 | 清单加 `sha256`，宿主下载后校验 | `size` 只能挡截断/多收；同字节数替换必须靠哈希。端到端已接通，宿主 exe +9,728 B | `tools/make_index.py`、`core::hash`、`decoders::install` |
+| A13 | ABI v5：把自述导出/结构体/样板宏统一改为 decoder 命名 | 当前只有自家解码器、无第三方 DLL，是唯一无兼容包袱的窗口；旧 v4 拒载 | `abi/src/lib.rs`、C kit、宿主 DLL 加载器 |
 
 ## 已拒绝
 
@@ -43,7 +44,7 @@
 
 | ID | 事项 | 现状 |
 |---|---|---|
-| O01 | `index.json` 加 `sha256` | 2026-10-26 已落地，见 A12；清单 13 字段，宿主解析可选、下载后强制核对 |
+| O01 | `decoders.json` 加 `sha256` | 2026-10-26 已落地，见 A12；清单 13 字段，宿主解析可选、下载后强制核对 |
 | O03 | `raw` 拆模块 | 2026-10-26 已完成：`probe/frame/cache/develop/binning/tests`，见 A11 |
 | O04 | 共享 `MAX_PIXELS` / confidence 常量 | 2026-10-26 评估：13 份 `MAX_PIXELS` 是各 crate 的独立安全闸，`check_caps.py` 靠字面量做等值检查；抽 policy crate 会改依赖图与门禁口径，本轮不做，保留待评估 |
 | O05 | 依赖版本收敛 | 2026-10-26 评估：`png`/`miniz_oxide`/`hayro-jpeg2000` 双版本来自 `djvu-rs`/`icns`/`image` 等上游传递依赖，`syn` 三版本含旧 proc-macro；强行统一会改上游 feature/ABI，本轮不做 |

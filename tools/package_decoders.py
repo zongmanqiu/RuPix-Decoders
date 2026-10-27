@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build release ZIPs: DLL + <id>_<version>/ metadata, license, notices, source offer.
 
-The ZIP is the download unit. `index.json` still describes the DLL (size/hash);
+The ZIP is the download unit. `decoders.json` still describes the DLL (size/hash);
 the ZIP hash is computed after packaging and is not written inside itself.
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT.parent / ".temp" / "decoder-dist"
 OUT = ROOT.parent / ".temp" / "decoder-packages"
-INDEX = ROOT / "index.json"
+INDEX = ROOT / "decoders.json"
 LICENSE = ROOT / "LICENSE"
 SOURCE_REPO = "https://gitee.com/qiuzongman/RuPix-Decoder"
 SOURCE_ISSUES = SOURCE_REPO + "/issues"
@@ -28,10 +28,10 @@ RAWLER_COMMIT = "ff7a4524cc7187554544269482e5fd5e68a6b4ab"
 RAWLER_CRATE_SHA256 = "04f4cc35c23969a4a834e0b117c7da41ace812eb9053b5effc3fc5c77d114677"
 
 TIERS = {
-    "common": ("rupix-common", ROOT / "decoders-rust"),
-    "modern": ("rupix-modern", ROOT / "decoders-rust"),
-    "raw": ("rupix-raw", ROOT / "decoders-rust"),
-    "pro": ("rupix-pro", ROOT / "decoders-rust" / "decoders" / "pro"),
+    "common": ("rupix-common", ROOT / "workspace"),
+    "modern": ("rupix-modern", ROOT / "workspace"),
+    "raw": ("rupix-raw", ROOT / "workspace"),
+    "pro": ("rupix-pro", ROOT / "workspace" / "decoders" / "pro"),
 }
 
 
@@ -82,7 +82,7 @@ def chosen_license_ids(expr: str):
 
 def source_offer(tier: str, version: str, dll_name: str) -> str:
     tag = f"{tier}_{version}"
-    source = f"{SOURCE_REPO}/tree/{tag}/decoders-rust/decoders/{tier}"
+    source = f"{SOURCE_REPO}/tree/{tag}/workspace/decoders/{tier}"
     parts = [f"""# Source offer for `{dll_name}`
 
 This DLL is distributed under AGPL-3.0. The corresponding source for this
@@ -163,7 +163,7 @@ def main():
                    if not entry.get(key)]
         if missing:
             raise SystemExit(
-                "refusing to package %s: index.json has empty %s; "
+                "refusing to package %s: decoders.json has empty %s; "
                 "set the release URL/date before packaging" % (tier, ", ".join(missing))
             )
         ver = entry["version"]

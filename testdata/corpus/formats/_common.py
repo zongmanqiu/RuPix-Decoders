@@ -44,7 +44,7 @@ def _pad_png(data: bytes, ext: str, seed: int) -> bytes:
     return data[:-12] + chunk + data[-12:]
 
 
-_JPEG_PAD_BIAS = {"jpg": 0, "jpeg": 17, "jpe": 34, "jfif": 51, "jif": 68, "jfi": 85, "exif": 102}
+_JPEG_PAD_BIAS = {"jpg": 0, "jpeg": 17, "jpe": 34, "jfif": 51, "jif": 68, "jfi": 85, "exif": 102, "jps": 119, "mpo": 136}
 
 
 def _pad_jpeg(data: bytes, ext: str, seed: int) -> bytes:

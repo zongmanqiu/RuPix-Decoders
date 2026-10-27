@@ -7,9 +7,10 @@
 
 | 你是 | 先读 | 再看 |
 |---|---|---|
-| 只想装解码器 | 根 [`README.md`](../README.md) | [`decoders-rust/decoders/README.md`](../decoders-rust/decoders/README.md)、各档 `README.md` |
+| 只想装解码器 | 根 [`README.md`](../README.md) | [`workspace/decoders/README.md`](../workspace/decoders/README.md)、各档 `README.md` |
 | 要改代码 / 发版 / 提交 | 根 [`开发指南.md`](../开发指南.md) | [`contributing.md`](contributing.md)、[`building.md`](building.md)、[`releasing.md`](releasing.md) |
 | 要写新解码器 / 改 ABI | [`解码器开发规范.md`](../解码器开发规范.md) | [`contributing.md`](contributing.md)、[`architecture.md`](architecture.md) |
+| 要做格式能力规划 | 根 [`解码器能力规划.md`](../解码器能力规划.md) |
 | 要构建 / 发布 | 根 [`开发指南.md`](../开发指南.md) | [`building.md`](building.md)、[`releasing.md`](releasing.md)、[`catalog.md`](catalog.md) |
 | 要查测试 / 证据 | [`testing.md`](testing.md) | [`pitfalls.md`](pitfalls.md) |
 | 要维护仓库 | [`architecture.md`](architecture.md) | [`history-policy.md`](history-policy.md)、[`design-adoption.md`](design-adoption.md)、[`DOCS_MANIFEST.md`](../DOCS_MANIFEST.md) |
@@ -23,7 +24,7 @@
 | [`releasing.md`](releasing.md) | 版本、tag、双镜像上传、清单回填、发布顺序 |
 | [`testing.md`](testing.md) | 串行测试、单测/端到端、golden、bench 口径、证据规则 |
 | [`licensing.md`](licensing.md) | 许可证允许表、供应链门禁、未覆盖项 |
-| [`catalog.md`](catalog.md) | `index.json` 十三个字段、镜像 URL、宿主消费、完整性判据 |
+| [`catalog.md`](catalog.md) | `decoders.json` 十三个字段、镜像 URL、宿主消费、完整性判据 |
 | [`contributing.md`](contributing.md) | 新增/修改解码器的完整步骤与文档同步清单 |
 | [`history-policy.md`](history-policy.md) | 四档 `HISTORY.md` 的格式、版本语义、记录边界 |
 | [`pitfalls.md`](pitfalls.md) | 本仓踩过的坑；编号 D，不与宿主 K 号混用 |

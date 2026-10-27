@@ -3,12 +3,12 @@
 """Suffix-claim and evidence gate for the RuPix decoder repo.
 
 Two rules:
-  1. every `extensions: "a;b;c"` literal in decoders-rust/decoders/*/src/lib.rs is disjoint
+  1. every `extensions: "a;b;c"` literal in workspace/decoders/*/src/lib.rs is disjoint
      across tiers (a suffix has exactly one claiming tier);
   2. every claimed suffix appears exactly once in testdata/claims.tsv, and every
      ledger row is either:
        verified   -> evidence is `golden:<file>` (file exists and is referenced
-                     by a .rs file) or `tests:<decoders-rust/singles package>` (that
+                     by a .rs file) or `tests:<workspace/singles package>` (that
                      package has at least one #[test]);
        unverified -> evidence is `-` and a non-empty reason is recorded.
 
@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from lib import ROOT
-TIERS = ROOT / "decoders-rust" / "decoders"
+TIERS = ROOT / "workspace" / "decoders"
 LEDGER = ROOT / "testdata" / "claims.tsv"
 GOLDEN = ROOT / "testdata" / "golden"
 EXT_LITERAL = re.compile(r'extensions\s*:\s*"([^"]*)"')
@@ -78,7 +78,7 @@ def load_ledger():
 
 
 def rust_sources():
-    return list((ROOT / "decoders-rust" / "decoders").rglob("*.rs")) + list((ROOT / "decoders-rust" / "singles").rglob("*.rs"))
+    return list((ROOT / "workspace" / "decoders").rglob("*.rs")) + list((ROOT / "workspace" / "singles").rglob("*.rs"))
 
 
 def member_is_known(tier, member):
@@ -101,7 +101,7 @@ def golden_is_referenced(name):
 
 
 def package_test_count(package):
-    for manifest in sorted((ROOT / "decoders-rust" / "singles").glob("*/Cargo.toml")):
+    for manifest in sorted((ROOT / "workspace" / "singles").glob("*/Cargo.toml")):
         text = manifest.read_text(encoding="utf-8", errors="replace")
         m = re.search(r'(?m)^name\s*=\s*"([^"]+)"', text)
         if not m or m.group(1) != package:
@@ -119,7 +119,7 @@ def main():
     scanned, claims = scan()
     rows, bad = load_ledger()
     if not scanned:
-        bad.append("decoders-rust/decoders/*/src/lib.rs has no extensions: literal - scanner is blind")
+        bad.append("workspace/decoders/*/src/lib.rs has no extensions: literal - scanner is blind")
 
     seen = {}
     for row in rows:
@@ -146,7 +146,7 @@ def main():
                 pkg = ev.split(":", 1)[1]
                 count = package_test_count(pkg)
                 if count is None:
-                    bad.append("claims.tsv:%d: no decoders-rust/singles package %s" % (row["line"], pkg))
+                    bad.append("claims.tsv:%d: no workspace/singles package %s" % (row["line"], pkg))
                 elif count == 0:
                     bad.append("claims.tsv:%d: package %s has no #[test]" % (row["line"], pkg))
             else:

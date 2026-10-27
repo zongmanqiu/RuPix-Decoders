@@ -2,10 +2,10 @@
 
 ## 前置
 
-- Windows + MSVC（`vcvars64.bat`）；`rustup` 工具链由 `decoders-rust/tools/toolchain.ps1` 固定。
+- Windows + MSVC（`vcvars64.bat`）；`rustup` 工具链由 `workspace/tools/toolchain.ps1` 固定。
 - `python` 在 PATH（门禁脚本用）；`py` 启动器仅用于 `testdata/make_samples.py`（它需要 Pillow）。
 - 当前四档是纯 Rust，不需要 NASM / CMake；形态 B（原生 C/C++ DLL）在场时，
-  `decoders-rust/tools/toolchain.ps1 -RequireNative` 会强制要求它们。
+  `workspace/tools/toolchain.ps1 -RequireNative` 会强制要求它们。
 
 ## 一条命令
 
@@ -18,7 +18,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
 
 ## 顺序（脚本实际做的事）
 
-1. dot-source `decoders-rust/tools/toolchain.ps1`：固定 `RUSTUP_TOOLCHAIN`、定位 `vcvars64`、
+1. dot-source `workspace/tools/toolchain.ps1`：固定 `RUSTUP_TOOLCHAIN`、定位 `vcvars64`、
    导出 `NASM_PREFIX` / `CMAKE_GENERATOR`、拦 `CC=gcc`；版本报告落
    `<target-dir>/toolchain_report.txt`。
 2. 根 workspace：`cargo fmt --check` → `check_docs.py` → `check_history.py` →
@@ -26,28 +26,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
    `check_caps.py` → `check_claims.py` → `check_secrets.py` → `check_licenses.py` →
    `cargo clippy --all-targets --workspace --release -- -D warnings`
    → `cargo build --release --workspace` → `cargo test --release --workspace -- --test-threads=1`。
-3. singles workspace（`decoders-rust/singles/`）：同样的 fmt / clippy / build / test；单库不发布，但
+3. singles workspace（`workspace/singles/`）：同样的 fmt / clippy / build / test；单库不发布，但
    档的成员全靠它们，测试失败同样阻断发布。
-4. pro workspace（`decoders-rust/decoders/pro/`）：同样的 fmt / clippy / build / test；产物
+4. pro workspace（`workspace/decoders/pro/`）：同样的 fmt / clippy / build / test；产物
    `pro.dll` / `pro.pdb` 拷回根 target 供发布。
-5. 形态 B：`decoders-rust/decoders/<id>/CMakeLists.txt` 存在 → CMake 子构建 + ctest；缺 DLL = 硬错误。
-6. 发布：按 `decoders-rust/decoders/*` 枚举，改名为 `<id>_<version>.dll`，写
+5. 形态 B：`workspace/decoders/<id>/CMakeLists.txt` 存在 → CMake 子构建 + ctest；缺 DLL = 硬错误。
+6. 发布：按 `workspace/decoders/*` 枚举，改名为 `<id>_<version>.dll`，写
    `../.temp/decoder-dist`；缺任何一枚 DLL = 硬错误。
 7. 可选宿主镜像：`../.build/decoders` 存在时把同一批 DLL 拷过去，最后统一 prune
    同 id 的旧文件。`RUPIX_NO_HOST_SYNC=1` 可跳过。
 8. pdb 归档：`../.temp/symbols/decoders/<id>.pdb` + 版本硬链接，每个 id 留最近 3 版；
    `RUPIX_NO_SYMBOLS=1` 可跳过。pdb **不进发布目录**。
 9. 体积记账：逐 DLL + 总量，仅打印，无预算。
-10. 清单新鲜度：`index.json` 缺项/多项/字节数漂移只警告，不阻断；发布前必须重跑
+10. 清单新鲜度：`decoders.json` 缺项/多项/字节数漂移只警告，不阻断；发布前必须重跑
     `py tools/make_index.py`。
 
 ## target 与产物目录
 
 | 目录 | 内容 | 谁定 |
 |---|---|---|
-| `../../.temp/decoder-target/`（相对 `decoders-rust/`） | 根 workspace 中间产物、形态 B 的 `cbuild/<id>`、工具链报告 | `decoders-rust/.cargo/config.toml`；`CARGO_BUILD_TARGET_DIR` 可覆盖 |
-| `../../../.temp/singles-target/`（相对 `decoders-rust/singles/`） | 单库中间产物 | `decoders-rust/singles/.cargo/config.toml` |
-| `../../../../.temp/pro-target/`（相对 `decoders-rust/decoders/pro/`） | pro 中间产物 | `decoders-rust/decoders/pro/.cargo/config.toml` |
+| `../../.temp/decoder-target/`（相对 `workspace/`） | 根 workspace 中间产物、形态 B 的 `cbuild/<id>`、工具链报告 | `workspace/.cargo/config.toml`；`CARGO_BUILD_TARGET_DIR` 可覆盖 |
+| `../../../.temp/singles-target/`（相对 `workspace/singles/`） | 单库中间产物 | `workspace/singles/.cargo/config.toml` |
+| `../../../../.temp/pro-target/`（相对 `workspace/decoders/pro/`） | pro 中间产物 | `workspace/decoders/pro/.cargo/config.toml` |
 | `../.temp/decoder-dist/` | 发布暂存 `<id>_<ver>.dll` | `build.ps1`；`RUPIX_DIST_DIR` 可覆盖 |
 | `../.temp/symbols/decoders/` | pdb 取证归档 | `build.ps1` |
 | `../.build/decoders/` | 宿主运行目录（并排开发镜像） | 可选；`RUPIX_NO_HOST_SYNC=1` 跳过 |
@@ -75,13 +75,13 @@ cargo build --release --workspace
 cargo test --release --workspace -- --test-threads=1
 
 # 单库
-cd decoders-rust/singles
+cd workspace/singles
 cargo fmt --check
 cargo clippy --all-targets --release --workspace -- -D warnings
 cargo test --release --workspace -- --test-threads=1
 
 # pro
-cd decoders-rust/decoders/pro
+cd workspace/decoders/pro
 cargo test --release --workspace -- --test-threads=1
 ```
 
@@ -90,7 +90,7 @@ cargo test --release --workspace -- --test-threads=1
 | 形态 | 判据 | 构建 |
 |---|---|---|
 | A：Rust cdylib | 默认 | 根 workspace 正常 cargo 构建 |
-| B：原生 C/C++ DLL | `decoders-rust/decoders/<id>/CMakeLists.txt` 存在 | `cmake -S . -B <target>/cbuild/<id> -G "NMake Makefiles"` → `cmake --build` → 有 ctest 就跑 |
+| B：原生 C/C++ DLL | `workspace/decoders/<id>/CMakeLists.txt` 存在 | `cmake -S . -B <target>/cbuild/<id> -G "NMake Makefiles"` → `cmake --build` → 有 ctest 就跑 |
 
 形态 B 的版本从 `project(<id> VERSION x.y.z)` 读；DLL 必须落 `<build-dir>/<id>.dll`，
 否则硬错误。C 侧用 `abi/c/rupix_decoder_kit.h`，`abi/c/abi_probe.c` 复核布局。

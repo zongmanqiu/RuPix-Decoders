@@ -3,14 +3,14 @@
 # status: verified | unverified
 # evidence: golden:<file under testdata/golden/> | tests:<bench/singles package> | -
 # Every suffix claimed by decoders/*/src/lib.rs must appear exactly once.
-common	jpeg	jpg;jpeg;jpe;jfif;jif;jfi;exif	verified	golden:golden_16x12.jpg	16x12 JPEG; aliases share the same decode path
+common	jpeg	jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo	verified	golden:golden_16x12.jpg	JPEG aliases; JPS/MPO reuse the first JPEG image
 common	png	png	verified	golden:red_1x1.png	1x1 RGBA PNG
 common	gif	gif	verified	golden:anim_2x2_2f.gif	2-frame GIF
 common	tiff	tif;tiff	verified	golden:cmyk_8x8.tif	CMYK / 16-bit / palette fixtures in tests
 common	qoi	qoi	verified	tests:rupix-qoi	inline QOI codec tests
 common	psd	psd	verified	golden:psd_red_2x2.psd	2x2 PSD
 common	hdr	hdr	verified	golden:hdr_red_2x2.hdr	2x2 Radiance HDR
-common	core	apng;webp;bmp;dib;rle;ico;icon;pnm;ppm;pgm;pbm;pam;dds;tga	verified	tests:rupix-core	general fallback member tests
+common	core	apng;webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;tga	verified	tests:rupix-core	CUR reuses ICO type 2; ANI parses RIFF/ICO frames
 common	core	ff	unverified	-	no image-rs magic and no .ff fixture; core has no ext path
 modern	av	heic;heif;hif	unverified	-	no HEIC/HEIF fixture; only AVIF is covered
 modern	av	avif;avifs	verified	golden:1x1_red.avif	1x1/4x4/gray/alpha/rotation AVIF fixtures

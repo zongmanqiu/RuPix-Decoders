@@ -6,7 +6,7 @@
 cargo test --release --workspace -- --test-threads=1
 ```
 
-三个构建图各跑一次（根 / `decoders-rust/singles/` / `decoders-rust/decoders/pro/`）。原因不是洁癖：
+三个构建图各跑一次（根 / `workspace/singles/` / `workspace/decoders/pro/`）。原因不是洁癖：
 解码器持有进程级会话池（GIF/APNG 的 `SESSIONS` 是 2 槽 LRU），并行跑会让两条用例
 互相挤掉缓存，把"顺序播放"断言挤成假失败。杀软锁新链接二进制也会让并行 runner
 看起来像挂了。
@@ -15,8 +15,8 @@ cargo test --release --workspace -- --test-threads=1
 
 | 层 | 位置 | 验什么 |
 |---|---|---|
-| 单库单测 | `decoders-rust/singles/<id>/src/lib.rs` 的 `mod tests` | 截断文件、畸形头、超预算、`ext=NULL` 只按魔数、越界/菱形结构 |
-| 档端到端 | `decoders-rust/decoders/<id>/src/lib.rs` 的 `mod tests` | 探针 + 两阶段渲染 + 让位/路由，证明成员真的接进档 |
+| 单库单测 | `workspace/singles/<id>/src/lib.rs` 的 `mod tests` | 截断文件、畸形头、超预算、`ext=NULL` 只按魔数、越界/菱形结构 |
+| 档端到端 | `workspace/decoders/<id>/src/lib.rs` 的 `mod tests` | 探针 + 两阶段渲染 + 让位/路由，证明成员真的接进档 |
 | 门禁 | `tools/check_*.py` + `cargo fmt` / `clippy` | 文档、依赖、闸值、后缀认领、格式、lint |
 | 真机 smoke | 宿主 `decoder_smoke` / `core_smoke` / `--probe-decode` | 真实用户路径：目录过滤 → 后缀认领 → 两阶段渲染 |
 
@@ -25,12 +25,12 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 样本
 
-- `testdata/golden/`：29 个 golden / 边界证物（449 KB）**入库**，编译期
-  `include_bytes!` 嵌入。引用路径：
+- `testdata/golden/`：29 个 golden / 边界证物（449 KB）**入库**，以编译期
+  `include_bytes!` 为主；`av` 与 `raw` 的少数用例运行时读取。引用路径：
   `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")`。
 - `testdata/make_samples.py`：生成 1/10/100 MiB 雪花样本，**不入库**，写
   `../.temp/testdata/`；按后缀共享；别名后缀保留同一像素源，但每档字节长度唯一。
-- **任何 `decoders-rust/decoders/` 或 `decoders-rust/singles/` 下不放图片**：同一后缀只有一枚认领者，
+- **任何 `workspace/decoders/` 或 `workspace/singles/` 下不放图片**：同一后缀只有一枚认领者，
   换解码库时样本不该跟着丢。
 - 生成样本需要 Pillow；本机 `python` 与 `py` 都是 3.11.3 + Pillow 11.1.0。换机器时用带 Pillow 的
   解释器，或先 `python -m pip install pillow`。`make_samples.py --check` 只验覆盖，不需要 Pillow。
@@ -55,7 +55,7 @@ cargo test --release --workspace -- --test-threads=1
 在 `build.ps1` 里执行：
 
 - `verified` 的证据是 `golden:<file>`（文件存在且被 `.rs` 引用）或
-  `tests:<decoders-rust/singles package>`（该包至少一个 `#[test]`）；
+  `tests:<workspace/singles package>`（该包至少一个 `#[test]`）；
 - `unverified` 必须写原因；当前缺口是 `.heic/.heif/.hif`、相机 RAW 的 29 个后缀（含 `.raw`）、`.ff`；
 - 新增后缀不在台账里 = 门禁红；台账里多出未认领后缀 = 门禁红。
 
@@ -69,9 +69,9 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 已知空白
 
-- `heic/heif/hif` 当前无 golden 夹具；8 个 golden 零引用。先补最少证物，或在
+- `heic/heif/hif` 当前无 golden 夹具；29 个 golden 均至少被一处 `.rs` 引用。先补最少证物，或在
   文档中明确标为未验证（现已登记在 `claims.tsv`）。
 - `raw` 的 64 MP 闸只在查询阶段检查；宿主跳过查询直接渲染可绕过。没有真机样本
   可验，登记而不改。
-- 单库 `hdr` / `psd` / 11 个 `pro-*` 没有独立 README；由 `decoders-rust/singles/README.md`
+- 单库 `hdr` / `psd` / 11 个 `pro-*` 没有独立 README；由 `workspace/singles/README.md`
   总表覆盖，详见 [`contributing.md`](contributing.md) 的文档规则。

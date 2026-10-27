@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 index.json —— 宿主「解码器 / 可下载」卡读的那份清单。
+"""生成 decoders.json —— 宿主「解码器 / 可下载」卡读的那份清单。
 
 # 清单长什么样
 
@@ -47,7 +47,7 @@
 
     py tools/make_index.py                 # 用默认发布目录 <repo>/../.temp/decoder-dist
     py tools/make_index.py --dist DIR      # 指定发布目录（RUPIX_DIST_DIR 也行）
-    py tools/make_index.py --out FILE      # 指定输出（默认 <repo>/index.json）
+    py tools/make_index.py --out FILE      # 指定输出（默认 <repo>/decoders.json）
     py tools/make_index.py --set-url common=https://...   # 填 gitee 地址（可重复，自动推导 github）
     py tools/make_index.py --set-github-url common=https://...  # 显式覆盖 github（可重复；ID= 清空）
 
@@ -201,9 +201,9 @@ def load_previous(path: pathlib.Path) -> dict[str, dict]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="生成 index.json（宿主可下载清单）")
+    ap = argparse.ArgumentParser(description="生成 decoders.json（宿主可下载清单）")
     ap.add_argument("--dist", default=os.environ.get("RUPIX_DIST_DIR") or (ROOT.parent / ".temp" / "decoder-dist"))
-    ap.add_argument("--out", default=ROOT / "index.json")
+    ap.add_argument("--out", default=ROOT / "decoders.json")
     ap.add_argument("--set-url", action="append", default=[], metavar="ID=URL",
                     help="顺手写入 gitee 下载地址（可重复；自动推导 github；写进去的地址之后每次生成都会被保留）")
     ap.add_argument("--set-github-url", action="append", default=[], metavar="ID=URL",
@@ -225,7 +225,7 @@ def main() -> int:
 
     # 已知 id（decode 源码目录名）——发布目录里混进来的夹具/改名残留一律跳过。
     known = set()
-    for base in (ROOT / "decoders-rust" / "decoders", ROOT / "decoders-cpp" / "decoders"):
+    for base in (ROOT / "workspace" / "decoders", ROOT / "decoders-cpp" / "decoders"):
         if base.is_dir():
             known |= {p.name for p in base.iterdir() if p.is_dir()}
 

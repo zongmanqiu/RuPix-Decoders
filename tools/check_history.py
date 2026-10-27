@@ -2,7 +2,7 @@
 """History gate: release history is version/date/ABI + public changes only.
 
 HISTORY.md is not a release dashboard. Upload progress, ZIP generation state,
-release tags and URLs belong to index.json, never to the version history.
+release tags and URLs belong to decoders.json, never to the version history.
 
 Exit 0 clean, 1 on any violation. Prints "violations: N" like the other gates.
 """
@@ -14,9 +14,9 @@ from datetime import date
 from pathlib import Path
 
 from lib import ROOT
-DECODERS = ROOT / "decoders-rust" / "decoders"
+DECODERS = ROOT / "workspace" / "decoders"
 ABI = ROOT / "abi" / "src" / "lib.rs"
-INDEX = ROOT / "index.json"
+INDEX = ROOT / "decoders.json"
 
 HEADING = re.compile(
     r"^##\s+(\d+\.\d+\.\d+)\s+[—–-]\s+(\d{4}-\d{2}-\d{2})\s+[—–-]\s+abi\s+(\d+)\s*$",
@@ -96,7 +96,7 @@ def check_decoder(pid: str, released: str, abi: int):
         out.append("%s: HISTORY date is not YYYY-MM-DD: %r" % (pid, newest_date))
 
     if released and newest_date != released:
-        out.append("%s: HISTORY date %r != index.json released %r"
+        out.append("%s: HISTORY date %r != decoders.json released %r"
                    % (pid, newest_date, released))
     return out
 

@@ -49,7 +49,7 @@ When adding a format that cannot be generated:
    `corpus/registry.py::GENERATION_EXCEPTIONS`.
 3. Mark the row as local-only in the relevant source manifest.
 4. Keep the decoder support and document that no public sample is bundled.
-5. Run `python -m unittest discover -s tests -v` so the documentation/registry
+5. Run `python -m unittest discover -s testdata/tests -v` so the documentation/registry
    consistency test sees the new entry.
 
 This keeps the public corpus honest: every published file is either generated

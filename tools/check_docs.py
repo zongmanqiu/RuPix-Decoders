@@ -20,12 +20,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ROOT / "decoders-rust" / "decoders"      # per-DLL docs live next to the code
+DOCS = ROOT / "workspace" / "decoders"      # per-DLL docs live next to the code
 SPEC = ROOT / "解码器开发规范.md"   # ABI contract text, kept at the repo root
-DECODERS = ROOT / "decoders-rust" / "decoders"
+DECODERS = ROOT / "workspace" / "decoders"
 DOCS_DIR = ROOT / "docs"      # cross-module process/design docs only
 MANIFEST = ROOT / "DOCS_MANIFEST.md"
-BENCH_README = ROOT / "decoders-rust" / "singles" / "README.md"
+BENCH_README = ROOT / "workspace" / "singles" / "README.md"
 # 发布档（decoders/<id>）走**同一套**文档规矩：一枚 DLL 没有文档，维护者就只能
 # 靠读代码猜它认领了什么（2026-10-25 m138 立）。单库在 singles/，不发布，
 # 不在这道门禁的管辖内。
@@ -39,7 +39,7 @@ DOCS_REQUIRED = (
 MAX_LINES = {
     "README.md": 90,
     "DOCS_MANIFEST.md": 300,
-    "decoders-rust/singles/README.md": 250,
+    "workspace/singles/README.md": 250,
     "docs/pitfalls.md": 500,
     "docs/history-policy.md": 200,
     "docs/catalog.md": 200,
@@ -51,7 +51,7 @@ MAX_LINES = {
     "docs/building.md": 250,
     "docs/releasing.md": 200,
     "docs/README.md": 120,
-    "decoders-rust/decoders/raw/DESIGN.md": 300,
+    "workspace/decoders/raw/DESIGN.md": 300,
 }
 STALE = ("RuPix-Decoder/docs/", "make_index.ps1", "docs/<id>.md")
 LINK = re.compile(r"\]\(([^)\s]+)\)")
@@ -102,7 +102,7 @@ def missing_docs():
     if not SPEC.is_file():
         out.append("%s does not exist - the contract text belongs at the repo root"
                    % SPEC.name)
-    for name in ("AGENTS.md", "DOCS_MANIFEST.md", "decoders-rust/decoders/README.md"):
+    for name in ("AGENTS.md", "DOCS_MANIFEST.md", "workspace/decoders/README.md"):
         if not (ROOT / name).is_file():
             out.append("%s does not exist" % name)
     if not DOCS_DIR.is_dir():
@@ -112,7 +112,7 @@ def missing_docs():
             if not (DOCS_DIR / name).is_file():
                 out.append("docs/%s does not exist" % name)
     if not BENCH_README.is_file():
-        out.append("decoders-rust/singles/README.md does not exist")
+        out.append("workspace/singles/README.md does not exist")
     for root, pid in decoders():
         for name in ("README.md", "HISTORY.md"):
             doc = root / pid / name
@@ -202,8 +202,8 @@ def manifest_coverage():
     text = MANIFEST.read_text(encoding="utf-8")
     out = []
     required = ["README.md", "AGENTS.md", "解码器开发规范.md",
-                "decoders-rust/decoders/README.md", "decoders-rust/decoders/raw/DESIGN.md",
-                "decoders-rust/singles/README.md", "testdata/README.md"]
+                "workspace/decoders/README.md", "workspace/decoders/raw/DESIGN.md",
+                "workspace/singles/README.md", "testdata/README.md"]
     required += ["docs/%s" % name for name in DOCS_REQUIRED]
     for rel in required:
         if rel not in text:
@@ -307,12 +307,12 @@ def invisible_bytes():
 
     Why this is machine-decidable: a NUL inside `b"..."` behaves like the escape, so nothing
     breaks at compile time - but every text tool (grep, diff, editors) silently reclassifies the
-    file as binary. Measured on 2026-10-20: `decoders-rust/decoders/jpeg/src/lib.rs` held one such byte, which
+    file as binary. Measured on 2026-10-20: `workspace/decoders/jpeg/src/lib.rs` held one such byte, which
     is why a repo-wide `grep -rn` for a call-site inventory skipped that crate's two call sites
     (host pitfalls K86). Byte-identical rewrite: spell it as `c"..."`/`\x00`, or in prose.
     """
     out = []
-    roots = [ROOT / "abi", ROOT / "decoders-rust" / "decoders", ROOT / "docs", ROOT / "tools"]
+    roots = [ROOT / "abi", ROOT / "workspace" / "decoders", ROOT / "docs", ROOT / "tools"]
     files = [p for r in roots if r.is_dir() for p in r.rglob("*")
              if p.is_file() and p.suffix in (".rs", ".md", ".toml", ".py", ".h", ".c")]
     files += [p for p in ROOT.glob("*.md") if p.is_file()]

@@ -11,7 +11,7 @@
 `default-features = false` 只取 `*_impl`。同一次 cargo 调用里 feature 取并集，
 档里出现多份同名导出。
 
-**做法**：单库与档分 workspace（`decoders-rust/singles/` 独立，`decoders-rust/decoders/pro/` 独立），
+**做法**：单库与档分 workspace（`workspace/singles/` 独立，`workspace/decoders/pro/` 独立），
 各自 target-dir；不要为了"少跑一次 cargo"合并构建图。
 
 ## D02 三个构建图共用一个 target → `raw.dll` / `raw.pdb` 互相覆盖
@@ -21,8 +21,8 @@
 **原因**：多个 workspace 里有同 `[lib] name` 的 crate（如 `raw` / `core`），
 产物文件名相同。
 
-**做法**：`decoders-rust/.cargo` → `../../.temp/decoder-target`；`decoders-rust/singles/.cargo` →
-`../../../.temp/singles-target`；`decoders-rust/decoders/pro/.cargo` → `../../../../.temp/pro-target`。
+**做法**：`workspace/.cargo` → `../../.temp/decoder-target`；`workspace/singles/.cargo` →
+`../../../.temp/singles-target`；`workspace/decoders/pro/.cargo` → `../../../../.temp/pro-target`。
 不要手动合并 target 目录。
 
 ## D03 profile 条目写 `[lib] name` → 静默不生效
@@ -41,7 +41,7 @@
 
 **原因**：`z` 为体积优化；IDCT、熵解码、预测、逐字节循环上就是纯损失。
 
-**做法**：档 workspace 全局 `opt-level = 3`；bench 用 `z` + 逐包 3；
+**做法**：档 workspace 全局 `opt-level = 3`；singles 用 `z` + 逐包 3；
 热路径包必须显式提 3。不要用 `z` 做发布档的默认。
 
 ## D05 PowerShell 脚本写中文 → 解析错位
@@ -59,7 +59,7 @@
 **原因**：同一后缀只有一枚认领者；样本应属于"后缀"，不属于某个实现。
 
 **做法**：样本只放 `testdata/golden/`（入库）或 `../.temp/testdata/`（生成）；
-任何 `decoders-rust/decoders/` / `decoders-rust/singles/` 下不放图片。
+任何 `workspace/decoders/` / `workspace/singles/` 下不放图片。
 
 ## D07 改 ABI 只改宿主快照 → 上游漂移
 
@@ -124,5 +124,5 @@ CFA 相位用绝对坐标（或折进 48×48 表）。不要用亮度启发式�
 
 **原因**：门禁只覆盖一部分路径；手写第二份真源。
 
-**做法**：字段/大小只信 `index.json`；版本只信 `Cargo.toml`；文档链接写相对路径；
+**做法**：字段/大小只信 `decoders.json`；版本只信 `Cargo.toml`；文档链接写相对路径；
 行锚只写符号名；新增文档登记到 `DOCS_MANIFEST.md`。

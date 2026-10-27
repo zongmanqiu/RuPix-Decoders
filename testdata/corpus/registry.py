@@ -26,11 +26,11 @@ class FormatEntry:
 
 _GROUPS: tuple[tuple[str, str, str, str], ...] = (
     ("A1", "pil", "png", ""),
-    ("A1", "jpeg", "jpg jpeg jpe jfif jif jfi exif", "aliases share the JPEG core"),
+    ("A1", "jpeg", "jpg jpeg jpe jfif jif jfi exif jps mpo", "aliases share the JPEG core"),
     ("A1", "pil", "gif", ""),
     ("A1", "tiff", "tif tiff", "aliases share the TIFF core"),
     ("A1", "bmp", "bmp dib rle", "aliases share the BMP core"),
-    ("A1", "ico", "ico icon", "aliases share the ICO core"),
+    ("A1", "ico", "ico icon cur ani", "aliases share the ICO core"),
     ("A1", "pnm", "ppm pnm pgm pbm", "aliases share the PNM family"),
     ("A1", "pil", "pam", ""),
     ("A1", "pil", "tga", ""),

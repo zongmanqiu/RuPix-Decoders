@@ -1,0 +1,118 @@
+[workspace]
+resolver = "2"
+# 单库 = 每格式一枚的参考实现：单库横评的比对目标（"哪个库认领哪个后缀"的
+# 决策机制，本仓历史记录 的台账），也是三个档的装配来源。
+# 它们**不发布**——发布的是 decoders/ 下的档；`cargo build --workspace`
+# 在这里跑出的是各单库自己的 DLL，只给 bench / A-B 排查用。
+members = [
+    "av",
+    "core",
+    "gif",
+    "hdr",
+    "jpeg",
+    "jxl",
+    "png",
+    "pro-dicom",
+    "pro-djvu",
+    "pro-exr",
+    "pro-jp2",
+    "pro-jxr",
+    "pro-ktx2",
+    "pro-ase",
+    "pro-xcf",
+    "pro-sci",
+    "pro-small",
+    "pro-wmf",
+    "psd",
+    "qoi",
+    "rawpx",
+    "tiff",
+]
+
+[workspace.dependencies]
+# 契约 + 解码器样板（kit）同一个 crate：宿主（main）也依赖 rupix-abi，两边永远同一份定义。
+# 路径相对于本 workspace 根（singles/）：abi 住在仓库根的档 workspace 里，两边是
+# 两个构建图（见根 Cargo.toml 的 exclude 注释），共享同一份 abi 源码。
+rupix-abi = { path = "../../abi" }
+
+# ── 单库 profile（照 root 对单库的历史口径：z + 逐包 opt-level = 3）────────
+# panic 必须保持 unwind：宿主靠 catch_unwind 隔离坏解码器，abort 会带走整个进程。
+# 与档那边（根 Cargo.toml 的全局 opt-level = 3）**刻意不同**：bench 选型口径
+# （"发布配置与选型口径逐字一致"）量的是单库自己的形态，逐包清单照抄原 root。
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+# 崩溃取证：行表只进 pdb、不进 dll（与宿主同口径，m129/m130）。
+debug = 1
+
+# ★ 例外：解码库按速度优化（同 main 对 tiny-skia 的做法）。
+#
+# 实测（2000x1500 = 3 MPixel，同一台机器，见 decoders/core/examples/bench_core.rs）：
+#   opt-level=z 时 JPEG 要 124.9 ms（24 MPix/s）、WebP 107.6 ms —— 看图器翻页会明显卡。
+#   改成 opt-level=3 后这两个数量级回到正常水平。z 是为 exe 体积准备的，
+#   对 IDCT / 熵解码 / 预测这种逐像素热循环，体积优化是纯粹的性能损失。
+[profile.release.package.jxl-oxide]
+opt-level = 3
+[profile.release.package.image]
+opt-level = 3
+[profile.release.package.zune-jpeg]
+opt-level = 3
+[profile.release.package.zune-core]
+opt-level = 3
+# PSD 成员（zune-psd）：与 jpeg 同族（zune-core 已在上面），平面解交错是逐像素循环。
+[profile.release.package.zune-psd]
+opt-level = 3
+[profile.release.package.png]
+opt-level = 3
+# png 冠军解码器自身也有一段逐像素循环（灰度族 2→4 扩展）。z 是为体积优化的，
+# 这种循环上就是纯损失，与上面各库同理。
+[profile.release.package.rupix-png]
+opt-level = 3
+# jxl 解码器本体**不加**这条（2026-10-21 m77 试过并撤回）：同一张 2.46 MP JXL 的首次请求
+# z 臂 400.1 / 443.5 ms、opt-level=3 臂 406.3 / 409.4 ms，8.3 MP 臂 947.0/900.5 → 895.7 ms——
+# 差异在噪声内、无可复现收益（慢的是 jxl-oxide 内部的单线程重建，那层早就 `opt-level = 3`）。
+# 读数与判据见 本仓历史记录。
+[profile.release.package.tiff]
+opt-level = 3
+# ★ 上面那条命中的是**上游库**（package 名 `tiff`）；解码器本体叫 `rupix-tiff`
+#   （`[lib] name = "tiff"` 只是解码器 id），所以它自己的行寻址 / 面积平均循环
+#   一直还是默认的 z（m89 立项时实读）。与 `rupix-png` 同一个理由：逐字节循环吃不了体积优化。
+[profile.release.package.rupix-tiff]
+opt-level = 3
+[profile.release.package.image-webp]
+opt-level = 3
+[profile.release.package.gif]
+opt-level = 3
+[profile.release.package.moxcms]
+opt-level = 3
+# PNG/TIFF 的 zlib 与 CRC 同样在热路径上。
+[profile.release.package.flate2]
+opt-level = 3
+[profile.release.package.miniz_oxide]
+opt-level = 3
+[profile.release.package.fdeflate]
+opt-level = 3
+[profile.release.package.simd-adler32]
+opt-level = 3
+[profile.release.package.crc32fast]
+opt-level = 3
+[profile.release.package.color_quant]
+opt-level = 3
+# ── av 解码器（HEIC/AVIF）：逐像素热循环同样吃不了 z ──
+[profile.release.package.zenavif]
+opt-level = 3
+[profile.release.package.rav1d-safe]
+opt-level = 3
+[profile.release.package.rav1d-disjoint-mut]
+opt-level = 3
+[profile.release.package.zenavif-parse]
+opt-level = 3
+[profile.release.package.heif-oxide]
+opt-level = 3
+[profile.release.package.rust_h265]
+opt-level = 3
+[profile.release.package.yuv]
+opt-level = 3

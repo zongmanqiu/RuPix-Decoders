@@ -24,8 +24,8 @@ Checks - equality only, never "which value is right", so there is no
 false-positive shape to train people to ignore (contrast check_anchors.py,
 which stays advisory precisely for that reason):
 
-  1. every published tier (`decoders-rust/decoders/<id>/src/lib.rs`), every single lib
-     (`decoders-rust/singles/<id>/src/lib.rs`) and the shared `decoders-rust/shared/pro-support/src/lib.rs`
+  1. every published tier (`workspace/decoders/<id>/src/lib.rs`), every single lib
+     (`workspace/singles/<id>/src/lib.rs`) and the shared `workspace/shared/pro-support/src/lib.rs`
      that declares MAX_PIXELS declares the same value, and at least one crate declares it;
   2. if the host repo sits beside this one: host `pixels.rs` MAX_PIXELS ==
      `make_samples.py` MAX_PIXELS. Otherwise print a loud skip - the host bound
@@ -76,7 +76,7 @@ def py_caps(path):
 
 def collect_decoder():
     rows = []
-    for pattern in ("decoders-rust/decoders/*/src/lib.rs", "decoders-rust/singles/*/src/lib.rs", "decoders-rust/shared/pro-support/src/lib.rs"):
+    for pattern in ("workspace/decoders/*/src/lib.rs", "workspace/singles/*/src/lib.rs", "workspace/shared/pro-support/src/lib.rs"):
         for lib in sorted(ROOT.glob(pattern)):
             rows += rust_caps(lib)
     return rows

@@ -19,17 +19,17 @@ from pathlib import Path
 from lib import ROOT
 EXPECTED = {
     "root": {
-        "config": ROOT / "decoders-rust" / ".cargo" / "config.toml",
+        "config": ROOT / "workspace" / ".cargo" / "config.toml",
         "target": "../../.temp/decoder-target",
         "opt": 3,
     },
     "singles": {
-        "config": ROOT / "decoders-rust" / "singles" / ".cargo" / "config.toml",
+        "config": ROOT / "workspace" / "singles" / ".cargo" / "config.toml",
         "target": "../../../.temp/singles-target",
         "opt": "z",
     },
     "pro": {
-        "config": ROOT / "decoders-rust" / "decoders" / "pro" / ".cargo" / "config.toml",
+        "config": ROOT / "workspace" / "decoders" / "pro" / ".cargo" / "config.toml",
         "target": "../../../../.temp/pro-target",
         "opt": 3,
     },
@@ -66,9 +66,9 @@ def check_profiles():
     out = []
     for name, spec in EXPECTED.items():
         manifest = {
-            "root": ROOT / "decoders-rust" / "Cargo.toml",
-            "singles": ROOT / "decoders-rust" / "singles" / "Cargo.toml",
-            "pro": ROOT / "decoders-rust" / "decoders" / "pro" / "Cargo.toml",
+            "root": ROOT / "workspace" / "Cargo.toml",
+            "singles": ROOT / "workspace" / "singles" / "Cargo.toml",
+            "pro": ROOT / "workspace" / "decoders" / "pro" / "Cargo.toml",
         }[name]
         data = tomllib.loads(manifest.read_text(encoding="utf-8"))
         profile = data.get("profile", {}).get("release", {})

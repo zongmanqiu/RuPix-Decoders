@@ -9,9 +9,9 @@
 
 | workspace | 位置 | 成员 | 产物 | 发布 |
 |---|---|---|---|---|
-| 档 | `decoders-rust/Cargo.toml` | `shared/router`、`shared/pro-support`、`decoders/{common,modern,raw}`（`abi` 是外部 path 依赖） | `common.dll`、`modern.dll`、`raw.dll` | 是 |
-| 单库 | `decoders-rust/singles/Cargo.toml` | `decoders-rust/singles/*` 共 22 个 | 单库 DLL（bench/A-B 用） | 否 |
-| 专业档 | `decoders-rust/decoders/pro/Cargo.toml` | `rupix-pro` + 11 个 `pro-*` 单库 | `pro.dll` | 是 |
+| 档 | `workspace/Cargo.toml` | `shared/router`、`shared/pro-support`、`decoders/{common,modern,raw}`（`abi` 是外部 path 依赖） | `common.dll`、`modern.dll`、`raw.dll` | 是 |
+| 单库 | `workspace/singles/Cargo.toml` | `workspace/singles/*` 共 22 个 | 单库 DLL（bench/A-B 用） | 否 |
+| 专业档 | `workspace/decoders/pro/Cargo.toml` | `rupix-pro` + 11 个 `pro-*` 单库 | `pro.dll` | 是 |
 
 三个 workspace 各有自己的 `Cargo.lock`、`.cargo/config.toml`（target-dir）与 release profile。
 `build.ps1` 依次跑：根 → singles → pro。
@@ -28,12 +28,12 @@
 
 ### 档 vs 单库
 
-- **单库**（`decoders-rust/singles/<id>/`）：真正的解码实现，形态是"薄壳 + `probe_impl` / `render_impl`"。
+- **单库**（`workspace/singles/<id>/`）：真正的解码实现，形态是"薄壳 + `probe_impl` / `render_impl`"。
   它也可以开 `standalone` 编成独立解码器，但不发布。
-- **档**（`decoders-rust/decoders/<id>/`）：装配件。`Cargo.toml` 只列成员依赖（`default-features = false`），
+- **档**（`workspace/decoders/<id>/`）：装配件。`Cargo.toml` 只列成员依赖（`default-features = false`），
   `src/lib.rs` 是 `export_decoder!` + `MEMBERS` 路由表 + `iv_*` 导出，**不写解码逻辑**。
 - **例外**：`raw` 档同时是 tier 和引擎——相机 RAW 的显影链（线性化、去马赛克、色彩矩阵、
-  gamma）在 `decoders-rust/decoders/raw/src/lib.rs` 里，不在单库。文档与评审必须按这个事实看它，
+  gamma）在 `workspace/decoders/raw/src/lib.rs` 里，不在单库。文档与评审必须按这个事实看它，
   不能套"四档都只装配"。
 
 ## 数据流
@@ -78,13 +78,13 @@
 
 ```text
 abi/                 契约真源 + 解码器 kit + c/ 单头
-decoders-rust/shared/router/              三档共用的合并路由内核（rlib）
-decoders-rust/shared/pro-support/           pro 共用尺寸闸 / RGBA 回填（rlib）
-decoders-rust/decoders/<id>/       发布档：装配 + 自述 + 路由；raw 例外含引擎
-decoders-rust/singles/<id>/  单库：每格式实现 + 测试 + README
+workspace/shared/router/              四档共用的合并路由内核（rlib）
+workspace/shared/pro-support/           pro 共用尺寸闸 / RGBA 回填（rlib）
+workspace/decoders/<id>/       发布档：装配 + 自述 + 路由；raw 例外含引擎
+workspace/singles/<id>/  单库：每格式实现 + 测试 + README
 testdata/            make_samples.py + golden/ 证物
 tools/             工具链 + 门禁 + 清单生成
 docs/                本目录：跨模块流程/设计
-index.json           机器清单（宿主「可下载」卡读它）
+decoders.json           机器清单（宿主「可下载」卡读它）
 解码器开发规范.md      ABI 契约正文
 ```

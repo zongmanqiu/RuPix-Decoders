@@ -1,12 +1,12 @@
-"""Generate random-noise ("snow") test images at 1 MiB / 10 MiB / 100 MiB, one per SUFFIX.
+"""Generate random-noise ("snow") test images at 10 MiB by default, one per SUFFIX.
 
 This folder holds only the generator. No image ever enters the repo: the samples are
 written outside the source tree, to `<repo>/../.temp/testdata/<tier>/noise<ext>` plus a
 `manifest.json` (override with --out or RUPIX_SAMPLE_DIR). From the repo root:
 
-    python testdata/make_samples.py                  # every suffix, all three tiers
+    python testdata/make_samples.py                  # every suffix, default 10M tier
     python testdata/make_samples.py --only .jpg,.png # a subset (suffixes, or decoder ids)
-    python testdata/make_samples.py --tier 10M
+    python testdata/make_samples.py --tier all       # 1M / 10M / 100M
     python testdata/make_samples.py --list           # print the plan, write nothing
     python testdata/make_samples.py --check          # verify claims coverage only
 
@@ -124,7 +124,7 @@ DIM_CAP = {".jpg": 65500, ".png": 65500, ".apng": 65500, ".gif": 65500, ".bmp": 
            ".webp": 16383, ".ico": 256, ".jp2": 65535, ".pcx": 65535,
            ".icns": 1024, ".xbm": 65535, ".wbmp": 65535, ".dcx": 65535,
            ".ktx": 16384, ".nii": 65535, ".nrrd": 65535, ".mrc": 65535,
-           ".dcm": 65535}
+           ".dcm": 65535, ".cur": 256, ".ani": 256}
 MODE = {".pgm": "L", ".pbm": "1", ".webp": "RGBA", ".png": "RGBA", ".apng": "RGBA",
         ".ico": "RGBA", ".dds": "RGBA", ".tif": "RGB", ".gif": "RGB",
         ".jp2": "RGBA", ".pcx": "RGB", ".icns": "RGBA", ".xbm": "1"}
@@ -190,9 +190,11 @@ PLAN = [
     ("core", ".pam", "pam", {}),
     ("core", ".tga", "pil", {}),
     ("core", ".dds", "dds", {}),
+    ("common", ".cur", "cur", {}),
+    ("common", ".ani", "ani", {}),
 ]
 PLAN += [("jpeg", e, "alias", {"src": ".jpg"})
-         for e in (".jpeg", ".jpe", ".jfif", ".jif", ".jfi", ".exif")]
+         for e in (".jpeg", ".jpe", ".jfif", ".jif", ".jfi", ".exif", ".jps", ".mpo")]
 PLAN += [("tiff", ".tiff", "alias", {"src": ".tif"})]
 PLAN += [("core", e, "alias", {"src": s})
          for e, s in ((".dib", ".bmp"), (".rle", ".bmp"), (".icon", ".ico"), (".pnm", ".ppm"))]
@@ -509,7 +511,54 @@ def encode_rawpx(layout, w, h, rng):
 # one file at a time
 # ---------------------------------------------------------------------------
 
+def _ico_payload(side, rng):
+    """Pillow's ICO writer is the only stable ICO encoder here; the container is shared
+    by CUR and ANI frames."""
+    img = snow("RGBA", side, rng)
+    buf = io.BytesIO()
+    img.save(buf, format="ICO")
+    return buf.getvalue()
+
+
+def encode_cur(side, rng):
+    """A real CUR: ICO header with type 2. The image decoder ignores the type and reads
+    the same embedded PNG/BMP frame; hotspots are left at zero."""
+    data = bytearray(_ico_payload(side, rng))
+    if len(data) < 4:
+        raise ValueError("ICO writer returned too few bytes")
+    data[2:4] = b"\x02\x00"
+    return bytes(data)
+
+
+def _riff_chunk(chunk_id, body):
+    out = bytearray(chunk_id)
+    out += struct.pack("<I", len(body))
+    out += body
+    if len(body) & 1:
+        out.append(0)
+    return bytes(out)
+
+
+def encode_ani(side, rng):
+    """RIFF/ACON with two identical ICO frames. The ANI reader cares about frame count,
+    rate and ICO payload, not about the animation's artistic content."""
+    icon = _ico_payload(side, rng)
+    frames = 2
+    rate = 4
+    anih = struct.pack("<IIIIIIIII", 36, frames, frames, side, side, 32, 1, rate, 1)
+    rates = struct.pack("<I", rate) * frames
+    fram = bytearray(b"fram")
+    for _ in range(frames):
+        fram += _riff_chunk(b"icon", icon)
+    body = bytearray(b"ACON")
+    body += _riff_chunk(b"anih", anih)
+    body += _riff_chunk(b"rate", rates)
+    body += _riff_chunk(b"LIST", bytes(fram))
+    return b"RIFF" + struct.pack("<I", len(body)) + bytes(body)
+
+
 HAND = {".qoi": encode_qoi, ".pam": encode_pam, ".psd": encode_psd, ".hdr": encode_hdr,
+        ".cur": encode_cur, ".ani": encode_ani,
         ".dds": encode_dds, ".dcx": encode_dcx, ".wbmp": encode_wbmp,
         ".ktx": encode_ktx1, ".nii": encode_nii, ".nrrd": encode_nrrd,
         ".mrc": encode_mrc, ".dcm": encode_dicom}
@@ -662,7 +711,7 @@ def main():
     ap.add_argument("--seed-dir", default=os.environ.get("RUPIX_SEED_DIR"))
     ap.add_argument("--strict", action="store_true",
                     help="require a real seed file for every seed-only suffix")
-    ap.add_argument("--tier", default="all")
+    ap.add_argument("--tier", default="10M")
     ap.add_argument("--only", default="",
                     help="comma separated suffixes (.jpg) or decoder ids (jpeg)")
     ap.add_argument("--seed", type=int, default=20261016,
