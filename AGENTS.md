@@ -186,13 +186,14 @@
 
 - 位置：`testdata/make_samples.py`。`testdata/` 有**两半**，划分标准是"能不能用脚本算出来"：
   `make_samples.py` 生成的 1/10/100 MiB 雪花样本 **不入库**（写 `../.temp/testdata/`）；
-  `testdata/golden/` 里 **27 个** golden / 边界证物（**134 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
+  `testdata/golden/` 里 **27 个** golden / 边界证物（**137 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
   引用路径见 `testdata/README.md`。入库判据不是"绝对造不出来"（实测：11 个真造不出——4 枚真机 RAW、
   5 枚 AVIF、2 枚 JXL；另 16 个能造，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
   同一个字节永远对应同一个断言，换 Pillow 版本重生成就可能漂移、测试静默变松。
 - **按后缀生成一份，不按解码器**：一个后缀只有一枚认领者（`check_deps.py` 守着），所以
   "JPEG 的测试图"对谁都是同一份字节；按解码器各存一份会让同一张 100 MB 图存在十几份并各自漂移。
-  manifest 里仍记 `claimed_by`，只作"本该谁读"的元数据。别名后缀（`.jpe` 之于 `.jpg` 等）是**硬链接**。
+  manifest 里仍记 `claimed_by`，只作"本该谁读"的元数据。别名后缀（`.jpe` 之于 `.jpg` 等）保留同一像素源，
+  但每档用格式合法的尾注/元数据保证**字节长度唯一**（生成器末尾会硬检查同档大小冲突）。
 - 从仓库根运行（**用 `py`**：本机 `python` 是 WorkBuddy 自带 3.13、没有 Pillow；脚本头刻意无 shebang，
   否则 Windows 的 `py` 启动器会挑到没有 Pillow 那个解释器）：
   ```text
@@ -203,14 +204,16 @@
   ```
 - 产物：`<repo>/../.temp/testdata/<tier>/noise<ext>` + `manifest.json`（`RUPIX_SAMPLE_DIR` 可覆盖）。
   噪声（snow）是故意的——每种熵编码的最坏情况，用来压测解码器并暴露尺寸/内存门。
-- **档位是下限**：装不下就写 `capped(...)` 给真实尺寸，不假装。当前 100 MiB 档 39 个后缀里 25 个达标，
-  其余是物理上限（ICO 256 px、PBM 1 bpp、BC1 0.5 B/px、GRAY8 1 B/px、GIF 8 bpp、4:2:x 1.5 B/px…）。
+- **档位是下限**：装不下就写 `capped(...)` 给真实尺寸，不假装。物理上限包括
+  ICO 256 px、PBM 1 bpp、BC1 0.5 B/px、GRAY8 1 B/px、GIF 8 bpp、4:2:x 1.5 B/px；
+  各档实际数量以 `manifest.json` 为准，别在这里写死会过期的计数。
 - **两个 gate**：解码器自身拒绝 >64 MP（解码器开发规范.md §六 第 10 条），但宿主更早拒绝
   >41 MP 或 >164 MB RGBA（main/src/core/pixels.rs MAX_PIXELS = 41_000_000）。样本保持在宿主上限之下，
   保证每行都能被查看器真正打开；想探 64 MP 解码器门需用 ABI 直接调用（budget_bytes = 0）。
 - 验证：宿主 `core_smoke.exe` 走真实用户路径（目录过滤 → 扩展名认领 → 两阶段渲染）。
   2026-10-25 实测：1M 档 **27 个非 rawpx 样本逐条 OK**（含改过尺寸的 100M 档 `.jpg` 5172²、
-  `.webp` 5250²）。rawpx 的 12 个裸数据后缀没有文件头，需宽高参数，走 `iv_render_raw` 另测。
+  `.webp` 5250²）。rawpx 的 11 个裸数据后缀没有文件头，走 `iv_render_raw` 另测；
+  新增的 synthetic corpus（`testdata/generate_corpus.py`）另行验证。
   ★ 这类"当前全绿 N 个"的数字要么写实测日期、要么别写——它没有门禁守着，只写数字必然过期。
 
 ## 五、测试与红线

@@ -29,7 +29,7 @@ cargo test --release --workspace -- --test-threads=1
   `include_bytes!` 嵌入。引用路径：
   `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")`。
 - `testdata/make_samples.py`：生成 1/10/100 MiB 雪花样本，**不入库**，写
-  `../.temp/testdata/`；按后缀共享，别名后缀走硬链接。
+  `../.temp/testdata/`；按后缀共享；别名后缀保留同一像素源，但每档字节长度唯一。
 - **任何 `decoders-rust/decoders/` 或 `decoders-rust/singles/` 下不放图片**：同一后缀只有一枚认领者，
   换解码库时样本不该跟着丢。
 - 生成样本需要 Pillow；本机 `python` 与 `py` 都是 3.11.3 + Pillow 11.1.0。换机器时用带 Pillow 的
