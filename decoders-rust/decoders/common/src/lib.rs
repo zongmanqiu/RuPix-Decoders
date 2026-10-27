@@ -41,7 +41,7 @@ webp;bmp;dib;rle;ico;icon;pnm;ppm;pgm;pbm;pam;dds;ff;tga;psd;hdr",
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.2.0",
+    "version" => "0.2.1",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
     "released" => "2026-10-27",

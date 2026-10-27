@@ -96,6 +96,15 @@ pub fn probe_impl(data: *const u8, len: usize, ext: *const c_char) -> i32 {
             return 0;
         }
         let slice = unsafe { std::slice::from_raw_parts(data, len) };
+        if ext_is(ext, b"dib")
+            && !slice.starts_with(b"BM")
+            && slice.len() >= 40
+            && u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]) >= 40
+        {
+            // Headerless DIB: no magic, but the BITMAPINFOHEADER size is a
+            // strong structural check. The render path prepends a BMP header.
+            return CONFIDENCE_GENERALIST;
+        }
         if is_webp(slice) {
             return CONFIDENCE_GENERALIST;
         }
@@ -141,6 +150,23 @@ pub fn render_impl(
             return ERR_BUFFER_TOO_SMALL;
         }
         let input = unsafe { std::slice::from_raw_parts(data, len) };
+        // A DIB is a BMP without its 14-byte BITMAPFILEHEADER. The image crate
+        // only sniffs the `BM` form, so prepend a synthetic file header before
+        // any dimension/decode call. A `.dib` that already has `BM` stays as-is.
+        let is_dib = ext_is(ext, b"dib") && !input.starts_with(b"BM");
+        let dib_owned: Vec<u8>;
+        let input = if is_dib {
+            dib_owned = match dib_to_bmp(input) {
+                Ok(v) => v,
+                Err(msg) => {
+                    set_last_error(msg);
+                    return ERR_CORRUPT;
+                }
+            };
+            dib_owned.as_slice()
+        } else {
+            input
+        };
         let frame_index = if req.is_null() {
             0
         } else {
@@ -482,6 +508,43 @@ fn reader(data: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>, ImageError> {
     ImageReader::new(Cursor::new(data))
         .with_guessed_format()
         .map_err(ImageError::IoError)
+}
+
+/// Add a minimal BITMAPFILEHEADER to a DIB so the shared BMP path can read it.
+fn dib_to_bmp(data: &[u8]) -> Result<Vec<u8>, &'static str> {
+    if data.len() < 40 {
+        return Err("DIB 头不足 40 字节");
+    }
+    let info_size = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+    if info_size < 40 || info_size > data.len() {
+        return Err("DIB 的 BITMAPINFOHEADER 尺寸不合法");
+    }
+    let bpp = u16::from_le_bytes([data[14], data[15]]);
+    let compression = u32::from_le_bytes([data[16], data[17], data[18], data[19]]);
+    let clr_used = u32::from_le_bytes([data[32], data[33], data[34], data[35]]) as usize;
+    let palette = if bpp <= 8 {
+        if clr_used == 0 {
+            1usize << bpp
+        } else {
+            clr_used
+        }
+    } else if compression == 3 || compression == 6 {
+        3
+    } else {
+        0
+    };
+    let offset = 14usize
+        .checked_add(info_size)
+        .and_then(|v| v.checked_add(palette * 4))
+        .ok_or("DIB 偏移溢出")?;
+    let file_size = 14usize.checked_add(data.len()).ok_or("DIB 尺寸溢出")?;
+    let mut out = Vec::with_capacity(file_size);
+    out.extend_from_slice(b"BM");
+    out.extend_from_slice(&(file_size as u32).to_le_bytes());
+    out.extend_from_slice(&[0, 0, 0, 0]);
+    out.extend_from_slice(&(offset as u32).to_le_bytes());
+    out.extend_from_slice(data);
+    Ok(out)
 }
 
 fn dimensions(data: &[u8], is_tga: bool) -> Result<(u32, u32), ImageError> {

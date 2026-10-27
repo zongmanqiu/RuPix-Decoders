@@ -1,4 +1,4 @@
-use super::develop::{black_levels, cam_to_srgb_wb, gamma_buckets, mul3, white_level};
+use super::develop::{auto_gain, black_levels, cam_to_srgb_wb, gamma_buckets, mul3, white_level};
 use super::frame;
 
 pub fn cfa_period(cfa: &rawler::cfa::CFA) -> (usize, usize) {
@@ -214,30 +214,38 @@ pub fn develop_binned(
     let gamma = gamma_buckets();
     // 与全尺寸那条腿**同一口径**：白平衡折进色彩矩阵，不在逐样本上乘。
     let cam_to_srgb = cam_to_srgb_wb(img);
-    let mut out = vec![0u8; ow * oh * 4];
+    let mut linear = vec![0f32; ow * oh * 3];
     for oy in 0..oh {
-        // 块起点的真实相位（绝对坐标）——右/下缘那几列/行被钳到画幅内最后一个整块，
-        // 相位跟着钳后的起点算；画幅起点本身可能是奇数，相位也就不从 0 开始。
         let py = (f.y + (oy * step).min(h - step)) % p;
         for ox in 0..ow {
             let px = x0s[ox] % p;
-            // 每道的样本数由 `counts` 给（该函数保证三道都 ≥1），不同相位可以不匀：
-            // 例 3×3 的 Bayer 块是 4R4G1B，而 4×4 是 4R8G4B——除错就带系统性色偏。
             let cnt = &counts[py * p + px];
             let sums = acc[oy * ow + ox];
-            let i = (oy * ow + ox) * 4;
+            let i = (oy * ow + ox) * 3;
             let mut cam = [0f32; 3];
             for c in 0..3 {
                 let mean = (sums[c] / cnt[c] as f64) as f32;
                 let den = (white[c] - black[c]).max(1.0);
                 cam[c] = ((mean - black[c]) / den).clamp(0.0, 1.0);
             }
-            let lin = mul3(&cam_to_srgb, cam);
-            out[i] = gamma.encode(lin[0]);
-            out[i + 1] = gamma.encode(lin[1]);
-            out[i + 2] = gamma.encode(lin[2]);
-            out[i + 3] = 255;
+            linear[i..i + 3].copy_from_slice(&mul3(&cam_to_srgb, cam));
         }
+    }
+    // The first screen often uses this binned path, while zoom/1:1 later uses
+    // `develop`. They must share the same display exposure or the image visibly
+    // changes brightness when the full-resolution request lands.
+    let exposure = if img.make.is_empty() && img.model.is_empty() {
+        1.0
+    } else {
+        auto_gain(&linear)
+    };
+    let mut out = vec![0u8; ow * oh * 4];
+    for (i, d4) in out.chunks_exact_mut(4).enumerate() {
+        let rgb = &linear[i * 3..i * 3 + 3];
+        d4[0] = gamma.encode(rgb[0] * exposure);
+        d4[1] = gamma.encode(rgb[1] * exposure);
+        d4[2] = gamma.encode(rgb[2] * exposure);
+        d4[3] = 255;
     }
     Ok((out, ow, oh))
 }

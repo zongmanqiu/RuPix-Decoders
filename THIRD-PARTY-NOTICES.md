@@ -12,9 +12,9 @@
 
 | 档 | 版本 | 成员库 | 许可证 |
 |---|---|---|---|
-| `common` | 0.2.0 | `zune-jpeg` 0.5、`png` 0.18、`gif` 0.14、`tiff` 0.11、`zune-psd` 0.5、`image` 0.25（含 `hdr`）、`image-webp` 0.2、自研 `qoi` | 见 §二；`qoi` 为本仓自写，无第三方 |
+| `common` | 0.2.1 | `zune-jpeg` 0.5、`png` 0.18、`gif` 0.14、`tiff` 0.11、`zune-psd` 0.5、`image` 0.25（含 `hdr`）、`image-webp` 0.2、自研 `qoi` | 见 §二；`qoi` 为本仓自写，无第三方 |
 | `modern` | 0.2.0 | `heif-oxide` 0.1、`zenavif` 0.1、`jxl-oxide` 0.12、`moxcms` 0.8、`rayon` 1.x | 见 §二；注意 `zenavif` / `rav1d-safe` 的 AGPL 分支 |
-| `raw` | 0.5.0 | `rawler` 0.7.2、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`rawpx` 无第三方 |
+| `raw` | 0.5.0 | `rawler` 0.7.2、`flashraw` 0.1.1、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`flashraw` = MIT/Apache-2.0（X3F 回退）；`rawpx` 无第三方 |
 | `pro` | 0.2.0 | `hayro-jpeg2000` 0.4、`jxr` 0.2、`exr` 1.74、`ktx2` 0.5 + `texture2ddecoder` 0.1、`dicom-pixeldata` 0.10、`image` 0.25、自研 NIfTI/NRRD/MRC、`pcx` 0.2、`wbmp` 0.1、`xbm` 0.3、`icns` 0.5、`xcf` 0.4、`aseprite-loader` 0.4、`djvu-rs` 0.42、`wmf-core` 0.1 + `resvg` 0.49 | 见 §二；`xcf` = Unlicense |
 | `abi` / `router` | 0.5.0 / 0.1.0 | —（本仓自写） | AGPL-3.0 |
 
@@ -47,6 +47,7 @@
 | `rgb` | 0.8.53 | MIT（单许可，不是双许可） | [实测] |
 | `zenpixels` | 0.2.16 | Apache-2.0 OR MIT | [实测] |
 | `rawler` | 0.7.2 | **LGPL-2.1** | [实读字段] 见 §三 |
+| `flashraw` | 0.1.1 | MIT OR Apache-2.0 | [实读字段] X3F 回退；软件许可 |
 | `hayro-jpeg2000` | 0.4.1 | Apache-2.0 OR MIT | [实读字段] `pro` 的 JP2/J2K |
 | `jxr` | 0.2.1 | MIT OR Apache-2.0 | [实读字段] `pro` 的 JPEG XR |
 | `exr` | 1.74.2 | BSD-3-Clause | [实读字段] `pro` 的 OpenEXR |

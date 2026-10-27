@@ -1,0 +1,10 @@
+{
+  "output": "../.temp/testdata",
+  "seed_dir": "../.temp/corpus",
+  "tiers": {
+    "1M": 1048576,
+    "10M": 10485760,
+    "100M": 104857600
+  },
+  "strict": true
+}

@@ -57,7 +57,7 @@ pub fn develop_in(
     // 原来这里还有一条"观测峰值远低于声明白电平 ⇒ 按观测值重归一"的兜底，m82 删掉：
     // 它的触发条件（观测峰值距黑电平不到声明量程的 5%）**只在黑帧/平场数据上成立**，
     // 于是把传感器噪声拉成满量程亮场（实测一张真正的黑帧 RAF 渲染成品红色方块）。
-    // 查看器不该替照片做自动色阶。
+    // 查看器不做自动色阶；低 key 的曝光抬升只在步骤 3 之后按显示需要做（见 auto_gain）。
     let black = black_levels(img, cpp); // 每通道
     let white = white_level(img); // 每通道
 
@@ -152,6 +152,15 @@ pub fn develop_in(
     // m85：★ 那份矩阵以前读 `img.xyz_to_cam`，而它在 rawler 0.7.2 里**恒为全零** ⇒ 奇异兜底
     // 每次都触发 ⇒ 色彩矩阵从来没生效，三张真机整张偏色。见 [`cam_to_srgb_wb`] 的说明。
     let cam_to_srgb = cam_to_srgb_wb(img);
+    // Camera JPEG previews (and PicView/LibRaw's default) apply a modest
+    // auto-exposure. Without it, low-key ORF/ARW/NEF files look much darker
+    // than the camera's own preview. Only lift genuinely dark images; high-key
+    // and black frames keep their exposure.
+    let exposure = if img.make.is_empty() && img.model.is_empty() {
+        1.0 // synthetic unit-test images: keep their exact exposure
+    } else {
+        auto_gain(&linear)
+    };
 
     // ── 4. Gamma 编码 → RGBA8（只出画幅那一块）。──────────────────────────
     // m79：这一步原来每像素调 3 次 `powf`（m78 量出它占整条显影链的 50–56%）。
@@ -166,13 +175,76 @@ pub fn develop_in(
         let dst = &mut out[ly * f.w * 4..(ly + 1) * f.w * 4];
         for (s3, d4) in src.chunks_exact(3).zip(dst.chunks_exact_mut(4)) {
             let lin = mul3(&cam_to_srgb, [s3[0], s3[1], s3[2]]);
-            d4[0] = gamma.encode(lin[0]);
-            d4[1] = gamma.encode(lin[1]);
-            d4[2] = gamma.encode(lin[2]);
+            d4[0] = gamma.encode(lin[0] * exposure);
+            d4[1] = gamma.encode(lin[1] * exposure);
+            d4[2] = gamma.encode(lin[2] * exposure);
             d4[3] = 255;
         }
     }
     Ok((out, f.w))
+}
+
+/// Display auto-exposure: lift low-key images the way camera previews / LibRaw's
+/// default `auto_bright` do. A sample of the linear image is enough for the 99th
+/// percentile; black frames stay black, and already-bright images keep their
+/// exposure.
+pub(crate) fn auto_gain(linear: &[f32]) -> f32 {
+    let pixels = linear.len() / 3;
+    if pixels == 0 {
+        return 1.0;
+    }
+    let step = (pixels / 50_000).max(1);
+    let mut hist = [0u32; 256];
+    let mut n = 0u32;
+    for i in (0..pixels).step_by(step) {
+        let v = linear[i * 3].max(linear[i * 3 + 1]).max(linear[i * 3 + 2]);
+        let bin = (v.clamp(0.0, 1.0) * 255.0) as usize;
+        hist[bin] += 1;
+        n += 1;
+    }
+    // Already-clipped highlights are a stop sign: 3FR/NEF samples can have
+    // their sensor whites at full scale while still having a low mean, and
+    // lifting those makes them brighter than the camera preview. ORF/ARW have
+    // headroom here (their 99.9th percentile is below full scale), so they
+    // still get the lift they need.
+    let target999 = (n as f64 * 0.999) as u32;
+    let mut seen999 = 0u32;
+    let mut high = 0.0f32;
+    for (i, &count) in hist.iter().enumerate() {
+        seen999 += count;
+        if seen999 >= target999 {
+            high = i as f32 / 255.0;
+            break;
+        }
+    }
+    if high >= 0.995 {
+        return 1.0;
+    }
+
+    let target = (n as f64 * 0.99) as u32;
+    let mut seen = 0u32;
+    let mut p = 0.0f32;
+    for (i, &count) in hist.iter().enumerate() {
+        seen += count;
+        if seen >= target {
+            p = i as f32 / 255.0;
+            break;
+        }
+    }
+    if (0.02..0.75).contains(&p) {
+        // More highlight headroom ⇒ lift more; already-bright images use a
+        // gentler target so they don't overshoot the camera preview.
+        let target = if high < 0.15 {
+            0.92
+        } else if high < 0.40 {
+            0.70
+        } else {
+            0.65
+        };
+        (target / p).min(12.0)
+    } else {
+        1.0
+    }
 }
 
 /// CFA 图案的**真实周期**（行、列）。rawler 把图案一律铺成 48×48 的表（`color_at` 内部

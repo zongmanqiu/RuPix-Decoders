@@ -33,3 +33,8 @@ rupix-rawpx = { path = "../../singles/rawpx", default-features = false }
 # 发布 ZIP 附 LGPL-2.1 全文与 SOURCE-OFFER.md（上游 commit、crate 校验值、
 # 源码/重链接材料的书面提供说明），不内置 rawler 源码。
 rawler = "0.7.2"
+
+# X3F fallback: rawler 0.7.2 exposes the X3F container but its compressed
+# sensor path is `not implemented`; flashraw (MIT/Apache-2.0) supplies the
+# real frame. Only used when rawler fails on .x3f.
+flashraw = { version = "0.1.1", default-features = false, features = ["simd", "icc"] }

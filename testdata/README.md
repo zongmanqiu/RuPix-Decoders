@@ -2,9 +2,9 @@
 
 | 里面是什么 | 在仓库里吗 | 量级 | 引用方式 |
 |---|---|---|---|
-| `make_samples.py`：1/10/100 MiB 雪花样本生成器 | **是**（只有脚本） | 32 KB | — |
+| `make_samples.py` + `samples.json`：1/10/100 MiB 雪花/真实 seed 生成器 | **是**（只有脚本和配置） | — | — |
 | `golden/`：27 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、2 帧最小 GIF、最小 PSD/HDR…） | **是** | 137 KB | `include_bytes!` **编译期**进测试二进制 |
-| 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 186 个 / 逻辑 5.8 GB（别名是硬链接，实际占用更小） | 运行时读文件 |
+| 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 324 个（108 后缀 × 3 档；别名/seed 保证每档大小唯一） | 运行时读文件 |
 
 划分标准是两条，缺一不可：**能不能用脚本算出来** + **算出来的字节能不能保证永远不变**。
 - 能算且字节恒定（雪花噪声、按尺寸增长的 1/10/100 MB）→ **不进仓库**，一条命令随时重建；
@@ -46,75 +46,104 @@ Pillow 无 AVIF/JXL 编码器），另 **16 个能造**（6 TIFF、4 JPEG、2 PN
 ## 生成器产物在哪
 
 `<repo>/../.temp/testdata/<tier>/noise<ext>` + `manifest.json`（`--out` 或 `RUPIX_SAMPLE_DIR` 可改）。
-文件名不带尺寸：尺寸/字节数在 manifest 里。别名后缀是**硬链接**，100 MB 档也只占一份：
+文件名不带尺寸：尺寸/字节数在 manifest 里。别名后缀仍是同一张图，但**不再共享字节长度**：
+每档内每个文件都有唯一字节数，方便按大小排序时直接看出不同文件：
 
 - `.jpeg/.jpe/.jfif/.jif/.jfi/.exif` ← `.jpg`
 - `.tiff` ← `.tif`；`.dib/.rle` ← `.bmp`；`.icon` ← `.ico`；`.pnm` ← `.ppm`
 - `.j2k/.j2c/.jpc/.jpx/.jpf/.jpt` ← `.jp2`；`.pcc` ← `.pcx`
 - `.mrcs/.ccp4/.map` ← `.mrc`；`.dicom` ← `.dcm`
 
+裸像素后缀（`.bgra/.rgb/.rgba/.gray/.gry/.i420/.yuv/.yv12/.nv12/.yuy2/.uyvy`）也不共享字节：
+每个后缀按自己的布局、形状和像素预算生成，1M 档例如 `.bgra` 4:3、`.rgba` 3:2。
+生成器最后会检查「同档内大小唯一」，发现撞车直接失败，不会静默产出两个同尺寸文件。
+
 ## 跑法
 
-```text
-python testdata/make_samples.py                   # 全部后缀，三档
-python testdata/make_samples.py --only .jpg,.png  # 子集（后缀或成员 id 都行：--only jpeg）
-python testdata/make_samples.py --only common     # 四个发布 DLL 之一（common/modern/raw/pro）
-python testdata/make_samples.py --only pro-jp2 --tier 100M
-python testdata/make_samples.py --tier 10M        # 单档
-python testdata/make_samples.py --list            # 只打印计划，不写文件（不需要 Pillow）
-python testdata/make_samples.py --check           # 只验 claims 覆盖，不写文件
+默认总开关是 [`samples.json`](samples.json)：
+
+```json
+{
+  "output": "../.temp/testdata",
+  "seed_dir": "../.temp/corpus",
+  "tiers": { "1M": 1048576, "10M": 10485760, "100M": 104857600 },
+  "strict": true
+}
 ```
 
-`--only common|modern|raw|pro` 对应四个发布 DLL。`modern` 的 HEIC/AVIF/JXL 全在 SKIP，
-所以这条命令只打印“没有可编码后缀”，不会误生成整套样本。
+改 `output` 就换落点，改 `tiers` 就换目标字节数；`strict` 要求真实 seed 齐全。
+相对路径按解码器仓库根解析。命令行可以覆盖：
 
-`--list` 与 `--check` 都会先对 `claims.tsv` 做覆盖检查：每个已登记后缀必须出现在 `PLAN`
-（会生成）或 `SKIP`（有明确理由），否则直接非 0 退出。**新增认领不补覆盖，门就红。**
-`--check` 已接进 `build.ps1`，只输出计数，不生成样本。
+```text
+python testdata/make_samples.py                   # 按 samples.json 一次生成全部
+python testdata/make_samples.py --config FILE     # 换一个总开关文件
+python testdata/make_samples.py --out DIR         # 只覆盖输出位置
+python testdata/make_samples.py --seed-dir DIR    # 只覆盖 seed 根目录
+python testdata/make_samples.py --only .jpg,.png  # 子集（后缀或成员 id 都行：--only jpeg）
+python testdata/make_samples.py --tier 10M        # 单档
+python testdata/make_samples.py --list            # 只打印计划，不写文件
+python testdata/make_samples.py --check           # 只验覆盖，不写文件
+```
 
-本机 `python` 与 `py` 都是 3.11.3 + Pillow 11.1.0；换机器时只要装 Pillow。
-`--list` 和手工编码器不需要 Pillow。
+seed 按档位选：1M/10M 优先选**最接近目标**且能打开的小样本，100M 选大样本；
+所以 `1M/noise.pef` 现在是 11 MB 的 PEF，不是 121 MB 的 100M 档文件。
+仍超过档位或小于档位的真实格式会在 manifest 写 `capped(SEED ...)`。
+
+真实 seed 的目录约定：
+
+```text
+.temp/corpus/raw/<ext>/<file>    # 29 个相机 RAW
+.temp/corpus/real/<ext>/<file>   # HEIC/AVIF/JXL/EXR/JXR/XCF/WMF/ASE/DjVu/KTX2/FF
+```
+
+`--check` 仍只验清单覆盖（61 generated + 47 seeds = 108）；`--strict` 才会检查
+每个 seed 文件真的存在。`build.ps1` 只跑 `--check`，不把外部语料变成构建依赖。
+
+`--only modern` 现在会生成/复制 JXL、HEIC、AVIF 的真实 seed；`raw` 会复制 29 个
+相机的真实 RAW；`pro` 会复制 EXR/JXR/XCF/WMF/ASE/DjVu/KTX2。
 
 ## 档位是下限，不是精确值
 
-边长一路长到文件**超过**该档为止。长不过去就在 manifest 里写 `capped(...)` 并给出真实尺寸——
-不假装达标。**当前实测**：62 个后缀 × 3 档 = 186 个样本；100 MiB 档 **42/62 达标**，
-其余 20 个是物理上限或容器上限：
+边长一路长到文件**超过**该档为止；格式/像素/seed 上限不足以达到该档时，manifest
+写 `capped(...)` 并给出真实尺寸，不填充、不伪造。当前实测：**61 个可编码后缀 +
+47 个真实 seed，共 108 个后缀 × 3 档 = 324 个样本**。
 
-| 后缀 | 卡在哪一档 | 实际 | 为什么到不了 |
-|---|---|---|---|
-| `.ico` | 三档都卡 | 0.35 MB / 256×256 | ICO 规范单图最大 256×256 |
-| `.pbm` | 10M / 100M | 5.0 MB / 6324×6324 | 1 bpp，40 MP 上限下最多 5 MB |
-| `.wbmp` | 10M / 100M | 5.0 MB / 6324×6324 | 1 bpp，40 MP 上限下最多 5 MB |
-| `.pgm` | 100M | 40.0 MB / 6324×6324 | GRAY8 = 1 B/px |
-| `.gray .gry .raw` | 100M | 40.0 MB / 4096×9764 | rawpx GRAY8 = 1 B/px |
-| `.nii .nrrd .mrc` | 100M | 40.0 MB / 6324×6324 | 单通道科学格式 = 1 B/px |
-| `.i420 .nv12 .yuv .yv12` | 100M | 60.0 MB / 4096×9764 | 4:2:0 = 1.5 B/px |
-| `.uyvy .yuy2` | 100M | 80.0 MB / 4096×9764 | 4:2:2 = 2 B/px |
-| `.dds` | 100M | 20.0 MB / 6324×6324 | BC1（DXT1）固定 0.5 B/px，是 core 唯一能解的 DDS 形态 |
-| `.gif` | 100M | 54.4 MB / 6324×6324 | 8 bpp 调色板 + LZW，噪声几乎不可压 |
-| `.icns` | 10M / 100M | 6.65 MB / 1024×1024 | Pillow 的 ICNS writer 最大 1024 |
-| `.xbm` | 100M | 25.3 MB / 6324×6324 | 1 bpp 文本，40 MP 上限下约 25 MB |
+典型物理上限：
 
-两处**不是**物理上限、已按需顶格：
-
-- `.webp` 的维度上限原写 4096（我们自己设的，不是规范），改到 WebP 规范上限 16383 后
-  实测 5250×5250 / 110 MB 达标。
-- `.jp2` 原先被 4096 的保守上限卡在 72.9 MB；放开到 65535 后实测 5028×5028 / 109.9 MB 达标。
-
-**40 MP 是故意的上限**：样本要能被查看器真正打开（`main/src/core/pixels.rs` 的 `MAX_PIXELS`；
-解码器自己的闸是 64 MP）。超过 40 MP 的样本只能用来测"拒绝打开"，测不了渲染。
-想探 64 MP 解码器闸，直接调 ABI 并令 `budget_bytes = 0`。
-
-## 造不出来的格式（如实声明，不造假样本）
-
-| 谁 | 后缀 | 为什么 |
+| 后缀 | 卡在哪一档 | 原因 |
 |---|---|---|
-| jxl | `.jxl` | 本机没有 `cjxl` / imagecodecs |
-| av | `.heic .heif .hif .avif .avifs` | 需要 heif-enc / SVT-AV1 / x265；`.avif/.avifs` 已有 golden，不生成 |
-| raw | `.3fr .ari .arw .cr2 .cr3 .crm .crw .dcr .dcs .dng .erf .fff .iiq .kdc .mef .mos .mrw .nef .nrw .orf .ori .pef .qtk .raf .rw2 .rwl .srw .x3f` | 相机 RAW 是真传感器马赛克 + 厂商元数据，合成字节只能测"解不出来" |
-| pro | `.exr .jxr .wdp .hdp .xcf .wmf .ase .aseprite .djvu .djv .ktx2` | 本机没有对应编码器；KTX2 的 DFD/超压缩头未实现，只生成 KTX1（`.ktx`） |
-| core | `.ff` | image-rs 认不出魔数，core 也没给 `.ff` 留 ext 通道，造出来是死样本 |
+| `.ico` | 三档都卡 | ICO 单图最大 256×256 |
+| `.pbm` / `.wbmp` | 10M / 100M | 1 bpp，41 MP 上限下最多约 5 MB |
+| `.pgm` / `.gray` / `.nii` / `.nrrd` / `.mrc` | 100M | 单通道 1 B/px |
+| `.dds` | 100M | 唯一能解的 BC1 固定 0.5 B/px |
+| `.gif` | 100M | 8 bpp 调色板 + LZW |
+| `.icns` | 10M / 100M | Pillow ICNS writer 最大 1024 |
+| 真实 RAW / 小样 pro 格式 | 视 seed 大小 | seed 是原图字节，不能凭空放大 |
+
+**41 MP 是故意的上限**：样本要能被查看器真正打开（`main/src/core/pixels.rs` 的
+`MAX_PIXELS`；解码器自己的闸是 64 MP）。
+
+## 真实 seed 来源
+
+| 谁 | 后缀 | 来源 |
+|---|---|---|
+| raw | `.3fr .ari .arw .cr2 .cr3 .crm .crw .dcr .dcs .dng .erf .fff .iiq .kdc .mef .mos .mrw .nef .nrw .orf .ori .pef .qtk .raf .raw .rw2 .rwl .srw .x3f` | raw.pixls.us CC0；`.dcs` raw.pixls.us CC0（DCS460D）；`.crm` dnglab test media 与 `.qtk` qtkn_decoder 仅 local-only |
+| modern | `.heic .heif .hif .avif .avifs .jxl` | `.plan/bench/corpus-real` 真实样本 + BandiSoft 的 Canon HIF |
+| pro | `.exr .jxr .wdp .hdp .xcf .wmf .ase .aseprite .djvu .djv .ktx2` | OpenEXR-images、kimageformats、xcf-rs、ImageMagick、Aseprite、Wikimedia、KTX-Software |
+| core | `.ff` | 按 farbfeld 规范手写真实 RGBA16 样本 |
+
+seed 的逐文件 URL、字节数、sha256、许可见
+`.temp/corpus/raw/manifest.tsv` 与 `.temp/corpus/real/manifest.tsv`。X3F 由
+`raw` DLL 内新增的 flashraw 回退解码；其余格式走 rawler 或对应 DLL。
+
+### 不生成 / 不公开样本
+
+`.crm`（Canon Cinema RAW Light，视频容器）和 `.qtk`（Apple QuickTake 150
+静态 RAW）保留解码支持，但目前没有可公开再分发的样本，因此**不进入 public
+corpus**，只在 local-only 目录测试。不得用 0 字节文件、改名 DNG 或其它假样本
+占位。以后新增任何无法生成/无法公开的格式，必须在
+[`GENERATION_EXCEPTIONS.md`](GENERATION_EXCEPTIONS.md) 和
+`corpus/registry.py::GENERATION_EXCEPTIONS` 同时登记；测试会检查两边一致。
 
 ## 后缀认领台账 `claims.tsv`
 
@@ -128,12 +157,12 @@ python testdata/make_samples.py --check           # 只验 claims 覆盖，不�
   `tools/check_claims.py` 直接红。
 
 当前 `check_claims.py` 读数：**108 个后缀，verified 75，unverified 33**。未验证的主要缺口是
-`.heic/.heif/.hif`（无 HEIC/HEIF 夹具）、相机 RAW（只有 `.temp/raw-samples` 真机样本，
-入库 golden 仅用于嗅探）和 `.ff`（无魔数/无样本）。别名后缀共用同一个成员证据。
+`.heic/.heif/.hif`、相机 RAW、`.ff` 等无本机编码器的格式全部使用 `.temp/corpus`
+真实 seed（见 `make_samples.py --seed-dir`）；别名后缀共用同一个成员证据。
 
 ## 与 `golden/` 的分工
 
-| | `golden/`（入库，137 KB，27 个） | 生成器产物（仓库外，5.8 GB，186 个） |
+| | `golden/`（入库，137 KB，27 个） | 生成器产物（仓库外，逻辑 8.7 GB，324 个 = 108 后缀 × 3 档） |
 |---|---|---|
 | 用途 | **断言正确性**：能不能解、值对不对、该不该拒绝 | **压性能与尺寸/内存门** |
 | 入口 | `include_bytes!` 编译期嵌入测试二进制 | 运行时读文件（`main/examples/core_smoke.rs`、`main/examples/decoder_smoke.rs`） |

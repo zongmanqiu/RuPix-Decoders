@@ -1,22 +1,48 @@
-use std::ffi::c_char;
+use std::ffi::{c_char, CStr};
 
 use rupix_abi::guard;
 
 /// 路由表（`MEMBERS`）直接调这一层：`guard` 在内部，调用方不必再包一层。
 #[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
-pub fn probe_impl(data: *const u8, len: usize, _ext: *const c_char) -> i32 {
+pub fn probe_impl(data: *const u8, len: usize, ext: *const c_char) -> i32 {
     guard(|| {
         if data.is_null() {
             return 0;
         }
         let slice = unsafe { std::slice::from_raw_parts(data, len) };
         if looks_like_raw(slice) {
-            100
-        } else {
-            0
+            return 100;
         }
+        // CRW/ORF/ORI/RW2/RWL/ARI/QTK/Leica RAW have no TIFF magic that the
+        // host can recognise. With a claimed extension, let rawler's own
+        // header parser decide; bogus bytes still fail (and rawpx dumps stay
+        // unclaimed), while a real vendor file gets through.
+        if ext_name(ext).is_some_and(|e| RAW_EXTENSIONS.contains(&e.as_str())) {
+            let source = rawler::rawsource::RawSource::new_from_slice(slice);
+            if rawler::decode_dummy(&source).is_ok() {
+                return 100;
+            }
+        }
+        0
     })
 }
+
+fn ext_name(ext: *const c_char) -> Option<String> {
+    if ext.is_null() {
+        return None;
+    }
+    let s = unsafe { CStr::from_ptr(ext) }
+        .to_str()
+        .ok()?
+        .trim_start_matches('.');
+    Some(s.to_ascii_lowercase())
+}
+
+const RAW_EXTENSIONS: &[&str] = &[
+    "3fr", "ari", "arw", "cr2", "cr3", "crm", "crw", "dcr", "dcs", "dng", "erf", "fff", "iiq",
+    "kdc", "mef", "mos", "mrw", "nef", "nrw", "orf", "ori", "pef", "qtk", "raf", "raw", "rw2",
+    "rwl", "srw", "x3f",
+];
 
 /// RAW 家族魔数：
 /// - `FUJIFILM`（RAF）、`FOVb`（X3F/Sigma）、`\0MRM`（Minolta MRW）、

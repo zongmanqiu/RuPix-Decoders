@@ -10,7 +10,7 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
 
 | DLL | 版本 | 认领后缀 | Gitee | GitHub |
 |---|---:|---:|---|---|
-| `common` | 0.2.0 | 29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.2.0/common_0.2.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/common_0.2.0/common_0.2.0.zip) |
+| `common` | 0.2.1 | 29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.2.1/common_0.2.1.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/common_0.2.1/common_0.2.1.zip) |
 | `modern` | 0.2.0 | 6 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.2.0/modern_0.2.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/modern_0.2.0/modern_0.2.0.zip) |
 | `raw` | 0.5.0 | 40 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/raw_0.5.0/raw_0.5.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/raw_0.5.0/raw_0.5.0.zip) |
 | `pro` | 0.2.0 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.0/pro_0.2.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.0/pro_0.2.0.zip) |

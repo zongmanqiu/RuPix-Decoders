@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use rupix_abi::{IvRenderReq, ERR_CORRUPT, ERR_UNSUPPORTED, REQ_ALLOW_SCALED};
 
-use super::develop::orientation_to_exif;
-use super::{bin_plan, develop, develop_binned};
+use super::{bin_plan, develop, develop_binned, raw_orientation};
 
 type DecodeErr = (i32, String);
 
@@ -94,7 +93,10 @@ pub(crate) fn develop_cached(input: &[u8], r: &IvRenderReq) -> Result<Developed,
     let src = raw_source(input);
     let img =
         rawler::decode(&src, &rawler::decoders::RawDecodeParams::default()).map_err(rawler_err)?;
-    let orientation = orientation_to_exif(img.orientation);
+    // Use the same full chain as the query phase (rawler orientation → TIFF tag 274
+    // → known model fallback). Reading only `img.orientation` made Phase One H 25
+    // report 1 while its dummy/query phase reported 6.
+    let orientation = raw_orientation(&img, input, false);
     let (rgba, w, h) = match tier_plan(&img, r) {
         // 档尺寸由 `develop_binned` 自己算（与 `bin_plan` 同一个 `div_ceil` 式子），
         // 这里只取步长——两处若有一天分叉，查询/渲染的尺寸对不上会在出口 `out_cap` 闸上炸出来。

@@ -88,6 +88,9 @@ pub use frame::{frame, Frame};
 
 mod cache;
 pub(crate) use cache::{develop_cached, dummy_decode, tier_plan};
+
+mod flash;
+mod orient;
 export_decoder! {
     id: "raw",
     name: "Camera RAW & Raw Pixel Data",
@@ -197,7 +200,7 @@ pub fn render_impl(
     out: *mut u8,
     out_cap: usize,
     info: *mut IvRenderOut,
-    _ext: *const c_char,
+    ext: *const c_char,
 ) -> i32 {
     guard(|| {
         if data.is_null() || len == 0 {
@@ -215,16 +218,32 @@ pub fn render_impl(
             unsafe { *req }
         };
 
+        let x3f = flash::is_x3f(ext);
+
         // ── 阶段 1：dummy 解码（只读头/元数据，不读像素）。─────────────────
         if out.is_null() {
-            let img = match dummy_decode(input) {
-                Ok(v) => v,
+            let (img, fallback) = match dummy_decode(input) {
+                Ok(img) => (Some(img), None),
+                Err((code, msg)) if x3f => match flash::dummy(input) {
+                    Ok(v) => (None, Some(v)),
+                    Err(_) => {
+                        set_last_error(&msg);
+                        return code;
+                    }
+                },
                 Err((code, msg)) => {
                     set_last_error(&msg);
                     return code;
                 }
             };
-            let (w, h) = (img.width as u32, img.height as u32);
+            let (w, h) = match (&img, fallback) {
+                (Some(img), _) => (img.width as u32, img.height as u32),
+                (None, Some(v)) => v,
+                (None, None) => {
+                    set_last_error("内部错误（没有解码结果）");
+                    return ERR_CORRUPT;
+                }
+            };
             if w as u64 * h as u64 > MAX_PIXELS {
                 set_last_error("图片超过 6400 万像素的解码器上限");
                 return ERR_TOO_LARGE;
@@ -234,29 +253,39 @@ pub fn render_impl(
             // 渲染就得正好写那么多字节（与 `tiff` 的 `plan` 同一契约）。
             // ★ 全尺寸那一档报的是**画幅**尺寸（遮光区不交回宿主），与 `develop_in` 的产出同一个
             //   函数算出；上面那道 64 MP 闸仍按整块原样判，裁切只减不增，不因为它放宽。
-            let full = frame(&img);
-            let (dw, dh) = match tier_plan(&img, &r) {
-                Some((_, tw, th)) => (tw, th),
-                None => (full.w as u32, full.h as u32),
+            let (dw, dh, orientation) = match &img {
+                Some(img) => {
+                    let full = frame(img);
+                    let (dw, dh) = match tier_plan(img, &r) {
+                        Some((_, tw, th)) => (tw, th),
+                        None => (full.w as u32, full.h as u32),
+                    };
+                    (dw, dh, raw_orientation(img, input, x3f))
+                }
+                None => (w, h, 1),
             };
             let bytes_needed = dw as u64 * dh as u64 * 4;
             if r.budget_bytes != 0 && bytes_needed > r.budget_bytes as u64 {
                 set_last_error("图片太大，超出宿主给的内存预算");
                 return ERR_TOO_LARGE;
             }
-            fill_info(
-                info,
-                dw,
-                dh,
-                bytes_needed,
-                orientation_to_exif(img.orientation),
-            );
+            fill_info(info, dw, dh, bytes_needed, orientation);
+            if x3f {
+                unsafe { (*info).already_oriented = 1 };
+            }
             return ERR_OK;
         }
 
         // ── 阶段 2：真解码 + 显影（按档位分箱，或全尺寸）。──────────────────
         let d = match develop_cached(input, &r) {
             Ok(d) => d,
+            Err((code, msg)) if x3f => match flash::develop(input) {
+                Ok((rgba, w, h)) => (rgba, w, h, 1),
+                Err(_) => {
+                    set_last_error(&msg);
+                    return code;
+                }
+            },
             Err((code, msg)) => {
                 set_last_error(&msg);
                 return code;
@@ -276,9 +305,34 @@ pub fn render_impl(
             std::ptr::copy_nonoverlapping(rgba.as_ptr(), out, bytes_needed as usize);
         }
         fill_info(info, w, h, bytes_needed, orientation);
+        if x3f {
+            unsafe { (*info).already_oriented = 1 };
+        }
         ERR_OK
     })
 }
+pub(crate) fn raw_orientation(img: &rawler::RawImage, input: &[u8], x3f: bool) -> i32 {
+    if x3f {
+        return 1;
+    }
+    let o = orientation_to_exif(img.orientation);
+    if o != 1 {
+        return o;
+    }
+    if let Some(v) = orient::from_bytes(input) {
+        if v != 1 {
+            return v;
+        }
+    }
+    // Phase One H 25 stores the sensor buffer in the rotated orientation and
+    // does not put tag 274 in the TIFF IFD that rawler exposes. LibRaw/camera
+    // previews use 6 for this back; keep the exception limited to that model.
+    if img.model.trim() == "H 25" {
+        return 6;
+    }
+    1
+}
+
 #[inline]
 fn fill_info(info: *mut IvRenderOut, w: u32, h: u32, bytes_needed: u64, orientation: i32) {
     let oi = unsafe { &mut *info };

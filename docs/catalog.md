@@ -18,8 +18,8 @@
     "formats": "jpg;jpeg;…",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "https://…/common_0.2.0.zip",
-    "github": "https://…/common_0.2.0.zip"
+    "gitee": "https://…/common_0.2.1.zip",
+    "github": "https://…/common_0.2.1.zip"
   }
 ]
 ```
@@ -39,8 +39,8 @@
 | `formats` | `jpg;jpeg;…` | 认领的扩展名，分号分隔、不带点，与 ABI `extensions` 同形 |
 | `author` | `RuPix` | 作者标识；来自 DLL 的 `iv_metadata()`；第三方可署自己的名字 |
 | `license` | `AGPL-3.0` | 许可证标识；来自 DLL 可选导出 `iv_metadata()` 的 `license` 键 |
-| `gitee` | `https://…/common_0.2.0.zip` | Gitee 主源（ZIP）；未发布为空串 |
-| `github` | `https://…/common_0.2.0.zip` | GitHub 镜像（ZIP）；默认由 `gitee` 推导，可显式覆盖 |
+| `gitee` | `https://…/common_0.2.1.zip` | Gitee 主源（ZIP）；未发布为空串 |
+| `github` | `https://…/common_0.2.1.zip` | GitHub 镜像（ZIP）；默认由 `gitee` 推导，可显式覆盖 |
 
 ## 两个 raw 镜像
 
@@ -67,8 +67,8 @@
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1   # 先有 DLL
 py tools/make_index.py                                        # 生成 index.json
-py tools/make_index.py --set-url common=https://…/common_0.2.0.zip
-py tools/make_index.py --set-github-url common=https://…/common_0.2.0.zip
+py tools/make_index.py --set-url common=https://…/common_0.2.1.zip
+py tools/make_index.py --set-github-url common=https://…/common_0.2.1.zip
 py tools/check_urls.py                                        # 有网时逐条下载核对
 ```
 

@@ -21,28 +21,28 @@ WHY THE SAMPLES ARE KEYED BY SUFFIX AND NOT BY DECODER
 Four choices worth knowing before editing:
 
 * Noise is the point. It is the worst case for every entropy coder, which is what lets a
-  100 MiB file exist inside the size gate at all: the viewer refuses anything over 40 MP or
-  160 MB of RGBA (decoders themselves cap at 64 MP, see MAX_PIXELS below), so a bigger sample
+  100 MiB file exist inside the size gate at all: the viewer refuses anything over 41 MP or
+  164 MB of RGBA (decoders themselves cap at 64 MP, see MAX_PIXELS below), so a bigger sample
   would be a sample the host won't open and we could not measure.
 * A tier is a **floor**, not an exact size. Dimensions grow until the encoded file clears
   it. When a format cannot clear a tier inside the pixel bound or its own ceiling (1-bit PBM,
   256 px ICO, 1 B/px GRAY8, BC1 .dds at 0.5 B/px), the row reports
   `capped` with the size actually achieved rather than pretending.
-* Alias suffixes share the same bytes on purpose: `.jpeg .jpe .jfif .jif .jfi .exif` are
+* Alias suffixes keep the same pixels on purpose: `.jpeg .jpe .jfif .jif .jfi .exif` are
   JPEG under another suffix, `.dib .rle` are BMP, `.icon` is ICO, `.pnm` is PPM, `.tiff` is
   TIFF, `.j2k .j2c .jpc .jpx .jpf .jpt` are JP2, `.pcc` is PCX, `.mrcs .ccp4 .map` are MRC
   and `.dicom` is DICOM - that is how the host routes them and the decoder never sees the
-  suffix as a hint. They are written as **hard links** (0 extra bytes; at the 100 MiB tier a
-  copy would be 100 MiB each). Caveat: `.rle` gets an uncompressed BMP, so the BMP RLE4/RLE8
-  code paths stay untested.
+  suffix as a hint. They start as hard links, then a final pass gives every file in a tier a
+  unique byte length (format-safe trailers; `.heif` gets a `free` box, `.dicom` a trailing
+  padding element). This is deliberate: sorting by size must not make two distinct files
+  look identical. Caveat: `.rle` gets an uncompressed BMP, so the BMP RLE4/RLE8 code paths
+  stay untested.
 
-Formats with no encoder reachable from here are reported in SKIP and never faked: `.jxl`
-(needs cjxl), `.heic/.heif/.avif` (need heif-enc / SVT-AV1), camera RAW (real sensor mosaic
-plus vendor metadata - synthetic bytes only ever test "cannot decode"), core's `.ff` (no
-magic and no extension route, so it could only ever be a dead sample), and the pro formats
-with no local encoder (`.exr/.jxr/.xcf/.wmf/.ase/.djvu/.ktx2`). `--list` fails if a suffix in
-`claims.tsv` is neither generated nor explicitly skipped, so adding a decoder claim cannot
-silently leave a hole in the corpus.
+Formats with no encoder reachable from here are backed by real seeds in `<seed-dir>/raw/<ext>/`
+and `<seed-dir>/real/<ext>/` (default `.temp/corpus`): camera RAW, HEIC/AVIF/JXL, EXR/JXR,
+XCF/WMF/ASE/DjVu/KTX2 and `.ff`. Seeds are reused at every tier; when a seed is smaller
+than a tier the manifest records `capped(SEED ...)`, and a missing seed makes `--strict`
+fail. Nothing is fabricated.
 
 Dependency: Pillow, for the containers it can save. QOI, PAM/P7, Radiance .hdr, .psd, DXT1
 .dds, DCX, WBMP, KTX1, NIfTI, NRRD, MRC and DICOM are hand-encoded below against the specs
@@ -83,16 +83,36 @@ def pil():
     return Image
 
 ROOT = Path(__file__).resolve().parent.parent   # this file lives in <repo>/testdata/
-TIERS = [("1M", 1 << 20), ("10M", 10 * (1 << 20)), ("100M", 100 * (1 << 20))]
+DEFAULT_TIERS = {"1M": 1 << 20, "10M": 10 * (1 << 20), "100M": 100 * (1 << 20)}
+CONFIG_FILE = ROOT / "testdata" / "samples.json"
+
+
+def load_config(path):
+    """Read the one-switch corpus config. Relative paths are rooted at the
+    decoder repository, so the file stays portable."""
+    cfg = {
+        "output": str(ROOT.parent / ".temp" / "testdata"),
+        "seed_dir": str(ROOT.parent / ".temp" / "corpus"),
+        "tiers": dict(DEFAULT_TIERS),
+        "strict": False,
+    }
+    p = Path(path)
+    if p.is_file():
+        cfg.update(json.loads(p.read_text(encoding="utf-8")))
+    for key in ("output", "seed_dir"):
+        q = Path(cfg[key])
+        cfg[key] = q if q.is_absolute() else ROOT / q
+    cfg["tiers"] = {str(k): int(v) for k, v in cfg["tiers"].items()}
+    return cfg
 # Two gates exist and the host's is the tighter one, so samples obey the tighter one:
 # decoders answer ERR_TOO_LARGE above 64 MP (the per-decoder `const MAX_PIXELS` in
 # each decoder crate - kept equal by tools/check_caps.py, which also
 # checks the mirror value below against main/src/core/pixels.rs), while the viewer refuses
-# anything over 40 MP or 160 MB of RGBA (main/src/core/pixels.rs MAX_PIXELS). A sample above
+# anything over 41 MP or 164 MB of RGBA (main/src/core/pixels.rs MAX_PIXELS). A sample above
 # the host bound is only good for testing the refusal, so we stay under it and every row in
 # the manifest is a file the viewer can actually open. To probe the 64 MP decoder gate, call
 # the ABI directly with budget_bytes = 0 (the decoder then applies only its own cap).
-MAX_PIXELS = 40_000_000
+MAX_PIXELS = 41_000_000
 MAX_SIDE = int(math.isqrt(MAX_PIXELS))  # 6324
 GROW = 1.4
 GROW_ATTEMPTS = 24
@@ -122,11 +142,32 @@ NO_READBACK = {".pam", ".hdr", ".dcm", ".ktx", ".nii", ".nrrd", ".mrc",
 ALIAS_NOTE = {".rle": "无压缩 BMP，BMP 的 RLE4/RLE8 分支仍未覆盖",
               ".exif": "JPEG 字节，EXIF 段未写入"}
 
-RAWPX = {".gray": ("GRAY8", 1), ".gry": ("GRAY8", 1), ".raw": ("GRAY8", 1),
+RAWPX = {".gray": ("GRAY8", 1), ".gry": ("GRAY8", 1),
          ".rgb": ("RGB8", 3), ".rgba": ("RGBA8", 4), ".bgra": ("BGRA8", 4),
          ".yuy2": ("YUY2", 2), ".uyvy": ("UYVY", 2),
          ".yuv": ("I420", 1.5), ".i420": ("I420", 1.5), ".yv12": ("YV12", 1.5),
          ".nv12": ("NV12", 1.5)}
+
+# Distinct picture shape and pixel budget per rawpx suffix: same-byte layouts
+# (`.bgra`/`.rgba`, planar 4:2:0 variants) must not end up with equal lengths.
+RAWPX_ASPECT = {".bgra": 4 / 3, ".rgba": 3 / 2, ".gray": 4 / 3, ".gry": 5 / 4,
+                ".rgb": 4 / 3, ".i420": 16 / 9, ".yuv": 3 / 2, ".yv12": 4 / 3,
+                ".nv12": 16 / 10, ".uyvy": 3 / 2, ".yuy2": 16 / 9}
+
+# Suffixes that cannot be synthesised honestly. They must be backed by a real
+# sample in <seed-dir>/raw/<ext>/ or <seed-dir>/real/<ext>/.
+RAW_SEED_EXT = (
+    ".3fr", ".ari", ".arw", ".cr2", ".cr3", ".crm", ".crw", ".dcr", ".dcs",
+    ".dng", ".erf", ".fff", ".iiq", ".kdc", ".mef", ".mos", ".mrw", ".nef",
+    ".nrw", ".orf", ".ori", ".pef", ".qtk", ".raf", ".raw", ".rw2", ".rwl",
+    ".srw", ".x3f",
+)
+REAL_SEED_EXT = (
+    ".heic", ".heif", ".hif", ".avif", ".avifs", ".jxl", ".exr", ".jxr",
+    ".wdp", ".hdp", ".xcf", ".wmf", ".ase", ".aseprite", ".djvu", ".djv",
+    ".ktx2", ".ff",
+)
+SEED_EXT = RAW_SEED_EXT + REAL_SEED_EXT
 
 # (claimed_by, ext, kind, options). The first field is METADATA, not an output path: one
 # sample per suffix is generated once and shared by whoever claims that suffix. kind:
@@ -157,7 +198,7 @@ PLAN += [("core", e, "alias", {"src": s})
          for e, s in ((".dib", ".bmp"), (".rle", ".bmp"), (".icon", ".ico"), (".pnm", ".ppm"))]
 PLAN += [("rawpx", e, "rawpx", {}) for e in sorted(RAWPX)]
 
-# pro tier. Only formats with a reachable encoder are generated; the rest stay in SKIP.
+# pro tier. Encodable formats are generated; the rest are resolved from real seeds.
 PLAN += [
     ("pro-jp2", ".jp2", "pil", {"format": "JPEG2000"}),
     ("pro-small", ".pcx", "pil", {"format": "PCX"}),
@@ -178,30 +219,16 @@ PLAN += [("pro-sci", e, "alias", {"src": ".mrc"})
          for e in (".mrcs", ".ccp4", ".map")]
 PLAN += [("pro-dicom", ".dicom", "alias", {"src": ".dcm"})]
 
-SKIP = [
-    ("jxl", ".jxl", "没有 cjxl / imagecodecs，本机无法编码"),
-    ("av", ".heic .heif .hif .avif .avifs", "需要 heif-enc / SVT-AV1 / x265"),
-    ("raw", ".3fr .ari .arw .cr2 .cr3 .crm .crw .dcr .dcs .dng .erf .fff .iiq .kdc .mef .mos .mrw .nef .nrw .orf .ori .pef .qtk .raf .rw2 .rwl .srw .x3f",
-     "相机 RAW 载荷是真传感器马赛克 + 厂商元数据，合成字节只能测'解不出来'"),
-    ("pro-exr", ".exr", "没有可用的 EXR 编码器"),
-    ("pro-jxr", ".jxr .wdp .hdp", "没有可用的 JPEG XR 编码器"),
-    ("pro-xcf", ".xcf", "没有可用的 XCF 编码器"),
-    ("pro-wmf", ".wmf", "Pillow 的本机 WMF save handler 未安装"),
-    ("pro-ase", ".ase .aseprite", "没有可用的 Aseprite 编码器"),
-    ("pro-djvu", ".djvu .djv", "没有可用的 DjVu 编码器"),
-    ("pro-ktx2", ".ktx2", "KTX2 需要 DFD/超压缩头；当前只生成 KTX1（.ktx）"),
-    ("core", ".ff", "image-rs 认不出魔数，core 也没给 .ff 留 ext 通道，造出来是死样本"),
-]
-
+# No silent skips: every non-encodable suffix must have a real seed.
+SEED_MEMBER = {ext: "raw" for ext in RAW_SEED_EXT}
+SEED_MEMBER.update({ext: "real" for ext in REAL_SEED_EXT})
 # Every suffix in the claim ledger must be either generated or explicitly skipped.
 CLAIMS = ROOT / "testdata" / "claims.tsv"
 
 
 def coverage_errors():
     planned = {ext for _, ext, _, _ in PLAN}
-    skipped = set()
-    for _, exts, _ in SKIP:
-        skipped |= {e for e in exts.replace(",", " ").split() if e.startswith(".")}
+    seeded = set(SEED_EXT)
     if not CLAIMS.is_file():
         return ["claims ledger missing: %s" % CLAIMS]
     claimed = {}
@@ -211,13 +238,13 @@ def coverage_errors():
         tier, member, exts, status, evidence, note = line.split("\t")
         for ext in exts.split(";"):
             claimed["." + ext] = member
-    missing = sorted(set(claimed) - planned - skipped)
-    extra = sorted((planned | skipped) - set(claimed))
+    missing = sorted(set(claimed) - planned - seeded)
+    extra = sorted((planned | seeded) - set(claimed))
     out = []
     if missing:
-        out.append("claimed but not generated/skipped: %s" % " ".join(missing))
+        out.append("claimed but not generated/seeded: %s" % " ".join(missing))
     if extra:
-        out.append("generated/skipped but not claimed: %s" % " ".join(extra))
+        out.append("generated/seeded but not claimed: %s" % " ".join(extra))
     return out
 
 
@@ -230,7 +257,7 @@ TIER_MEMBERS = {
     "pro": ["pro-jp2", "pro-jxr", "pro-exr", "pro-ktx2", "pro-dicom",
             "pro-sci", "pro-small", "pro-xcf", "pro-ase", "pro-djvu", "pro-wmf"],
 }
-DECODER_IDS = sorted({p for p, *_ in PLAN} | {p for p, _, _ in SKIP})
+DECODER_IDS = sorted({p for p, *_ in PLAN} | set(SEED_MEMBER.values()))
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +550,11 @@ def grow(path, kind, ext, opts, tier_bytes, seed):
         per_px = max(size, 1) / float(side * side)
         want = int(math.sqrt(tier_bytes * 1.05 / per_px))
         side = min(cap, max(want, int(side * GROW) + 1))
-        side += (-side) % ROUND.get(ext, 1)
+        r = ROUND.get(ext, 1)
+        side += (-side) % r
+        if side * side > MAX_PIXELS:
+            # DDS rounds 6403 -> 6404, which is just over the 41 MP cap.
+            side = (MAX_SIDE // r) * r
     return side, path.stat().st_size, "capped(ATTEMPTS)"
 
 
@@ -531,13 +562,26 @@ def grow_rawpx(path, ext, tier_bytes, seed):
     """Dimension-first: these dumps have no header, so the geometry is what we choose and
     the manifest is what the host dialog has to be typed with."""
     layout, bpp = RAWPX[ext]
-    rng = random.Random(seed)
-    w = 4096
-    h = int(tier_bytes * 1.05 / (w * bpp)) // 2 * 2  # every 4:2:x layout wants even width/height
+    # Layout is part of the seed: `.rgb` and `.rgba` can share a byte length at
+    # different geometry. Before this they were byte-identical and looked like
+    # accidental duplicate files.
+    rng = random.Random(seed ^ (sum(ext.encode("ascii")) << 8) ^ int(bpp * 1000) * 131)
+    # A believable non-strip shape plus a per-suffix pixel budget. The budget must
+    # differ when bpp is equal, otherwise `.bgra`/`.rgba` remain byte-length twins.
+    idx = list(RAWPX).index(ext)
+    aspect = RAWPX_ASPECT[ext]
+    cap = MAX_PIXELS - (idx + 1) * 1000
+    pixels = max(4, int(tier_bytes * (1.05 + idx * 0.01) / bpp))
     note = ""
-    if w * h > MAX_PIXELS:
-        h = MAX_PIXELS // w // 2 * 2
+    if pixels > cap:
+        pixels = cap
         note = "capped(PIXELS)"
+    w = max(2, int((pixels * aspect) ** 0.5) // 2 * 2)
+    h = max(2, int(pixels / w) // 2 * 2)
+    while w * h < pixels:
+        h += 2
+    while w * h > cap and h > 2:
+        h -= 2
     path.write_bytes(encode_rawpx(layout, w, h, rng))
     return "%dx%d" % (w, h), path.stat().st_size, note, layout
 
@@ -570,6 +614,27 @@ def readback(path, ext):
         return "读不回 %s" % repr(exc)[:70]
 
 
+def seed_path(seed_dir, ext, tier_bytes=None):
+    """Find the real seed closest to a tier. Prefer the largest seed at or below
+    the tier; if none fits, use the smallest available (never the 100 MB file in
+    the 1M tier). Prefer the exact suffix (e.g. .DCS) over an archive .TIF alias."""
+    family = "raw" if ext in RAW_SEED_EXT else "real"
+    folder = Path(seed_dir) / family / ext.lstrip(".")
+    if not folder.is_dir():
+        return None
+    files = [p for p in folder.iterdir() if p.is_file()]
+    if not files:
+        return None
+    exact = [p for p in files if p.suffix.lower() == ext.lower()]
+    files = exact or files
+    if tier_bytes is None:
+        return min(files, key=lambda p: p.stat().st_size)
+    # Pick the seed whose size is closest to the requested tier. This keeps a
+    # 121 MB PEF out of the 1 MiB directory when an 11 MB PEF exists, while the
+    # 100 MiB tier still gets the larger file.
+    return min(files, key=lambda p: abs(p.stat().st_size - tier_bytes))
+
+
 def key(r):
     # One sample per (suffix, tier) - the shared corpus has no per-decoder dimension.
     return (r["ext"], r["tier"])
@@ -591,17 +656,31 @@ def merge_rows(out_root, new_rows, partial):
 def main():
     ap = argparse.ArgumentParser(
         description="Generate 1/10/100 MiB noise samples, one per suffix, shared by all decoders.")
-    ap.add_argument("--out", default=os.environ.get("RUPIX_SAMPLE_DIR",
-                    str(ROOT.parent / ".temp" / "testdata")))
-    ap.add_argument("--tier", default="all", choices=[t for t, _ in TIERS] + ["all"])
+    ap.add_argument("--config", default=str(CONFIG_FILE),
+                    help="one-switch JSON config (output, seed_dir, tiers, strict)")
+    ap.add_argument("--out", default=os.environ.get("RUPIX_SAMPLE_DIR"))
+    ap.add_argument("--seed-dir", default=os.environ.get("RUPIX_SEED_DIR"))
+    ap.add_argument("--strict", action="store_true",
+                    help="require a real seed file for every seed-only suffix")
+    ap.add_argument("--tier", default="all")
     ap.add_argument("--only", default="",
                     help="comma separated suffixes (.jpg) or decoder ids (jpeg)")
     ap.add_argument("--seed", type=int, default=20261016,
                     help="fixed by default, so two runs give byte-identical samples")
     ap.add_argument("--list", action="store_true", help="print the plan and exit")
     ap.add_argument("--check", action="store_true",
-                    help="verify that every claims.tsv suffix is generated or skipped, write nothing")
+                    help="verify that every claims.tsv suffix is generated or seeded, write nothing")
     args = ap.parse_args()
+    cfg = load_config(args.config)
+    if args.out:
+        cfg["output"] = Path(args.out)
+    if args.seed_dir:
+        cfg["seed_dir"] = Path(args.seed_dir)
+    if args.strict:
+        cfg["strict"] = True
+    tiers = cfg["tiers"]
+    if args.tier != "all" and args.tier not in tiers:
+        ap.error("unknown tier %r; available: %s" % (args.tier, ", ".join(tiers)))
 
     coverage = coverage_errors()
     if coverage:
@@ -609,27 +688,33 @@ def main():
             print("COVERAGE: " + line, file=sys.stderr)
         return 1
 
+    if cfg["strict"]:
+        missing = [ext for ext in SEED_EXT if seed_path(cfg["seed_dir"], ext) is None]
+        if missing:
+            print("MISSING real seeds under %s: %s"
+                  % (cfg["seed_dir"], " ".join(missing)), file=sys.stderr)
+            return 1
+
     if args.check:
         planned = {ext for _, ext, _, _ in PLAN}
-        skipped = set()
-        for _, exts, _ in SKIP:
-            skipped |= {e for e in exts.replace(",", " ").split() if e.startswith(".")}
-        print("sample-plan: %d generated, %d skipped, %d covered"
-              % (len(planned), len(skipped), len(planned | skipped)))
+        seeded = set(SEED_EXT)
+        print("sample-plan: %d generated, %d real seeds, %d covered"
+              % (len(planned), len(seeded), len(planned | seeded)))
         return 0
 
     if args.list:
         print("%-11s %-8s %-6s %s" % ("claimed_by", "suffix", "kind", "options"))
         for claimed_by, ext, kind, opts in PLAN:
             print("%-11s %-8s %-6s %s" % (claimed_by, ext, kind, opts or ""))
-        for claimed_by, exts, why in SKIP:
-            print("%-11s %-8s %-6s %s" % (claimed_by, exts, "skip", why))
+        for ext, member in sorted(SEED_MEMBER.items()):
+            src = seed_path(cfg["seed_dir"], ext)
+            print("%-11s %-8s %-6s %s" % (member, ext, "seed", src or "MISSING"))
         print("\nsamples: one per suffix under <out>/<tier>/noise<ext>; default out = %s"
               % (ROOT.parent / ".temp" / "testdata"))
         return 0
 
-    tiers = TIERS if args.tier == "all" else [t for t in TIERS if t[0] == args.tier]
-    known_exts = {ext for _, ext, *_ in PLAN}
+    selected_tiers = list(tiers.items()) if args.tier == "all" else [(args.tier, tiers[args.tier])]
+    known_exts = {ext for _, ext, *_ in PLAN} | set(SEED_EXT)
     only_exts = set()
     only_filter = bool(args.only.strip())
     for tok in (t.strip() for t in args.only.split(",")):
@@ -637,8 +722,10 @@ def main():
             continue
         if tok in TIER_MEMBERS:                                  # DLL id -> all its members
             only_exts |= {e for p, e, *_ in PLAN if p in TIER_MEMBERS[tok]}
+            only_exts |= {e for e, m in SEED_MEMBER.items() if m in TIER_MEMBERS[tok]}
         elif tok in DECODER_IDS:                                 # member id -> all its suffixes
             only_exts |= {e for p, e, *_ in PLAN if p == tok}
+            only_exts |= {e for e, m in SEED_MEMBER.items() if m == tok}
         elif tok in known_exts:                              # ".jpg"
             only_exts.add(tok)
         elif "." + tok in known_exts:                        # "jpg"
@@ -660,15 +747,15 @@ def main():
                 changed = True
 
     if only_filter and not only_exts:
-        print("no encodable suffix in %r; see --list for the explicit SKIP reasons"
+        print("no suffix in %r; see --list for generated and seeded rows"
               % args.only, file=sys.stderr)
         return 0
 
     rows = []
     canonical = {}   # (ext, tier) -> row, so aliases can inherit dims and bytes
-    out_root = Path(args.out)
+    out_root = Path(cfg["output"])
 
-    for tname, tbytes in tiers:
+    for tname, tbytes in selected_tiers:
         tdir = out_root / tname
         tdir.mkdir(parents=True, exist_ok=True)
         for claimed_by, ext, kind, opts in PLAN:
@@ -682,10 +769,10 @@ def main():
                 if path.exists():
                     path.unlink()
                 try:
-                    os.link(src_file, path)          # hard link: a 100 MiB tier costs 0 extra
+                    os.link(src_file, path)          # hard link: dedupe pass copies only when needed
                 except OSError:
                     shutil.copyfile(src_file, path)  # other volume / FS without links
-                note = "同 %s（硬链接）%s" % (opts["src"],
+                note = "同 %s（同图）%s" % (opts["src"],
                                           ("；" + ALIAS_NOTE[ext]) if ext in ALIAS_NOTE else "")
                 rows.append(row(claimed_by, tname, ext, kind, path, src["dims"], note))
                 canonical[(ext, tname)] = rows[-1]
@@ -709,15 +796,82 @@ def main():
             rows.append(r)
             canonical[(ext, tname)] = r
 
-    if not only_exts:
-        for claimed_by, exts, why in SKIP:
-            rows.append({"claimed_by": claimed_by, "tier": "-", "ext": exts, "kind": "skip",
-                         "dims": "-", "bytes": 0, "file": "", "note": why})
+        # Real seeds replace every suffix that has no honest encoder. The seed
+        # is reused at every tier; if it is smaller than the tier floor it is
+        # reported as capped instead of being padded or fabricated.
+        for ext, claimed_by in sorted(SEED_MEMBER.items()):
+            if only_exts and ext not in only_exts:
+                continue
+            src = seed_path(cfg["seed_dir"], ext, tbytes)
+            if src is None:
+                raise SystemExit("missing real seed for %s under %s" % (ext, cfg["seed_dir"]))
+            path = tdir / ("noise" + ext)
+            if path.exists():
+                path.unlink()
+            try:
+                os.link(src, path)
+            except OSError:
+                shutil.copyfile(src, path)
+            actual = path.stat().st_size
+            note = "seed %s" % src.name
+            if actual < tbytes:
+                note = "capped(SEED %d B < %d B) %s" % (actual, tbytes, src.name)
+            r = row(claimed_by, tname, ext, "seed", path, "-", note)
+            rows.append(r)
+            print("  %-6s %-7s %10d B  %s" % (tname, ext, actual, note), file=sys.stderr)
 
     out_root.mkdir(parents=True, exist_ok=True)
     rows = merge_rows(out_root, rows, bool(only_exts) or args.tier != "all")
+
+    # Hard invariant: within one tier every file has a distinct byte length. Alias
+    # suffixes and reused real seeds otherwise collide. Break the tie by writing a
+    # small, format-tolerant trailer to all but the first file in each group.
+    for tname, _tbytes in selected_tiers:
+        by_size = {}
+        for r in rows:
+            if r["tier"] == tname and r["file"]:
+                by_size.setdefault(r["bytes"], []).append(r)
+        used = set(by_size)
+        for same in by_size.values():
+            if len(same) < 2:
+                continue
+            for r in same[1:]:
+                if r["kind"] == "rawpx":
+                    raise SystemExit("rawpx size collision needs a dimension change: %s" % r["ext"])
+                p = Path(r["file"])
+                tag = ("\nRuPix unique-size %s\n" % r["ext"]).encode("ascii")
+                while len(tag) + r["bytes"] in used:
+                    tag += b"."
+                tmp = p.with_name(p.name + ".dedupe")
+                shutil.copyfile(p, tmp)  # break a possible hard link before writing
+                p.unlink()
+                os.replace(tmp, p)
+                if r["ext"] in (".heic", ".heif"):
+                    # A top-level `free` box is legal ISO-BMFF; raw trailing bytes are not.
+                    body = struct.pack(">I", 8 + len(tag)) + b"free" + tag
+                elif r["ext"] == ".dicom":
+                    # DICOM Data Set Trailing Padding (FFFC,FFFC), explicit VR little-endian.
+                    payload = tag + (b"\0" if len(tag) % 2 else b"")
+                    body = b"\xfc\xff\xfc\xffOB\x00\x00" + struct.pack("<I", len(payload)) + payload
+                else:
+                    body = tag
+                with p.open("ab") as f:
+                    f.write(body)
+                r["bytes"] = p.stat().st_size
+                r["note"] = (r["note"] + "；长度唯一（尾注 %d B）" % len(body)).strip("；")
+                used.add(r["bytes"])
+
+    for tname, _tbytes in selected_tiers:
+        sizes = {}
+        for r in rows:
+            if r["tier"] != tname or not r["file"]:
+                continue
+            sizes.setdefault(r["bytes"], []).append(r["ext"])
+        dup = {n: exts for n, exts in sizes.items() if len(exts) > 1}
+        if dup:
+            raise SystemExit("duplicate file sizes in %s: %r" % (tname, dup))
     (out_root / "manifest.json").write_text(json.dumps(
-        {"seed": args.seed, "max_pixels": MAX_PIXELS, "tiers": dict(TIERS),
+         {"seed": args.seed, "max_pixels": MAX_PIXELS, "tiers": dict(selected_tiers),
          "keyed_by": "suffix (one sample per suffix per tier, shared by all decoders)",
          "rows": rows}, indent=1), encoding="utf-8")
 

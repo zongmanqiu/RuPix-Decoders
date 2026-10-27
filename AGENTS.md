@@ -88,7 +88,7 @@
 ## 二、ABI 版本冻结（改 = 事故，须用户拍板）
 
 - **现状（实读）**：`IV_ABI_VERSION = 5`（`abi/src/lib.rs`），abi crate 版本 **0.5.0**。
-  发布产物 **4 档**（abi5）：`common` = **0.2.0**（29 后缀）、`modern` = **0.2.0**（6 后缀）、
+  发布产物 **4 档**（abi5）：`common` = **0.2.1**（29 后缀）、`modern` = **0.2.0**（6 后缀）、
   `raw` = **0.5.0**（40 后缀，含 rawpx 并入）、`pro` = **0.2.0**（33 后缀）。
   单库 **22 枚**住 `decoders-rust/singles/`（不发布）：11 枚通用 + 11 枚 `pro-*`。**全仓纯 Rust，零 C 编译依赖**（stb 已由 psd+hdr 替掉，
   thumbdoc 已撤销）。
@@ -206,7 +206,7 @@
 - **档位是下限**：装不下就写 `capped(...)` 给真实尺寸，不假装。当前 100 MiB 档 39 个后缀里 25 个达标，
   其余是物理上限（ICO 256 px、PBM 1 bpp、BC1 0.5 B/px、GRAY8 1 B/px、GIF 8 bpp、4:2:x 1.5 B/px…）。
 - **两个 gate**：解码器自身拒绝 >64 MP（解码器开发规范.md §六 第 10 条），但宿主更早拒绝
-  >40 MP 或 >160 MB RGBA（main/src/core/pixels.rs MAX_PIXELS = 40_000_000）。样本保持在宿主上限之下，
+  >41 MP 或 >164 MB RGBA（main/src/core/pixels.rs MAX_PIXELS = 41_000_000）。样本保持在宿主上限之下，
   保证每行都能被查看器真正打开；想探 64 MP 解码器门需用 ABI 直接调用（budget_bytes = 0）。
 - 验证：宿主 `core_smoke.exe` 走真实用户路径（目录过滤 → 扩展名认领 → 两阶段渲染）。
   2026-10-25 实测：1M 档 **27 个非 rawpx 样本逐条 OK**（含改过尺寸的 100M 档 `.jpg` 5172²、
@@ -303,7 +303,7 @@
 |---|---|---|
 | 编译 + 测试 + 发布 | `build.ps1` | exit 0，打印 `done: N decoder(s) published to <path> (abi v5)`，末尾清单自检不报结构缺口 |
 | 依赖门禁 | `python tools/check_deps.py` | `violations: 0` |
-| 闸值门禁 | `python tools/check_caps.py` | `violations: 0`。管**等值**不管"哪个值才对"：① 各 crate 各自抄的 `const MAX_PIXELS`（64 MP，**分配闸**）必须同值——这条口径以前只靠注释互相引用（"与 core / png / jpeg / tiff 同口径"），没人读；② 宿主 `main/src/core/pixels.rs` 的 `MAX_PIXELS`（40 MP，**看图硬顶**）必须等于 `testdata/make_samples.py` 里那份镜像值（宿主不在这儿就打印 skip，不装成通过）。★ **同名两值是有意的**：两道闸管两件不同的事，改名统一会要重编 DLL 只换可读性，已判废（宿主 m120）；自证：`--selftest` |
+| 闸值门禁 | `python tools/check_caps.py` | `violations: 0`。管**等值**不管"哪个值才对"：① 各 crate 各自抄的 `const MAX_PIXELS`（64 MP，**分配闸**）必须同值——这条口径以前只靠注释互相引用（"与 core / png / jpeg / tiff 同口径"），没人读；② 宿主 `main/src/core/pixels.rs` 的 `MAX_PIXELS`（41 MP，**看图硬顶**）必须等于 `testdata/make_samples.py` 里那份镜像值（宿主不在这儿就打印 skip，不装成通过）。★ **同名两值是有意的**：两道闸管两件不同的事，改名统一会要重编 DLL 只换可读性，已判废（宿主 m120）；自证：`--selftest` |
 | 认领门禁 | `python tools/check_claims.py` | `violations: 0`：四档的 `extensions:` 字面量两两不相交；每个后缀在 `testdata/claims.tsv` 恰好出现一次；`verified` 必须有 golden/测试证据，`unverified` 必须有原因 |
 | 文档门禁 | `python tools/check_docs.py` | `missing: 0`（每个 `decoders-rust/decoders/<id>/` 有 `README.md` + `HISTORY.md`、根 `解码器开发规范.md` 在、全仓相对链接可达、行数预算、`DOCS_MANIFEST` 覆盖、旧路径词、锚点不越界不落空行、**任何 .rs/.md/.ps1 文件里没有裸 NUL 字节、`.ps1` 全 ASCII**） |
 | 历史门禁 | `python tools/check_history.py` | `violations: 0`（四档 HISTORY 存在；最新版本 = `Cargo.toml`；ABI = `IV_ABI_VERSION`；发布状态/日期 = `index.json`） |

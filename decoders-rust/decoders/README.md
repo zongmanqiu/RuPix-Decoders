@@ -4,7 +4,7 @@
 
 | 档 | 版本 | 后缀数 | 状态 | 成员 | 文档 |
 |---|---:|---:|---|---:|---|
-| `common` | 0.2.0 | 29 | 发布包已生成（待上传） | 8 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
+| `common` | 0.2.1 | 29 | 发布包已生成（待上传） | 8 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
 | `modern` | 0.2.0 | 6 | 发布包已生成（待上传） | 2 | [README](modern/README.md) · [HISTORY](modern/HISTORY.md) |
 | `raw` | 0.5.0 | 40 | 发布包已生成（待上传） | 2（含 rawpx） | [README](raw/README.md) · [HISTORY](raw/HISTORY.md) · [DESIGN](raw/DESIGN.md) |
 | `pro` | 0.2.0 | 33 | 发布包已生成（待上传） | 11 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |

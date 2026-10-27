@@ -1,0 +1,6 @@
+Pillow>=11
+pillow-heif>=1.0
+pillow-avif-plugin>=1.4
+pillow-jxl-plugin>=1.2
+OpenEXR>=3.2
+imagecodecs>=2024.1

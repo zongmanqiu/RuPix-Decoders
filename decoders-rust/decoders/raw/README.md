@@ -16,7 +16,7 @@
 | is_vector / has_alpha | `0` / `0` |
 | 产物 | `raw_0.5.0.dll` |
 | 构建 | 纯 Rust；无 `build.rs`、无 C 源、无 `.3rd` 依赖 |
-| 许可证 | `rawler 0.7.2`（LGPL-2.1）静态链接；ZIP 附 LGPL 全文与 `SOURCE-OFFER.md`（上游 commit + crate 校验值 + 源码/重链接书面 offer） |
+| 许可证 | `rawler 0.7.2`（LGPL-2.1）+ `flashraw 0.1.1`（MIT/Apache-2.0）静态链接；ZIP 附许可证全文与 `SOURCE-OFFER.md`（rawler 上游 commit + crate 校验值 + 源码/重链接书面 offer） |
 
 后缀表由 `examples/dump_exts.rs` 对 `rawler::decoders::supported_extensions()` 校准。
 `.raw` 同时是相机 RAW 与裸像素 dump 的后缀，归属由**请求类型**决定：常规打开走魔数，
@@ -27,13 +27,14 @@
 | 成员 | 作用 |
 |---|---|
 | `rawler 0.7.2` | 相机 RAW 的容器分派、传感器解压（CFA u16） |
+| `flashraw 0.1.1` | X3F 回退：rawler 的 X3F 压缩路径未实现，真实 X3F 走 flashraw Rgba8 |
 | `rawpx` | 裸像素参数化解码；**不在 `MEMBERS` 让位链里**，唯一入口是 `iv_render_raw` |
 
 ## 认领
 
-- `iv_probe` 完全忽略 `ext`，只按魔数：`FUJIFILM`、`FOVb`、`\0MRM`、`IIII`、
-  `3ASH`、偏移 4 的 `ftyp` + `crx` / `c<digit>`、以及任何 TIFF 头
-  `II*\0` / `MM\0*`。`len < 12` → 不认。
+- `iv_probe` 先按魔数认领；对 CRW/ORF/ORI/RW2/RWL/ARI/QTK/Leica RAW 这类
+  没有 TIFF 魔数的真实文件，带上认领后缀后让 rawler 的头部解析器判定。
+  无头裸数据（`.rgb` / `.yuv` 等）仍不认领，只走 `iv_render_raw`。`len < 12` → 不认。
 - 置信度只有 100 / 0；没有 50 档。
 - **能力位**：`CAP_FULL | CAP_SCALED | CAP_RAW_PARAM`。`iv_render_raw` 是可选导出；
   声明 `CAP_RAW_PARAM` 与它绑定。
