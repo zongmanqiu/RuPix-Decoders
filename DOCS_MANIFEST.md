@@ -16,7 +16,7 @@
 | `docs/testing.md` | 测试分层、串行原因、样本、bench 口径变化 | `build.ps1` + `manual` |
 | `docs/catalog.md` | `index.json` 字段、镜像 URL、生成器行为变化 | `make_index.py` + `check_urls.py`（有网） |
 | `docs/contributing.md` | 新增/修改解码器步骤、特殊形态、文档同步清单变化 | `manual`（评审） |
-| `docs/history-policy.md` | 历史粒度、格式、版本语义变化 | `check_history.py` |
+| `docs/history-policy.md` | 历史粒度、格式、版本语义、禁写状态/上传/tag 规则变化 | `check_history.py` |
 | `docs/pitfalls.md` | 新增本仓专属坑；编号只增不改 | `manual`（评审） |
 | `docs/design-adoption.md` | 采纳/拒绝/待评估的决策变化 | `manual`（评审） |
 | `docs/licensing.md` | 许可证允许表、依赖许可策略、供应链门禁变化 | `check_licenses.py` |

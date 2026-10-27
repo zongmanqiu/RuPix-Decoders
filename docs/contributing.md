@@ -59,7 +59,8 @@
 - `decoders-rust/singles/<id>/README.md`：新增单库就写；不是每个单库都必须有，
   但 `decoders-rust/singles/README.md` 的总表必须登记它。
 - `decoders-rust/decoders/<tier>/README.md`：成员表 + 认领后缀 + 限制。
-- `decoders-rust/decoders/<tier>/HISTORY.md`：对外可见变化一条；版本号变才起新条目。
+- `decoders-rust/decoders/<tier>/HISTORY.md`：对外可见变化一条；版本号变才起新条目；
+  只写版本/日期/ABI/变更，不写上传状态、ZIP 生成、release tag（见 `history-policy.md`）。
 - `解码器开发规范.md` §八：自查清单（若 ABI 语义变化）。
 - `testdata/claims.tsv`：认领后缀 / 成员 / 证据状态变化时。
 - 根 `README.md`：只改四档表的版本/后缀数/发布状态，不抄细节。

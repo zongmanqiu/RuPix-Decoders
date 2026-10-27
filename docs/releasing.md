@@ -60,5 +60,5 @@
 - [ ] 已记录最终 ZIP 的 size / SHA-256；重新打包后数字已更新。
 - [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 LICENSE、notices、licenses 与 `SOURCE-OFFER.md`。
 - [ ] `check_urls.py` 绿。
-- [ ] `decoders-rust/decoders/<id>/HISTORY.md` 已记录本次对外变化。
+- [ ] `decoders-rust/decoders/<id>/HISTORY.md` 已记录本次对外变化；**没有状态/待上传/包生成/tag 行**。
 - [ ] 宿主 `docs_consistency` 与 smoke 已跑（并排开发时）。

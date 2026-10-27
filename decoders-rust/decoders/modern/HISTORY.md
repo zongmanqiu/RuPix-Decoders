@@ -4,13 +4,11 @@
 
 ## 0.2.0 — 2026-10-27 — abi 5
 
-- **状态**：发布包已生成；等待 Gitee/GitHub 上传。
 - **变更**：DLL 自述增加可扩展 `iv_metadata()`；包格式改为 ZIP + 同版本许可证目录。
 - **认领**：6 个后缀、成员与能力位不变。
 
 ## 0.1.0 — 2026-10-26 — abi 5
 
-- **状态**：已发布。release tag `modern_0.1.0`，资产 `modern_0.1.0.dll`。
 - **认领**：6 个后缀（heic/heif/hif/avif/avifs/jxl）。
 - **成员**：`av`（HEIC/HEIF + AVIF，`heic` 开 `av1` feature）与 `jxl`（jxl-oxide）。
 - **崩溃域**：与现代格式的年轻解码库隔离，坏 HEIC/AVIF/JXL 不拖累 common 的 29 个格式。

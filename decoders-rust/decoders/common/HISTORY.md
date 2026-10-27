@@ -4,21 +4,18 @@
 
 ## 0.2.1 — 2026-10-27 — abi 5
 
-- **状态**：待上传（ZIP 由发布流程生成）。
 - **变更**：支持真正的 headerless DIB（补合成 `BITMAPFILEHEADER`）；`.dib` 不再依赖“带 BM 头的 BMP”冒充。
 - **认领**：29 个后缀、成员与能力位不变。
 - **基线**：仍为纯 Rust；无 C 编译依赖。
 
 ## 0.2.0 — 2026-10-27 — abi 5
 
-- **状态**：发布包已生成；等待 Gitee/GitHub 上传。
 - **变更**：DLL 自述增加可扩展 `iv_metadata()`（version/author/license/released）；包格式改为 ZIP + 同版本许可证目录。
 - **认领**：29 个后缀、成员与能力位不变。
 - **基座**：仍为纯 Rust；无 C 编译依赖。
 
 ## 0.1.0 — 2026-10-26 — abi 5
 
-- **状态**：已发布。release tag `common_0.1.0`，资产 `common_0.1.0.dll`。
 - **认领**：29 个后缀（jpg/jpeg/jpe/jfif/jif/jfi/exif/png/apng/gif/tif/tiff/qoi/
   webp/bmp/dib/rle/ico/icon/pnm/ppm/pgm/pbm/pam/dds/ff/tga/psd/hdr）。
 - **成员**：8 个（jpeg、png、gif、tiff、qoi、psd、hdr、core）。
