@@ -2,7 +2,9 @@
 """Generate the synthetic multi-format test corpus.
 
 Default invocation writes the 10M tier, all registered suffixes. The output
-root is outside the source tree; no image is downloaded or read from a seed.
+root is outside the source tree. Generated formats do not read a seed; the
+DjVu writer is the explicit exception and reads the checked-in public-domain
+fixture `golden/djvu_pd_scan.djvu` because no portable encoder is available.
 A format module is imported only when its suffix is selected, so missing
 HEIF/JXL/RAW tooling does not break `--only png`.
 

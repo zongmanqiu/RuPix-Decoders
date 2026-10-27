@@ -131,9 +131,21 @@ pub fn render_impl(
 mod tests {
     use super::*;
 
+    const GOLDEN: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../testdata/golden/djvu_pd_scan.djvu"
+    ));
+
     #[test]
     fn probe_requires_djvu_magic() {
         assert_eq!(iv_probe(b"AT&TFORM".as_ptr(), 8, std::ptr::null()), 100);
         assert_eq!(iv_probe(b"nope".as_ptr(), 4, std::ptr::null()), 0);
+    }
+
+    #[test]
+    fn decodes_public_domain_scan() {
+        let (w, h, px) = decode(GOLDEN).expect("public-domain DjVu scan must decode");
+        assert_eq!((w, h), (1234, 1733));
+        assert_eq!(px.len(), 1234 * 1733 * 4);
     }
 }

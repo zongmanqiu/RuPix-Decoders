@@ -7,7 +7,7 @@
 | `common` | 0.2.1 | 29 | 发布包已生成（待上传） | 8 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
 | `modern` | 0.2.0 | 6 | 发布包已生成（待上传） | 2 | [README](modern/README.md) · [HISTORY](modern/HISTORY.md) |
 | `raw` | 0.5.0 | 40 | 发布包已生成（待上传） | 2（含 rawpx） | [README](raw/README.md) · [HISTORY](raw/HISTORY.md) · [DESIGN](raw/DESIGN.md) |
-| `pro` | 0.2.0 | 33 | 发布包已生成（待上传） | 11 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
+| `pro` | 0.2.1 | 33 | 发布包已生成（待上传） | 11 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
 
 - 限制与已知空白见各档 `README.md`；对外变化见各档 `HISTORY.md`。
 - 路由、workspace、ABI 快照见 [`../docs/architecture.md`](../../docs/architecture.md)。

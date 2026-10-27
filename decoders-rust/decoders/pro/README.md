@@ -1,7 +1,7 @@
 # `pro` — 专业/低频格式档（独立 workspace）
 
 一枚 DLL 认领 **33 个后缀**，覆盖四类“日常不常用、但专业场景必须有”的格式。
-构建体积 **8,266,752 B**（0.2.0，abi5，纯 Rust，无 C 依赖）；发布包已生成，等待上传。
+构建体积 **8,267,776 B**（0.2.1，abi5，纯 Rust，无 C 依赖）；发布包已生成，等待上传。
 
 > **独立 workspace**：`decoders-rust/decoders/pro` 有自己的 `[workspace]` / `Cargo.lock` / `.cargo/config.toml`。
 > 不能并回根 workspace——它的 `image` / `exr` / `resvg` 依赖会与 common/raw 做 feature 统一，

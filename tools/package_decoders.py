@@ -159,6 +159,13 @@ def main():
         if entry is None:
             print("skip %s: no index entry" % tier)
             continue
+        missing = [key for key in ("version", "size", "sha256", "released", "gitee", "github")
+                   if not entry.get(key)]
+        if missing:
+            raise SystemExit(
+                "refusing to package %s: index.json has empty %s; "
+                "set the release URL/date before packaging" % (tier, ", ".join(missing))
+            )
         ver = entry["version"]
         dll_name = f"{tier}_{ver}.dll"
         dll = DIST / dll_name

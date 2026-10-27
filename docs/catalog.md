@@ -10,16 +10,16 @@
   {
     "id": "common",
     "name": "Common Raster Set",
-    "version": "0.2.1",
+    "version": "<version>",
     "abi": 5,
-    "size": 1969664,
-    "released": "2026-10-27",
+    "size": 1234567,
+    "released": "YYYY-MM-DD",
     "desc": "常见位图合集：…",
     "formats": "jpg;jpeg;…",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "https://…/common_0.2.1.zip",
-    "github": "https://…/common_0.2.1.zip"
+    "gitee": "https://…/<id>_<version>.zip",
+    "github": "https://…/<id>_<version>.zip"
   }
 ]
 ```
@@ -30,17 +30,17 @@
 |---|---|---|
 | `id` | `common` | 解码器标识；宿主按它认人，不从文件名反推 |
 | `name` | `Common Raster Set` | DLL 自述名称，不是 DLL 文件名 |
-| `version` | `0.2.1` | DLL 版本；来自 `decoders-rust/decoders/<id>/Cargo.toml` |
+| `version` | `<version>` | DLL 版本；来自 `decoders-rust/decoders/<id>/Cargo.toml` |
 | `abi` | `5` | ABI 大版本；宿主按区间决定收不收 |
-| `size` | `1969664` | 字节数；下载后先按它挡截断/多收 |
+| `size` | `1234567` | 字节数（示例）；下载后先按它挡截断/多收 |
 | `sha256` | `e3b0…` | DLL 的 SHA-256；与实收字节逐项核对，挡同字节数替换 |
-| `released` | `2026-10-27` | 发布时间；未发布为空串 |
+| `released` | `YYYY-MM-DD` | 发布时间；未发布为空串 |
 | `desc` | `常见位图合集：…` | 一句话说明，来自 DLL 自述 |
 | `formats` | `jpg;jpeg;…` | 认领的扩展名，分号分隔、不带点，与 ABI `extensions` 同形 |
 | `author` | `RuPix` | 作者标识；来自 DLL 的 `iv_metadata()`；第三方可署自己的名字 |
 | `license` | `AGPL-3.0` | 许可证标识；来自 DLL 可选导出 `iv_metadata()` 的 `license` 键 |
-| `gitee` | `https://…/common_0.2.1.zip` | Gitee 主源（ZIP）；未发布为空串 |
-| `github` | `https://…/common_0.2.1.zip` | GitHub 镜像（ZIP）；默认由 `gitee` 推导，可显式覆盖 |
+| `gitee` | `https://…/<id>_<version>.zip` | Gitee 主源（ZIP）；未发布为空串 |
+| `github` | `https://…/<id>_<version>.zip` | GitHub 镜像（ZIP）；默认由 `gitee` 推导，可显式覆盖 |
 
 ## 两个 raw 镜像
 
@@ -67,8 +67,8 @@
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1   # 先有 DLL
 py tools/make_index.py                                        # 生成 index.json
-py tools/make_index.py --set-url common=https://…/common_0.2.1.zip
-py tools/make_index.py --set-github-url common=https://…/common_0.2.1.zip
+py tools/make_index.py --set-url '<id>=https://…/<id>_<version>.zip'
+py tools/make_index.py --set-github-url '<id>=https://…/<id>_<version>.zip'
 py tools/check_urls.py                                        # 有网时逐条下载核对
 ```
 

@@ -36,14 +36,23 @@ fn dimensions(data: &[u8]) -> Option<(u32, u32)> {
 fn decode(data: &[u8]) -> Result<(u32, u32, Vec<u8>), (i32, &'static str)> {
     let view = JxrView::parse(data).map_err(|_| (ERR_CORRUPT, "JPEG XR 文件头解析失败"))?;
     let (w, h) = view.info().dimensions();
+    // ABI 只接受 RGBA8。源图没有 alpha 时 `Rgba` 请求会被 jxr 拒绝，
+    // 必须先要 RGB，再由宿主侧约定补齐 alpha；否则普通 24bpp JXR 全部解不开。
+    let has_alpha = view.info().alpha.is_some();
+    let layout = if has_alpha {
+        ChannelLayout::Rgba
+    } else {
+        ChannelLayout::Rgb
+    };
     let mut dec = view.decoder();
-    let req = DecodeRequest::new(PixelFormat::U8(ChannelLayout::Rgba));
+    let req = DecodeRequest::new(PixelFormat::U8(layout));
     let img = dec
         .decode(&req)
         .map_err(|_| (ERR_CORRUPT, "JPEG XR 解码失败"))?;
     match img.samples {
-        DecodedSamples::U8(px) => Ok((w, h, px)),
-        _ => Err((ERR_UNSUPPORTED, "JPEG XR 输出格式不是 RGBA8")),
+        DecodedSamples::U8(px) if has_alpha => Ok((w, h, px)),
+        DecodedSamples::U8(px) => Ok((w, h, support::rgba_from_rgb(&px))),
+        _ => Err((ERR_UNSUPPORTED, "JPEG XR 输出格式不是 8 位 RGB/RGBA")),
     }
 }
 
@@ -134,9 +143,22 @@ pub fn render_impl(
 mod tests {
     use super::*;
 
+    const GOLDEN_RGB: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../testdata/golden/jxr_rgb_64x64.jxr"
+    ));
+
     #[test]
     fn probe_requires_jxr_magic() {
         assert_eq!(iv_probe(JXR_MAGIC.as_ptr(), 4, std::ptr::null()), 100);
         assert_eq!(iv_probe(b"nope".as_ptr(), 4, std::ptr::null()), 0);
+    }
+
+    #[test]
+    fn decodes_no_alpha_jxr_as_rgba() {
+        let (w, h, px) = decode(GOLDEN_RGB).expect("64x64 RGB JPEG XR must decode");
+        assert_eq!((w, h), (64, 64));
+        assert_eq!(px.len(), 64 * 64 * 4);
+        assert!(px.chunks_exact(4).all(|p| p[3] == 255));
     }
 }

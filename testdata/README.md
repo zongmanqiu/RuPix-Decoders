@@ -3,7 +3,7 @@
 | 里面是什么 | 在仓库里吗 | 量级 | 引用方式 |
 |---|---|---|---|
 | `make_samples.py` + `samples.json`：1/10/100 MiB 雪花/真实 seed 生成器 | **是**（只有脚本和配置） | — | — |
-| `golden/`：27 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、2 帧最小 GIF、最小 PSD/HDR…） | **是** | 137 KB | `include_bytes!` **编译期**进测试二进制 |
+| `golden/`：29 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、2 帧最小 GIF、最小 PSD/HDR、无 alpha JXR、公版 DjVu 扫描…） | **是** | 449 KB | `include_bytes!` **编译期**进测试二进制 |
 | 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 324 个（108 后缀 × 3 档；别名/seed 保证每档大小唯一） | 运行时读文件 |
 
 划分标准是两条，缺一不可：**能不能用脚本算出来** + **算出来的字节能不能保证永远不变**。
@@ -11,10 +11,10 @@
 - 算不出来，**或**算出来也会随工具链漂移的（真实相机 RAW、某个具体 bug 的复现字节、
   `golden` 参考输出）→ 入库，且放在**全仓共享**的 `golden/`，不放进任何一个 crate 里。
 
-★ 为什么第二条也要算：27 个证物里 **11 个真造不出来**（4 枚真机 RAW、5 枚 AVIF、2 枚 JXL——本机
-Pillow 无 AVIF/JXL 编码器），另 **16 个能造**（6 TIFF、4 JPEG、2 PNG、1 APNG、1 GIF、1 PSD、1 HDR），
-只是需要冻结字节。这 16 个**也不该改成现生成**：同一个字节永远对应同一个断言，换个 Pillow
-版本重生成就可能漂移，测试会静默变松——留档比"能重建"更重要。
+★ 为什么第二条也要算：29 个证物里 **12 个真造不出**（4 枚真机 RAW、5 枚 AVIF、2 枚 JXL，
+以及 1 枚无 DjVu 编码器可复现的公版扫描），另 **17 个能造**（6 TIFF、4 JPEG、2 PNG、1 APNG、
+1 GIF、1 PSD、1 HDR、1 JXR），只是需要冻结字节。这 17 个**也不该改成现生成**：同一个字节永远
+对应同一个断言，换个 Pillow 版本重生成就可能漂移，测试会静默变松——留档比"能重建"更重要。
 
 ## 为什么都不跟着解码库走
 
@@ -136,6 +136,13 @@ seed 的逐文件 URL、字节数、sha256、许可见
 `.temp/corpus/raw/manifest.tsv` 与 `.temp/corpus/real/manifest.tsv`。X3F 由
 `raw` DLL 内新增的 flashraw 回退解码；其余格式走 rawler 或对应 DLL。
 
+入库的两枚格式证物：
+
+| 文件 | 字节 | 来源 / 许可 |
+|---|---:|---|
+| `golden/jxr_rgb_64x64.jxr` | 15,383 | 用 `imagecodecs`/jxrlib 对确定性 RGB 像素编码；测试夹具，无第三方图像内容 |
+| `golden/djvu_pd_scan.djvu` | 307,354 | [Wikimedia Commons](https://upload.wikimedia.org/wikipedia/commons/b/bd/Louis_Arnoldy_-_Li_mari%C3%A8ge_di_m%E2%80%99cuseune%2C_ca_1850.djvu)，Public Domain；`djv` 复用同一字节 |
+
 ### 不生成 / 不公开样本
 
 `.crm`（Canon Cinema RAW Light，视频容器）和 `.qtk`（Apple QuickTake 150
@@ -162,7 +169,7 @@ corpus**，只在 local-only 目录测试。不得用 0 字节文件、改名 DN
 
 ## 与 `golden/` 的分工
 
-| | `golden/`（入库，137 KB，27 个） | 生成器产物（仓库外，逻辑 8.7 GB，324 个 = 108 后缀 × 3 档） |
+| | `golden/`（入库，449 KB，29 个） | 生成器产物（仓库外，逻辑 8.7 GB，324 个 = 108 后缀 × 3 档） |
 |---|---|---|
 | 用途 | **断言正确性**：能不能解、值对不对、该不该拒绝 | **压性能与尺寸/内存门** |
 | 入口 | `include_bytes!` 编译期嵌入测试二进制 | 运行时读文件（`main/examples/core_smoke.rs`、`main/examples/decoder_smoke.rs`） |

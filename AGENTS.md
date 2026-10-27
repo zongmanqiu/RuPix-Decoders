@@ -3,7 +3,8 @@
 > 对**本仓库根**（`RuPix-Decoder/`，远端同名仓库）生效的硬约束简版。
 > 门面与解码器一览见 `README.md`；契约全文见 `解码器开发规范.md`（真源在此，宿主仓库那份 `docs/解码器开发规范.md` 只留指针）；
 > 跨模块流程/设计见 `docs/`（地图 `docs/README.md`）；每个 DLL 的当前状态见
-> `decoders-rust/decoders/<id>/README.md`、对外变化见 `decoders-rust/decoders/<id>/HISTORY.md`；操作顺序见本文件 §六。
+> `decoders-rust/decoders/<id>/README.md`、对外变化见 `decoders-rust/decoders/<id>/HISTORY.md`；
+> **修改、发布与交付检查的操作顺序见根 [`开发指南.md`](开发指南.md)**（流程唯一正本）；本文件只写硬约束与特殊形态。
 > **目录名铁律**：本目录叫 **`RuPix-Decoder/`**。这个名字改过三回：`extension/` → 2026-10-11 `decoders-src/`
 > （当时作废旧名）→ **2026-10-16 用户拍板翻案：改回 `extension/`，`decoders-src/` 作废** →
 > **2026-10-25 用户拍板改名 `RuPix-Decoder/`**：本仓要独立发布到
@@ -89,7 +90,7 @@
 
 - **现状（实读）**：`IV_ABI_VERSION = 5`（`abi/src/lib.rs`），abi crate 版本 **0.5.0**。
   发布产物 **4 档**（abi5）：`common` = **0.2.1**（29 后缀）、`modern` = **0.2.0**（6 后缀）、
-  `raw` = **0.5.0**（40 后缀，含 rawpx 并入）、`pro` = **0.2.0**（33 后缀）。
+  `raw` = **0.5.0**（40 后缀，含 rawpx 并入）、`pro` = **0.2.1**（33 后缀）。
   单库 **22 枚**住 `decoders-rust/singles/`（不发布）：11 枚通用 + 11 枚 `pro-*`。**全仓纯 Rust，零 C 编译依赖**（stb 已由 psd+hdr 替掉，
   thumbdoc 已撤销）。
 - **宿主收载是区间判定**：`MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION`，出界一律拒载。
@@ -186,9 +187,9 @@
 
 - 位置：`testdata/make_samples.py`。`testdata/` 有**两半**，划分标准是"能不能用脚本算出来"：
   `make_samples.py` 生成的 1/10/100 MiB 雪花样本 **不入库**（写 `../.temp/testdata/`）；
-  `testdata/golden/` 里 **27 个** golden / 边界证物（**137 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
-  引用路径见 `testdata/README.md`。入库判据不是"绝对造不出来"（实测：11 个真造不出——4 枚真机 RAW、
-  5 枚 AVIF、2 枚 JXL；另 16 个能造，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
+  `testdata/golden/` 里 **29 个** golden / 边界证物（**449 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
+  引用路径见 `testdata/README.md`。入库判据不是"绝对造不出来"（实测：12 个真造不出——4 枚真机 RAW、
+  5 枚 AVIF、2 枚 JXL、1 枚公版 DjVu；另 17 个能造，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
   同一个字节永远对应同一个断言，换 Pillow 版本重生成就可能漂移、测试静默变松。
 - **按后缀生成一份，不按解码器**：一个后缀只有一枚认领者（`check_deps.py` 守着），所以
   "JPEG 的测试图"对谁都是同一份字节；按解码器各存一份会让同一张 100 MB 图存在十几份并各自漂移。
@@ -235,6 +236,9 @@
 
 ## 六、新增 / 改动一个解码器（顺序不可乱）
 
+> **流程、发布顺序和提交前清单以根 [`开发指南.md`](开发指南.md) 为准**；本节保留目录落位、
+> 单库/档接法与特殊形态的硬细节。
+>
 > **先回答"要不要动宿主"：不用**（三条代码级事实，非文档信念）——① 身份来自 DLL 自己：
 > 宿主 `lib.get(b"iv_decoder_info")` 读自述拿 id / 名 / 扩展名（`main/src/decoders/` 里
 > `Inspect` 装配那段 `lib.get(b"iv_decoder_info\0")`；按本文件 §六.8 只写名字锚点，不写行号——

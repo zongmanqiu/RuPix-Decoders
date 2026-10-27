@@ -5,13 +5,14 @@
 
 | 文件 | 何时更新 | 验证 |
 |---|---|---|
+| `开发指南.md` | 修改/发布流程、交付检查表、版本与地址真源变化 | `manual`（发布演练）；本文件是流程唯一正本 |
 | `README.md` | 四档版本/后缀数/发布状态、安装方式、文档入口变化 | `check_docs.py` 链接；四档表与 `index.json` / `Cargo.toml` 人工核对 |
 | `AGENTS.md` | 仓库边界、ABI 冻结、构建/发布落点、测试红线、新增解码器顺序变化 | `build.ps1` + `check_docs.py`；人工核对 |
 | `解码器开发规范.md` | ABI 结构/错误码/导出/像素格式/能力位/版本策略变化 | `build.ps1` + 宿主 `cargo test --lib core::abi` |
 | `docs/README.md` | 文档增删或职责变化 | `check_docs.py` 链接 |
 | `docs/architecture.md` | workspace、档 vs 单库、路由、ABI 快照、边界变化 | `manual`（评审） |
 | `docs/building.md` | 工具链、target、`build.ps1` 顺序、profile、形态 A/B 变化 | `build.ps1` 实跑 + `manual` |
-| `docs/releasing.md` | 版本/tag/镜像/清单回填流程变化 | `manual`（发布演练） |
+| `docs/releasing.md` | 版本/tag/镜像/清单回填机制变化 | `manual`（发布演练）；步骤以 `开发指南.md` §四为准 |
 | `docs/testing.md` | 测试分层、串行原因、样本、bench 口径变化 | `build.ps1` + `manual` |
 | `docs/catalog.md` | `index.json` 字段、镜像 URL、生成器行为变化 | `make_index.py` + `check_urls.py`（有网） |
 | `docs/contributing.md` | 新增/修改解码器步骤、特殊形态、文档同步清单变化 | `manual`（评审） |
@@ -26,7 +27,7 @@
 | `decoders-rust/singles/README.md` | 单库增删、归属档、README 状态变化 | `manual`（评审） |
 | `decoders-rust/singles/<id>/README.md` | 有独立价值的单库实现细节变化 | `manual`；总表必须登记 |
 | `testdata/README.md` | golden / 生成样本的分工、引用方式变化 | `manual` |
-| `testdata/claims.tsv` | 认领后缀增删、成员归属、证据状态变化 | `check_claims.py` |"}
+| `testdata/claims.tsv` | 认领后缀增删、成员归属、证据状态变化 | `check_claims.py` |
 | `THIRD-PARTY-NOTICES.md` | 依赖/许可证/版本变化 | `manual` + `cargo metadata` |
 | `index.json` | 版本、字节数、发布状态、地址变化 | `make_index.py` + `build.ps1` 新鲜度检查 + `check_urls.py` |
 | `.cargo/config.toml` / `decoders-rust/singles/.cargo/config.toml` / `decoders-rust/decoders/pro/.cargo/config.toml` | target-dir 变化 | `build.ps1` 实跑 |

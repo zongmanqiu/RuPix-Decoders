@@ -32,17 +32,17 @@
   {
     "id": "pro",
     "name": "Professional Formats",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "abi": 5,
-    "size": 8266752,
-    "sha256": "33fb5dc2f272cf411f8123adfc768355f2cdf14dcbe7859f44fc1fc3b74b2fba",
+    "size": 8267776,
+    "sha256": "38018306cec485de86243c2928097e2b777873e8eda6b864be6e3fc06b0f7cb2",
     "released": "2026-10-27",
     "desc": "专业格式：医学/科学影像与设计源文件",
     "formats": "jp2;j2k;j2c;jpc;jpx;jpf;jpt;jxr;wdp;hdp;exr;ktx;ktx2;dcm;dicom;nii;nrrd;mrc;mrcs;ccp4;map;pcx;pcc;dcx;icns;wbmp;xbm;xcf;wmf;ase;aseprite;djvu;djv",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.0/pro_0.2.0.zip",
-    "github": "https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.0/pro_0.2.0.zip"
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.1/pro_0.2.1.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.1/pro_0.2.1.zip"
   },
   {
     "id": "raw",

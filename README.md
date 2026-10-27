@@ -13,7 +13,7 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
 | `common` | 0.2.1 | 29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.2.1/common_0.2.1.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/common_0.2.1/common_0.2.1.zip) |
 | `modern` | 0.2.0 | 6 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.2.0/modern_0.2.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/modern_0.2.0/modern_0.2.0.zip) |
 | `raw` | 0.5.0 | 40 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/raw_0.5.0/raw_0.5.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/raw_0.5.0/raw_0.5.0.zip) |
-| `pro` | 0.2.0 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.0/pro_0.2.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.0/pro_0.2.0.zip) |
+| `pro` | 0.2.1 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.1/pro_0.2.1.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.1/pro_0.2.1.zip) |
 
 - 四档合计 108 个后缀；ABI 冻结 **v5**。
 - 安装：下载 `<id>_<version>.zip`，解压后把 DLL 和 `<id>_<version>/` 一起放进 `<exe>/decoders/`；
@@ -28,6 +28,7 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
 
 | 想知道 | 去哪 |
 |---|---|
+| 修改、发版、提交前检查的完整顺序 | [`开发指南.md`](开发指南.md) |
 | 解码器 ABI、错误码、像素格式、能力位 | [`解码器开发规范.md`](解码器开发规范.md) |
 | 三个 workspace、档与单库、路由、ABI 快照 | [`docs/architecture.md`](docs/architecture.md) |
 | 本机构建、门禁、profile、target 目录 | [`docs/building.md`](docs/building.md) |

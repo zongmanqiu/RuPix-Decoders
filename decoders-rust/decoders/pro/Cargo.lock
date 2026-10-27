@@ -1816,7 +1816,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-pro"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "rupix-abi",
  "rupix-merge-router",

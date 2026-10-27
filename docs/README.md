@@ -8,8 +8,9 @@
 | 你是 | 先读 | 再看 |
 |---|---|---|
 | 只想装解码器 | 根 [`README.md`](../README.md) | [`decoders-rust/decoders/README.md`](../decoders-rust/decoders/README.md)、各档 `README.md` |
+| 要改代码 / 发版 / 提交 | 根 [`开发指南.md`](../开发指南.md) | [`contributing.md`](contributing.md)、[`building.md`](building.md)、[`releasing.md`](releasing.md) |
 | 要写新解码器 / 改 ABI | [`解码器开发规范.md`](../解码器开发规范.md) | [`contributing.md`](contributing.md)、[`architecture.md`](architecture.md) |
-| 要构建 / 发布 | [`building.md`](building.md) | [`releasing.md`](releasing.md)、[`catalog.md`](catalog.md) |
+| 要构建 / 发布 | 根 [`开发指南.md`](../开发指南.md) | [`building.md`](building.md)、[`releasing.md`](releasing.md)、[`catalog.md`](catalog.md) |
 | 要查测试 / 证据 | [`testing.md`](testing.md) | [`pitfalls.md`](pitfalls.md) |
 | 要维护仓库 | [`architecture.md`](architecture.md) | [`history-policy.md`](history-policy.md)、[`design-adoption.md`](design-adoption.md)、[`DOCS_MANIFEST.md`](../DOCS_MANIFEST.md) |
 

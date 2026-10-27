@@ -15,25 +15,20 @@
 - 版本号语义见 [`history-policy.md`](history-policy.md)；ABI 变更必须用户拍板，
   且宿主与全部解码器同步重发。
 
-## 一次发布的顺序
+## 发布流程
 
-1. `powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1`：
-   编译三图 + 测试 + 发布 DLL 到 `../.temp/decoder-dist`；并排开发时镜像到 `../.build/decoders`。
-2. `python tools/make_index.py` 生成 DLL 的 `size` / `sha256`，先留空 URL。
-3. `python tools/package_decoders.py` 生成 `<id>_<version>.zip`（DLL + 同版本目录：metadata、LICENSE、notices、licenses、`SOURCE-OFFER.md`）。
-4. 每枚 ZIP 传成**自己的一个 release**：
+完整步骤、对象核对和文档同步见根 [`开发指南.md`](../开发指南.md) §四/§五。
+本文只记必须遵守的机制：
+
+1. `index.json` 是 ZIP 内 `metadata.json` 的真源，不是“打包后再补”的附属品。
+2. 因此**先**用 `make_index.py --set-url` 定稿 `gitee` / `github` / `released`，**再**跑
+   `package_decoders.py`。`package_decoders.py` 会拒绝 `released` / 地址为空的条目。
+3. 打包后如果又改了 `index.json`，必须重新打包；旧 ZIP 不能改名复用。
+4. 每枚 ZIP 上传到自己的 release：tag 与资产名都用 `<id>_<version>`。
    - Gitee：`https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/<id>_<version>/<id>_<version>.zip`
    - GitHub：`https://github.com/zongmanqiu/RuPix-Decoder/releases/download/<id>_<version>/<id>_<version>.zip`
-   tag 用 `<id>_<version>`，资产名用 `<id>_<version>.zip`。
-5. 回填地址（二选一）：
-   - 直接编辑 `index.json` 的 `gitee` 字段；或
-   - `py tools/make_index.py --set-url <id>=<gitee-url>`。
-   `github` 默认由 `gitee` 推导（主机名 + owner 一起换）；特殊地址用
-   `--set-github-url <id>=<url>`。
-6. `py tools/make_index.py` 重新生成结构字段；检查 `MISSING gitee` 列表。
-7. `py tools/check_urls.py`：逐条真下载 ZIP，解出 DLL 核对 size/sha256；未发布条目只提示。
-6. 提交 `index.json` 与对应 `decoders-rust/decoders/<id>/HISTORY.md` / `Cargo.toml`。
-7. 宿主侧从两份 raw 清单之一刷新，验证「可下载」卡与安装。
+5. 上传后跑 `check_urls.py`；它会真下载 ZIP、解出 DLL 并核对 size/sha256。
+6. 宿主侧刷新 `index.json` 镜像，验证「可下载」卡与安装。
 
 > 清单可以先提交、资产后上传；那段时间该列地址会 404，宿主如实报下载失败。
 > 反过来不行：`index.json` 不提交，宿主不知道有新版。
@@ -61,6 +56,8 @@
 - [ ] 每枚 DLL 的 Gitee / GitHub release 都已上传，tag 与资产名一致。
 - [ ] `index.json` 的 `size` / `sha256` / `version` / `abi` / `formats` 与 DLL 自述一致。
 - [ ] `released` 已填；`gitee` / `github` 都实测可下。
+- [ ] ZIP 内 `metadata.json` 与 `index.json` 同一条目逐字段一致（含地址与日期）。
+- [ ] 已记录最终 ZIP 的 size / SHA-256；重新打包后数字已更新。
 - [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 LICENSE、notices、licenses 与 `SOURCE-OFFER.md`。
 - [ ] `check_urls.py` 绿。
 - [ ] `decoders-rust/decoders/<id>/HISTORY.md` 已记录本次对外变化。

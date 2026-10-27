@@ -25,7 +25,7 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 样本
 
-- `testdata/golden/`：27 个 golden / 边界证物（137 KB）**入库**，编译期
+- `testdata/golden/`：29 个 golden / 边界证物（449 KB）**入库**，编译期
   `include_bytes!` 嵌入。引用路径：
   `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")`。
 - `testdata/make_samples.py`：生成 1/10/100 MiB 雪花样本，**不入库**，写
