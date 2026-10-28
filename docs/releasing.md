@@ -25,8 +25,8 @@
    `package_decoders.py`。`package_decoders.py` 会拒绝 `released` / 地址为空的条目。
 3. 打包后如果又改了 `decoders.json`，必须重新打包；旧 ZIP 不能改名复用。
 4. 每枚 ZIP 上传到自己的 release：tag 与资产名都用 `<id>_<version>`。
-   - Gitee：`https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/<id>_<version>/<id>_<version>.zip`
-   - GitHub：`https://github.com/zongmanqiu/RuPix-Decoder/releases/download/<id>_<version>/<id>_<version>.zip`
+   - Gitee：`https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/<id>_<version>/<id>_<version>.zip`
+   - GitHub：`https://github.com/zongmanqiu/RuPix-Decoders/releases/download/<id>_<version>/<id>_<version>.zip`
 5. 资产由人工上传；本仓不做联网地址校验。
 6. 宿主侧刷新 `decoders.json` 镜像，验证「可下载」卡与安装。
 

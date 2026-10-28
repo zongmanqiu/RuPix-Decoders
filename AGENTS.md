@@ -8,8 +8,8 @@
 > **目录名铁律**：本目录叫 **`RuPix-Decoder/`**。这个名字改过三回：`extension/` → 2026-10-11 `decoders-src/`
 > （当时作废旧名）→ **2026-10-16 用户拍板翻案：改回 `extension/`，`decoders-src/` 作废** →
 > **2026-10-25 用户拍板改名 `RuPix-Decoder/`**：本仓要独立发布到
-> `https://gitee.com/qiuzongman/RuPix-Decoder`，与远端同名 ⇒ clone 前后路径一致、文档里不用背着
-> "本地叫 X、clone 后叫 Y"这种补丁。旧名 `extension/` / `decoders-src/` 一律作废。
+> `https://gitee.com/qiuzongman/RuPix-Decoders`；本地目录仍叫 `RuPix-Decoder/`，远端是复数 `RuPix-Decoders`。
+> 旧名 `extension/` / `decoders-src/` 一律作废。
 > 现口径：文档、脚本、链接一律写 `RuPix-Decoder/`；中间产物目录同步叫 `.temp/decoder-target`
 > （构建期，落在**工作区根**——本仓库上一级——的 `.temp/`，独立 clone 时改设 `CARGO_BUILD_TARGET_DIR`）。
 > 2026-10-16 起它是**独立仓库根**，不是宿主的子目录。
@@ -68,7 +68,7 @@
 
 ## 一·五、无密钥 / 无隐私（硬，本仓是公开仓）
 
-本仓库 `https://gitee.com/qiuzongman/RuPix-Decoder` 是**公开**的。下列东西一条都不许进：
+本仓库 `https://gitee.com/qiuzongman/RuPix-Decoders` 是**公开**的。下列东西一条都不许进：
 
 | 禁止 | 样子 | 正确做法 |
 |---|---|---|

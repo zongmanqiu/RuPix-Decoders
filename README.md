@@ -1,6 +1,6 @@
 # RuPix 解码器仓库
 
-> **仓库入口**：[**Gitee**](https://gitee.com/qiuzongman/RuPix-Decoder) | [**GitHub**](https://github.com/zongmanqiu/RuPix-Decoder)
+> **仓库入口**：[**Gitee**](https://gitee.com/qiuzongman/RuPix-Decoders) | [**GitHub**](https://github.com/zongmanqiu/RuPix-Decoders)
 
 RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交互、几何变换、路由与缓存，
 启动时扫描 exe 同级 `decoders/` 目录，按每个 DLL 的 `iv_decoder_info()` 自述认领后缀。
@@ -10,10 +10,10 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
 
 | DLL | 版本 | 认领后缀 | Gitee | GitHub |
 |---|---:|---:|---|---|
-| `common` | 0.2.2 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.2.2/common_0.2.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/common_0.2.2/common_0.2.2.zip) |
-| `modern` | 0.3.0 | 7 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.3.0/modern_0.3.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/modern_0.3.0/modern_0.3.0.zip) |
-| `raw` | 0.5.1 | 40 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/raw_0.5.1/raw_0.5.1.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/raw_0.5.1/raw_0.5.1.zip) |
-| `pro` | 0.2.2 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.2/pro_0.2.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.2/pro_0.2.2.zip) |
+| `common` | 0.2.3 | 31 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.3/common_0.2.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.3/common_0.2.3.zip) |
+| `modern` | 0.3.1 | 7 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.1/modern_0.3.1.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.1/modern_0.3.1.zip) |
+| `raw` | 0.5.2 | 40 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.2/raw_0.5.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.2/raw_0.5.2.zip) |
+| `pro` | 0.3.0 | 35 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.3.0/pro_0.3.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.3.0/pro_0.3.0.zip) |
 
 - 四档合计 113 个后缀；ABI 冻结 **v6**（v5 兼容：区间收载）。
 - **兼容性立约**：ABI 永远兼容旧版本 DLL——宿主升级后，已装好的旧 DLL **不需要重新编译、
