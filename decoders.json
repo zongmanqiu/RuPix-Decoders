@@ -6,13 +6,13 @@
     "abi": 6,
     "size": 1898496,
     "sha256": "f6f5e16bdc846c8f31859fd6f057f5cdd0deb56849a5c3951c6fd1b518c21cbe",
-    "released": "",
+    "released": "2026-10-28",
     "desc": "常见位图合集：照片、截图与图标",
     "formats": "jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo;png;apng;gif;tif;tiff;qoi;webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;ff;tga",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.3/common_0.2.3.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.3/common_0.2.3.zip"
   },
   {
     "id": "modern",
@@ -21,13 +21,13 @@
     "abi": 6,
     "size": 7743488,
     "sha256": "da15b89dac0192954681ab6093805707044ca604ed6309a7f5f369fd5c19537f",
-    "released": "",
+    "released": "2026-10-28",
     "desc": "现代格式：手机照片与高效压缩图像",
     "formats": "heic;heif;hif;avif;avifs;jxl;jng",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.1/modern_0.3.1.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.1/modern_0.3.1.zip"
   },
   {
     "id": "pro",
@@ -36,13 +36,13 @@
     "abi": 6,
     "size": 8401920,
     "sha256": "de9f5a72334798bf19d88baff9f55b915428b4beefedfa3c2ea36c072025779d",
-    "released": "",
+    "released": "2026-10-28",
     "desc": "专业格式：医学/科学影像与设计源文件",
     "formats": "jp2;j2k;j2c;jpc;jpx;jpf;jpt;jxr;wdp;hdp;exr;ktx;ktx2;dcm;dicom;nii;nrrd;mrc;mrcs;ccp4;map;pcx;pcc;dcx;icns;wbmp;xbm;xcf;wmf;ase;aseprite;djvu;djv;psd;hdr",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.3.0/pro_0.3.0.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.3.0/pro_0.3.0.zip"
   },
   {
     "id": "raw",
@@ -51,12 +51,12 @@
     "abi": 6,
     "size": 12010496,
     "sha256": "2558b4cb7cb5dbe7478e1fb36f59511d7c8255a2e1f1601ed1b9ab4fd13dca59",
-    "released": "",
+    "released": "2026-10-28",
     "desc": "相机 RAW 与裸像素/YUV 数据",
     "formats": "3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f;rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.2/raw_0.5.2.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.2/raw_0.5.2.zip"
   }
 ]
