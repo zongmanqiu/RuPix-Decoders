@@ -88,21 +88,34 @@
 
 ## 二、ABI 版本冻结（改 = 事故，须用户拍板）
 
-- **现状（实读）**：`IV_ABI_VERSION = 5`（`abi/src/lib.rs`），abi crate 版本 **0.5.0**。
-  发布产物 **4 档**（abi5）：`common` = **0.2.2**（33 后缀）、`modern` = **0.2.0**（6 后缀）、
-  `raw` = **0.5.0**（40 后缀，含 rawpx 并入）、`pro` = **0.2.1**（33 后缀）。
+- **现状（实读）**：`IV_ABI_VERSION = 6`（`abi/src/lib.rs`），abi crate 版本 **0.6.0**；
+  下界仍是 `MIN_ABI_VERSION = 5`（v5 是签名冻结下界，v6 只做加法 ⇒ v5 老 DLL 不重编照常收载）。
+  发布产物 **4 档**（abi6）：`common` = **0.2.3**（31 后缀）、`modern` = **0.3.1**（7 后缀）、
+  `raw` = **0.5.2**（40 后缀，含 rawpx 并入）、`pro` = **0.3.0**（35 后缀）。
   单库 **22 枚**住 `workspace/singles/`（不发布）：11 枚通用 + 11 枚 `pro-*`。
   **四档发布 DLL 纯 Rust、零 C 编译依赖**；单库 `workspace/singles/core` 默认 `webp-c`
   仍链 `libwebp-sys2`（C，仅 bench/A-B 用，不进发布档）。
 - **宿主收载是区间判定**：`MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION`，出界一律拒载。
+- **★ 兼容性立约（永久条款，2026-10-28 用户拍板）**：**ABI 永远兼容旧版本 DLL；
+  新 ABI 不得影响旧 DLL 的运行** ⇒ 宿主升级后，用户机器上的旧 DLL **不需要重编、
+  不需要重传**。四条不可违反：(a) 已发布导出名/参数/返回类型、`#[repr(C)]` 结构体
+  字段、`ERR_*`/`PF_*`/`CAP_*`/`REQ_*` 编号**只增不改号**；(b) 新能力只走「新可选导出 +
+  新结构体 + 新位/新值」，宿主探测缺席 = 缺能力、不是错误；(c) `MIN_ABI_VERSION`
+  **永不抬**（现 5），`IV_ABI_VERSION` 只增不减；(d) 宿主不得因升级改变既有导出的
+  调用语义。**"改结构体然后 bump"这条路已禁止**（它会作废全部旧 DLL）。
+  机器门禁：`tools/check_abi_freeze.py` + 冻结基线 `tools/abi_freeze.txt`
+  （导出签名 / 结构体字段 / 布局 / 常量值 / 版本单调），已接进 `workspace/build.ps1`；
+  **改既有条目即红灯**，新增条目绿灯并提示 `--update` 重新冻结。
 - **冻结规则**：不改结构体布局、不改错误码编号、不改既有字段语义与像素格式取值；
-  新增**可选导出**（如 `iv_render_raw` / `iv_metadata`）不 bump 版本；bump = 宿主与全部解码器同步重发，**必须用户拍板**。
+  新增**可选导出** / 新结构体 / 新位值一律不 bump 版本（纯加法）；**「改既有条目 + bump
+  重发」这条路已按上面的兼容性立约禁止**（唯一历史断点是 v5 改名）。
   布局靠 `size_of` 编译期断言钉死，**禁止任何手抄副本**。
 - **第二条可选导出（2026-10-18）**：`iv_caps()` 返回**解码能力位图** `CAP_*`（规范 §十三）。
   宿主从此按 `(后缀, 解码类型)` 路由，`ext_claims_are_unique` 的归属判据也跟着升级——
   同一后缀由同一枚解码器按类型分派属正当，不是"重叠认领"。**结构体仍然一个字都不许加**
   （实测：往末尾追加字段会让宿主对旧 DLL 越界读，12/12 读到相邻 `.data` 的垃圾值）。
 - **第三条可选导出（2026-10-26）**：`iv_metadata()` 返回可扩展键值表 `IvMetadata`；新字段只追加 key/value，不改 `IvDecoderInfo`、不 bump ABI。`version` / `author` / `license` / `released` 键分别给出 DLL 版本、作者、许可证与发布日期（规范 §十四）。
+- **第四类能力：ABI v6 区域渲染（2026-10-28 起）**：新增可选导出 iv_render_region、IvRegionReq、CAP_REGION。iv_export_svg 只作为冻结历史符号保留，宿主已不再调用；CAP_VECTOR 不再与它绑定。区域语义、字体硬要求、默认接格式策略、验收清单见 docs/vector-decoder.md；**矢量解码器不需要改宿主**。
 - **契约交付 = 快照机制**（拆仓后唯一的同步面，**没有同步脚本**）：改完 `abi/src/lib.rs`，
   把它**逐字节复制**到 RuPix 宿主仓库的 `main/vendor/rupix-abi/src/lib.rs`（覆盖，不编辑）。
   宿主仓库在哪里由维护者掌握，本仓库不写死路径，也不放任何往宿主里写的脚本。
@@ -169,7 +182,7 @@
   （每枚一个 release）。`gitee` / `released` 由人填、生成器**原样保留**；`github` 默认由
   `gitee` 推导（`derive_github_url`：**主机名与 owner 一起换**——Gitee `qiuzongman` /
   GitHub `zongmanqiu` 不是同一用户名），可用 `--set-github-url` 覆盖。GitHub 侧也要上传
-  同一批 release；未上传前该列会 404，由 `check_urls.py` 如实报。缺 `gitee` 的项在收尾
+  同一批 release；资产由人工上传，本地不做网络校验。缺 `gitee` 的项在收尾
   列成 `MISSING gitee`，`released` 也随之为空。
 - **发布清单 = `workspace/decoders/` 下的目录，别的不算**：`build.ps1` 按
   `workspace/decoders/*` 枚举，`make_index.py` 也只收这里存在的 id。这里**只放档**
@@ -195,9 +208,9 @@
 
 - 位置：`testdata/make_samples.py`。`testdata/` 有**两半**，划分标准是"能不能用脚本算出来"：
   `make_samples.py` 生成的 1/10/100 MiB 雪花样本 **不入库**（写 `../.temp/testdata/`）；
-  `testdata/golden/` 里 **29 个** golden / 边界证物（**449 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
+  `testdata/golden/` 里 **31 个** golden / 边界证物（**456 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
   引用路径见 `testdata/README.md`。入库判据不是"绝对造不出来"（实测：12 个真造不出——4 枚真机 RAW、
-  5 枚 AVIF、2 枚 JXL、1 枚公版 DjVu；另 17 个能造，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
+  5 枚 AVIF、2 枚 JXL、1 枚公版 DjVu；另 18 个能造 + 1 个 CC0 HEIC，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
   同一个字节永远对应同一个断言，换 Pillow 版本重生成就可能漂移、测试静默变松。
 - **按后缀生成一份，不按解码器**：一个后缀只有一枚认领者（`check_deps.py` 守着），所以
   "JPEG 的测试图"对谁都是同一份字节；按解码器各存一份会让同一张 100 MB 图存在十几份并各自漂移。
@@ -279,7 +292,7 @@
 5. 每个单库带**盲点单测**：截断文件、畸形头、超 `budget_bytes`、`ext = NULL` 只按魔数认领
    （无魔数格式必须返回 0）、越界 / 菱形结构（见 §五）。**并且档里要有一条端到端**
    （探针 + 两阶段渲染 + 让位/路由，如 `workspace/decoders/common` 的
-   `psd_and_hdr_render_through_the_merged_entry_point`）——只验单库不知道档有没有接上。
+   `pro` 的 `psd_and_hdr_render_through_the_pro_entry_point`）——只验单库不知道档有没有接上。
    ★ 需要**样本文件**时放 `testdata/golden/`（全仓共享，按后缀共享），**不要**放进
    `workspace/singles/<id>/` 或 `workspace/decoders/<id>/`——同一后缀只有一枚认领者，换库时样本不该跟着丢；
    `include_bytes!` 用 `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")` 引用。
@@ -307,7 +320,7 @@
 |---|---|
 | **无魔数 / 裸数据**（`.raw`、`.yuv` 这类没有文件头的） | 提供 `iv_render_raw` **可选导出**，宽高 / 布局由宿主向用户收集后传入。规范 §十二，参考实现 `workspace/singles/rawpx`（现由 `raw` 档转发）。可选导出不 bump ABI 版本。 |
 | **形态 A：内嵌单头 / 静态 C 库** | ① C 源放**仓库外** `../.3rd/<name>-<ver>/`，带 `LICENSE` + `SOURCE.md`（见 `.3rd/README.md`）；② `[build-dependencies] cc`；③ `build.rs` 里 **`opt_level(3)` 必须显式设**（Rust profile 管不到 cc）；④ 目标目录用 `ancestors()` 上溯到仓库上一级（`RUPIX_3RD_DIR` 可覆盖），**禁止 `canonicalize()`**（Windows verbatim `\\?\` 路径 cl.exe 不认，K34）；⑤ Rust 侧只写 `extern "C"` 薄封装。历史首例 `stb` 已于 2026-10-25 被纯 Rust 的 `psd`+`hdr` 替掉，当前无现役样本。 |
-| **形态 B：原生 C/C++ DLL** | 目录里放 `CMakeLists.txt`（`project(<id> VERSION x.y.z)`），`build.ps1` 自动识别并走 CMake + ctest 子构建；版本从 `project()` 读。C 侧用 `abi/c/rupix_decoder_kit.h`（自带 `_Static_assert` 布局钉子，漂移直接编译失败），并跑 `abi/c/abi_probe.c` 复核（`cl /std:c11`，应打印 `info=48 req=24 out=48 abi=5`；
+| **形态 B：原生 C/C++ DLL** | 目录里放 `CMakeLists.txt`（`project(<id> VERSION x.y.z)`），`build.ps1` 自动识别并走 CMake + ctest 子构建；版本从 `project()` 读。C 侧用 `abi/c/rupix_decoder_kit.h`（自带 `_Static_assert` 布局钉子，漂移直接编译失败），并跑 `abi/c/abi_probe.c` 复核（`cl /std:c11`，应打印 `info=48 req=24 out=48 abi=6`；
   探针 exe 落系统临时目录，别写进源码仓库）。 |
 | **多帧动画**（GIF 类） | 实现 `frame_index` 帧选择 + `frame_count` / `frame_delay_ms` 回填（abi v3 语义）。 |
 | **多页 / 子图**（TIFF 多页、ICO 尺寸档、MPO 双目、DDS mip） | 用 `page_index` 请求 + `page_count` 回填；ICC 走 `icc_len` 附加段（v4 引入，v5 保留）。 |
@@ -331,7 +344,6 @@
 | 手动测试（单库） | `cd workspace/singles` → `cargo test --release --workspace -- --test-threads=1` | 全绿；单库不发布，但档的成员全靠它们，必须同步验 |
 | 产物 | 检查发布目录与宿主解码器目录 | 仅 `<id>_<ver>.dll`，同 id 一份，命名合规 |
 | 清单 | `py tools\make_index.py` | 一项一枚 DLL（顶层就是数组）；id/abi/name/formats 与 DLL 自述逐一对齐、无重复 id，`decoders.json` 落盘；`gitee` 人工维护、`github` 由 gitee 推导（主机名 + owner）、缺 gitee 地址在收尾列成 `MISSING gitee` |
-| 地址 | `py tools\check_urls.py` | 把清单里的地址真下载一遍，核对 `Content-Length` 与实收字节数是否等于清单 `size`；404 或对不上即判红（未发布条目只提示、不判红） |
 | 格式化 | `cargo fmt --check` | exit 0 |
 | Lint | `cargo clippy --all-targets --workspace --release -- -D warnings` | exit 0。**必须带 `-D warnings`**：不带时 clippy 打完警告照样返回 0，等于没有门禁 |
 | 宿主侧门禁（并排开发时） | `python <宿主>/build/layering_scan.py`、`python <宿主>/build/hygiene_scan.py` | 两条 `violations: 0` |

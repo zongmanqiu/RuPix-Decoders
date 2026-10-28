@@ -37,7 +37,7 @@
   **物理上不可能发生**，不需要靠纪律维持。
 - **你可以手改**：`gitee`、`github`、`released`。生成器没有网络，无从判断某个 release
   到底存不存在，所以它**不臆造地址**：缺 gitee 地址的项 `gitee` 留空，收尾会列成
-  `MISSING gitee`，由 `tools/check_urls.py` 真下载一遍核对。手填过的地址会被**原样保留**。
+  `MISSING gitee`；资产由人工上传，本仓不做网络校验。手填过的地址会被**原样保留**。
   `github` 默认按 gitee 推导（`derive_github_url`：**主机名和 owner 一起换**——Gitee
   `qiuzongman` / GitHub `zongmanqiu` 不是同一用户名，只换主机名会得到 404）。显式填了
   就覆盖推导值（`--set-github-url <id>=<url>`）。

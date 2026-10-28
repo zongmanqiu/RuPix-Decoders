@@ -1,26 +1,27 @@
-# `modern` —— 现代格式合并档（HEIC / HEIF / AVIF / JPEG XL）
+# `modern` —— 现代格式合并档（HEIC / HEIF / AVIF / JPEG XL / JNG）
 
-一枚 DLL 认领 6 个后缀：`heic heif hif avif avifs jxl`。
-成员两个：`av`（HEIC/HEIF + AVIF，`heif-oxide` + `zenavif`）与 `jxl`（`jxl-oxide`）。
+一枚 DLL 认领 7 个后缀：`heic heif hif avif avifs jxl jng`。
+成员三个：`av`（HEIC/HEIF + AVIF，`heif-oxide` + `zenavif`）、`jxl`（`jxl-oxide`）与 `jng`（JPEG + PNG alpha）。
 
 > 发布形态：`build.ps1` 产出 `modern.dll`，发布名 `modern_<ver>.dll`。
 > 单库 `av` / `jxl` 不再发布——它们在 `workspace/singles/` 里保留，只作 bench 与 A/B 的参考实现。
 
-## 为什么这两个放一起
+## 为什么放在一起
 
 1. **崩溃域要与日常格式隔开**：`heif-oxide` 0.1.x、`jxl-oxide` 0.12.x 是整批库里最年轻的两个，
-   一张坏 HEIC 三振出局，不该连累 `common` 那 33 个后缀；
+   一张坏 HEIC 三振出局，不该连累 `common` 那 31 个后缀；
 2. **低频但强绑定**：会打开 HEIC 的人几乎一定也会碰到别人发来的 JXL，反之亦然；
 3. 同属"现代容器 + 现代编码"，将来接 AVIF 序列 / JPEG XL 动画时同族共享解析。
 
 ## 认领（`iv_probe`）
 
-`iv_probe` 让两个成员各跑一遍探针，对外报**最高**的那个置信度（认=100，不认=0）：
+`iv_probe` 让三个成员各跑一遍探针，对外报**最高**的那个置信度（认=100，不认=0）：
 
 | 成员 | 认什么 | 置信度 |
 |---|---|---|
 | `av` | ISOBMFF 容器里的 `heic/heif/hif/avif/avifs`（按 `ftyp` 品牌） | 100 |
 | `jxl` | JXL 的两种容器：裸 codestream（`0xFF0A`）与 ISOBMFF 封装 | 100 |
+| `jng` | JNG 签名 `8B 4A 4E 47 0D 0A 1A 0A` | 100 |
 | 其它 | — | 0 |
 
 合并解码器对外只有一个身份，"我有多确定"必须取最确定的那个——否则一个报 100 的成员
@@ -40,12 +41,17 @@
 只声明 `CAP_FULL`：HEIC/AVIF/JXL 都是预测编码，没有"解码期降采样"的口子
 （不给按 1/2、1/4 少算的机会），所以缩放一律交给基座 `core::geometry`。
 
+JNG 当前只实现 **8-bit JPEG + PNG alpha**；`JHDR` 的 12/20-bit 样本返回
+`ERR_UNSUPPORTED`。`JDAA` JPEG-alpha 分支已实现但还没有独立 fixture；
+已入库的 `jng_64x48_alpha.jng` 覆盖 PNG-alpha。
+
 ## 构建
 
 ```powershell
 # 单库（singles 参考实现；不是发布物）——必须从 workspace/singles/ 目录跑
 cd ..\..\singles
 cargo build -p rupix-av --release
+cargo build -p rupix-jng --release
 cargo build -p rupix-jxl --release
 
 # 发布档：从仓库根跑（与 common/raw 同一个 workspace）
@@ -54,8 +60,8 @@ cargo build --release -p rupix-modern
 cargo test  --release -p rupix-modern -- --test-threads=1
 ```
 
-测试：`claims_only_its_own_six_suffixes`（探针）、
-`both_members_render_through_one_entry_point`（两阶段，两个成员各一张）、
+测试：`claims_only_its_own_seven_suffixes`（探针）、
+`all_members_render_through_one_entry_point`（两阶段，三个成员各一张）、
 `unknown_bytes_are_not_claimed_and_not_rendered`（不认就不解）。
 
 ## 历史

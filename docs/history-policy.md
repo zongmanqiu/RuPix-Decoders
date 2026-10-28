@@ -11,7 +11,7 @@
 
 - `HISTORY.md` 的标题版本 = `workspace/decoders/<id>/Cargo.toml` 的 `[package] version`。
 - 标题日期 = 该版本发布日；必须与 `decoders.json` 的 `released` 一致。
-- ABI = `abi/src/lib.rs` 的 `IV_ABI_VERSION`（当前 5）。
+- ABI = `abi/src/lib.rs` 的 `IV_ABI_VERSION`（当前 6）。
 - 版本号只在 `Cargo.toml` 改；`HISTORY.md` 跟着加条目，不复制版本号到别处。
 
 ## 发布状态不写进历史

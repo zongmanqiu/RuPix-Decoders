@@ -16,7 +16,7 @@
 | `testdata/GENERATION_EXCEPTIONS.md` | 无法生成/公开的格式增删 | `manual` + `testdata/tests` |
 | `docs/releasing.md` | 版本/tag/镜像/清单回填机制变化 | `manual`（发布演练）；步骤以 `开发指南.md` §四为准 |
 | `docs/testing.md` | 测试分层、串行原因、样本、bench 口径变化 | `build.ps1` + `manual` |
-| `docs/catalog.md` | `decoders.json` 字段、镜像 URL、生成器行为变化 | `make_index.py` + `check_urls.py`（有网） |
+| `docs/catalog.md` | `decoders.json` 字段、镜像 URL、生成器行为变化 | `make_index.py` |
 | `docs/contributing.md` | 新增/修改解码器步骤、特殊形态、文档同步清单变化 | `manual`（评审） |
 | `docs/history-policy.md` | 历史粒度、格式、版本语义、禁写状态/上传/tag 规则变化 | `check_history.py` |
 | `docs/pitfalls.md` | 新增本仓专属坑；编号只增不改 | `manual`（评审） |
@@ -31,7 +31,7 @@
 | `testdata/README.md` | golden / 生成样本的分工、引用方式变化 | `manual` |
 | `testdata/claims.tsv` | 认领后缀增删、成员归属、证据状态变化 | `check_claims.py` |
 | `THIRD-PARTY-NOTICES.md` | 依赖/许可证/版本变化 | `manual` + `cargo metadata` |
-| `decoders.json` | 版本、字节数、发布状态、地址变化 | `make_index.py` + `build.ps1` 新鲜度检查 + `check_urls.py` |
+| `decoders.json` | 版本、字节数、发布状态、地址变化 | `make_index.py` + `build.ps1` 新鲜度检查 |
 | `workspace/.cargo/config.toml` / `workspace/singles/.cargo/config.toml` / `workspace/decoders/pro/.cargo/config.toml` | target-dir 变化 | `build.ps1` 实跑 |
 | `build.ps1` / `tools/*` | 流水线、门禁、工具链变化 | 自跑 + 故意注入违规验证 |
 

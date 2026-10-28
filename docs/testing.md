@@ -25,7 +25,7 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 样本
 
-- `testdata/golden/`：29 个 golden / 边界证物（449 KB）**入库**，以编译期
+- `testdata/golden/`：31 个 golden / 边界证物（456 KB）**入库**，以编译期
   `include_bytes!` 为主；`av` 与 `raw` 的少数用例运行时读取。引用路径：
   `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")`。
 - `testdata/make_samples.py`：生成 1/10/100 MiB 雪花样本，**不入库**，写
@@ -40,7 +40,7 @@ cargo test --release --workspace -- --test-threads=1
 `build.ps1` 当前执行：`fmt` → `check_docs` → `check_history` → `check_abi_refs` → `check_deps` →
 `check_deps_direction` → `check_workspace_config` → `check_caps` → `check_claims` →
 `make_samples.py --check` → `check_secrets` → `check_licenses` → `clippy -D warnings` → 三图 build/test。
-`check_urls` 是发布门禁（需网络），不在离线路径里；`check_anchors` 是 advisory，恒 exit 0。
+`check_anchors` 是 advisory，恒 exit 0；本仓不做联网下载校验。
 
 证据规则：
 
@@ -56,7 +56,7 @@ cargo test --release --workspace -- --test-threads=1
 
 - `verified` 的证据是 `golden:<file>`（文件存在且被 `.rs` 引用）或
   `tests:<workspace/singles package>`（该包至少一个 `#[test]`）；
-- `unverified` 必须写原因；当前缺口是 `.heic/.heif/.hif`、相机 RAW 的 29 个后缀（含 `.raw`）、`.ff`；
+- `unverified` 必须写原因；当前缺口是相机 RAW 的 29 个后缀（含 `.raw`）、`.ff`；
 - 新增后缀不在台账里 = 门禁红；台账里多出未认领后缀 = 门禁红。
 
 ## bench 口径
@@ -69,7 +69,7 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 已知空白
 
-- `heic/heif/hif` 当前无 golden 夹具；29 个 golden 均至少被一处 `.rs` 引用。先补最少证物，或在
+- `heic/heif/hif` 已有 CC0 HEIC golden；31 个 golden 均至少被一处 `.rs` 引用。先补最少证物，或在
   文档中明确标为未验证（现已登记在 `claims.tsv`）。
 - `raw` 的 64 MP 闸只在查询阶段检查；宿主跳过查询直接渲染可绕过。没有真机样本
   可验，登记而不改。

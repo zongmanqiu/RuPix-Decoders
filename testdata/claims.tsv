@@ -8,14 +8,15 @@ common	png	png	verified	golden:red_1x1.png	1x1 RGBA PNG
 common	gif	gif	verified	golden:anim_2x2_2f.gif	2-frame GIF
 common	tiff	tif;tiff	verified	golden:cmyk_8x8.tif	CMYK / 16-bit / palette fixtures in tests
 common	qoi	qoi	verified	tests:rupix-qoi	inline QOI codec tests
-common	psd	psd	verified	golden:psd_red_2x2.psd	2x2 PSD
-common	hdr	hdr	verified	golden:hdr_red_2x2.hdr	2x2 Radiance HDR
+pro	psd	psd	verified	golden:psd_red_2x2.psd	2x2 PSD; moved from common 2026-10-28 (classification: professional creation/HDR)
+pro	hdr	hdr	verified	golden:hdr_red_2x2.hdr	2x2 Radiance HDR; moved from common 2026-10-28 (classification: professional creation/HDR)
 common	core	apng;webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;tga	verified	tests:rupix-core	CUR reuses ICO type 2; ANI parses RIFF/ICO frames
 common	core	ff	unverified	-	no image-rs magic and no .ff fixture; core has no ext path
-modern	av	heic;heif;hif	unverified	-	no HEIC/HEIF fixture; only AVIF is covered
+modern	av	heic;heif;hif	verified	golden:heic_640x480.heic	CC0 HEIC fixture from loremfile.dev/heic/640x480.heic; HEIF/HIF aliases share the container
 modern	av	avif;avifs	verified	golden:1x1_red.avif	1x1/4x4/gray/alpha/rotation AVIF fixtures
+modern	jng	jng	verified	golden:jng_64x48_alpha.jng	JPEG image with PNG alpha mask
 modern	jxl	jxl	verified	golden:1x1_red.jxl	codestream and container fixtures
-raw	rawler	3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f	unverified	-	probe/decode only on .temp/raw-samples; committed RAW golden is sniff-only
+raw	rawler	3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f	unverified	-	29 local seeds in .temp/corpus/raw; 26 have CC0 sources, crm/dcs/qtk have no explicit redistribution grant; committed RAW golden is sniff-only; see testdata/RAW-CORPUS.md
 raw	rawpx	rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy	verified	tests:rupix-rawpx	11 parameterized raw-pixel suffixes; .raw is counted in the camera group
 pro	pro-jp2	jp2;j2k;j2c;jpc;jpx;jpf;jpt	verified	tests:rupix-pro-jp2	member tests; no per-suffix golden
 pro	pro-jxr	jxr;wdp;hdp	verified	golden:jxr_rgb_64x64.jxr	no-alpha RGB decode; WDP/HDP aliases share the same bytes

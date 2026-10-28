@@ -20,6 +20,7 @@
 | 文件 | 职责 |
 |---|---|
 | [`architecture.md`](architecture.md) | 三个 workspace、档 vs 单库、路由、ABI 快照、边界 |
+| [`vector-decoder.md`](vector-decoder.md) | 矢量解码器（ABI v6）：区域渲染、字体、默认接格式、验收 |
 | [`building.md`](building.md) | 工具链、target 目录、`build.ps1` 顺序、profile、形态 A/B |
 | [`releasing.md`](releasing.md) | 版本、tag、双镜像上传、清单回填、发布顺序 |
 | [`testing.md`](testing.md) | 串行测试、单测/端到端、golden、bench 口径、证据规则 |

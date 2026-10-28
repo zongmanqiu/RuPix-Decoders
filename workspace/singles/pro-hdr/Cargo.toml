@@ -1,5 +1,5 @@
 [package]
-name = "rupix-hdr"
+name = "rupix-pro-hdr"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0"
@@ -7,7 +7,7 @@ description = "RuPix 解码器：Radiance HDR（image 的 hdr feature，float �
 
 [lib]
 # 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
-name = "hdr"
+name = "pro_hdr"
 crate-type = ["cdylib", "rlib"]
 
 [features]

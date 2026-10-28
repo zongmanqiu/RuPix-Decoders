@@ -29,7 +29,7 @@ export_decoder! {
     id: "common",
     name: "Common Raster Set",
     extensions: "jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo;png;apng;gif;tif;tiff;qoi;\
-webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;ff;tga;psd;hdr",
+webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;ff;tga",
     description: "常见位图合集：照片、截图与图标",
     is_vector: 0,
     has_alpha: 1,
@@ -41,7 +41,7 @@ webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;ff;tga;psd;hdr",
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.2.2",
+    "version" => "0.2.3",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
     "released" => "2026-10-28",
@@ -76,19 +76,6 @@ static MEMBERS: &[Member] = &[
         id: "qoi",
         probe: qoi::probe_impl,
         render: qoi::render_impl,
-    },
-    // PSD/HDR 是 2026-10-25 晚替掉 stb 的纯 Rust 成员：
-    //   psd = zune-psd（头）+ 解码器自足的像素解码；
-    //   hdr = image 的 hdr feature（Radiance RGBE → 线性 f32 → u8）。
-    Member {
-        id: "psd",
-        probe: psd::probe_impl,
-        render: psd::render_impl,
-    },
-    Member {
-        id: "hdr",
-        probe: hdr::probe_impl,
-        render: hdr::render_impl,
     },
     // 通用兜底放最后：它报 50，本来就压不过报 100 的冠军；放最后只是让同分时
     // "专才优先"，也方便出问题时一眼看出兜底有没有接住。
@@ -130,16 +117,6 @@ mod tests {
     const PNG: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../testdata/golden/red_1x1.png"
-    ));
-    /// PSD/HDR 的共享证物（2026-10-25 新增，52B / 61B，都是 2×2 纯红）：
-    /// 它们替掉 stb 后必须能从合并入口一路走到成员，不能只验证单库。
-    const PSD: &[u8] = include_bytes!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../testdata/golden/psd_red_2x2.psd"
-    ));
-    const HDR: &[u8] = include_bytes!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../testdata/golden/hdr_red_2x2.hdr"
     ));
     /// CMYK TIFF：`tiff` crate 拒收（报 UNSUPPORTED），`image` 能解。
     /// 这是让位链唯一的现成自然样本。
@@ -214,23 +191,6 @@ mod tests {
             e,
         );
         (code, info, buf)
-    }
-
-    #[test]
-    fn psd_and_hdr_render_through_the_merged_entry_point() {
-        for (bytes, ext) in [(PSD, "psd"), (HDR, "hdr")] {
-            // 两者都靠魔数认领：ext 传 NULL 也必须报 100（合并后宿主按
-            // (后缀, 能力) 路由，但嗅探路径不能退化）。
-            assert_eq!(probe(bytes, None), 100, "{ext}: 魔数认领失败");
-            assert_eq!(probe(bytes, Some(ext)), 100, "{ext}: 后缀认领失败");
-            let (code, info, px) = render(bytes, Some(ext));
-            assert_eq!(code, ERR_OK, "{ext}: 合并入口渲染失败");
-            assert_eq!((info.actual_w, info.actual_h), (2, 2));
-            assert!(
-                px.chunks_exact(4).all(|p| p == [255, 0, 0, 255]),
-                "{ext}: 2×2 应全为纯红"
-            );
-        }
     }
 
     #[test]

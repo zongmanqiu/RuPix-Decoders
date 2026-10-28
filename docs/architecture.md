@@ -57,13 +57,16 @@
 
 ## ABI 快照
 
-- 契约真源：`abi/src/lib.rs`（`IV_ABI_VERSION`，当前 5）。
+- 契约真源：`abi/src/lib.rs`（`IV_ABI_VERSION`，当前 6）。
 - 宿主侧：`main/vendor/rupix-abi/src/lib.rs`，是**逐字节快照**，不是 path 依赖。
 - 同步动作只有一个：改完上游后，把 `abi/src/lib.rs` **整份复制**覆盖宿主快照。
   两边都不放同步脚本；宿主守卫测试逐字节比对，漂移会红。
 - 改布局、错误码编号、既有字段语义 = bump，必须用户拍板；新增可选导出不 bump。
 - 可扩展信息走可选导出 `iv_metadata()` 的键值表（`license` 等）；加字段只追加 key/value，
   不改 `IvDecoderInfo`，不 bump ABI。
+- 矢量档可另实现可选导出 `iv_export_svg()`（规范 §十五）：把矢量场景交成 **UTF-8 SVG
+  文本字节**（两阶段同 `iv_render`：`out=NULL` 查询回填 `needed` 字节数，第二次真写），
+  宿主缓存后用自家 resvg 按视口重渲；成员级矢量声明走 `iv_metadata` 的 `vector_exts` 键。
 - 结构体布局靠编译期 `size_of` 断言钉死；禁止手抄副本。
 
 ## 边界

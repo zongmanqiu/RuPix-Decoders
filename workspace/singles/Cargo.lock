@@ -2131,7 +2131,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-abi"
-version = "0.5.0"
+version = "0.6.0"
 
 [[package]]
 name = "rupix-av"
@@ -2165,11 +2165,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "rupix-hdr"
+name = "rupix-jng"
 version = "0.1.0"
 dependencies = [
- "image",
+ "crc32fast",
+ "png 0.18.1",
  "rupix-abi",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -2238,6 +2241,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rupix-pro-hdr"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "rupix-abi",
+]
+
+[[package]]
 name = "rupix-pro-jp2"
 version = "0.1.0"
 dependencies = [
@@ -2263,6 +2274,15 @@ dependencies = [
  "rupix-abi",
  "rupix-pro-support",
  "texture2ddecoder",
+]
+
+[[package]]
+name = "rupix-pro-psd"
+version = "0.1.0"
+dependencies = [
+ "rupix-abi",
+ "zune-core",
+ "zune-psd",
 ]
 
 [[package]]
@@ -2297,6 +2317,7 @@ dependencies = [
 name = "rupix-pro-wmf"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "resvg",
  "rupix-abi",
  "rupix-pro-support",
@@ -2310,15 +2331,6 @@ dependencies = [
  "rupix-abi",
  "rupix-pro-support",
  "xcf",
-]
-
-[[package]]
-name = "rupix-psd"
-version = "0.1.0"
-dependencies = [
- "rupix-abi",
- "zune-core",
- "zune-psd",
 ]
 
 [[package]]

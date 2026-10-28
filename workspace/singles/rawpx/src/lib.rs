@@ -385,7 +385,7 @@ mod tests {
     /// 跨边界结构体长度必须与宿主冻结一致（照 qoi 的同款断言）。
     #[test]
     fn abi_layout_asserts_hold() {
-        assert_eq!(IV_ABI_VERSION, 5);
+        assert_eq!(IV_ABI_VERSION, 6);
         assert_eq!(std::mem::size_of::<IvRenderReq>(), 24);
         assert_eq!(std::mem::size_of::<IvRenderOut>(), 48);
     }

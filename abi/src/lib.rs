@@ -21,6 +21,29 @@
 //! 换了字段类型，立刻炸在编译期，而不是发出一份布局对不上的 `bytes_needed`、
 //! 让宿主按错误长度分配缓冲、再由解码器越界写。
 //!
+//! # 兼容性立约（永久条款，2026-10-28 用户拍板）
+//!
+//! **ABI 永远兼容旧版本 DLL；新 ABI 不得影响旧 DLL 的运行。**
+//! 推论：宿主升级以后，用户机器上已有的旧 DLL **不需要重新编译、不需要重新上传**。
+//!
+//! 可判决的五条（不是口号，`tools/check_abi_freeze.py` 逐条机器守）：
+//!
+//! 1. **已发布的东西永不修改**：导出名 / 参数顺序 / 返回类型、`#[repr(C)]` 结构体的
+//!    字段名·类型·顺序、错误码 `ERR_*`、像素格式 `PF_*`、能力位 `CAP_*`、请求位
+//!    `REQ_*` 的编号 —— **只增不改号**。
+//! 2. **新能力只能加法**：新可选导出 + 新结构体 + 新位 / 新枚举值。宿主用
+//!    `GetProcAddress` 探测，**符号缺席 = 缺该能力，不是错误**，旧 DLL 也无感。
+//! 3. **下界永不抬**：`MIN_ABI_VERSION` 永远是 5。`IV_ABI_VERSION` 只增不减。
+//! 4. **旧 DLL 的行为不因宿主升级改变**：不得要求旧 DLL 提供新导出，不得改变既有
+//!    导出的调用语义、默认 `flags` / `req` 含义、`target=0` 与 `out=NULL` 的语义。
+//! 5. **没有"破坏式 bump"这条路**：旧表曾写「改结构体 = bump 版本」，会作废全部旧
+//!    DLL，与第 1 条冲突 —— 现已**禁止**；需要新输入 / 新输出就新开一个结构体
+//!    （实例：v6 的 [`IvRegionReq`]）。
+//!
+//! 唯一例外是历史断点 **v5**（术语改名，一次性）：v4 及更早的 DLL 不兼容、必须重编；
+//! **v5 之后不再有、也不允许再出现第二处这类断点**。冻结指纹基线 =
+//! `tools/abi_freeze.txt`（与 `check_abi_freeze.py` 同目录），改既有条目即红灯。
+//!
 //! # 一处对规格的更正
 //!
 //! `docs/解码器开发规范.md` §三 里 `IvRenderReq` 的断言历史占位值 20 曾与实际不符；
@@ -57,13 +80,35 @@
 /// （[`IvMetadata`]）。新增元数据 = 往 `fields` 追加 key/value，不改自述结构体、
 /// 不改 ABI 版本；宿主读取自己认识的 key，未知 key 忽略。
 ///
+/// **v5 内可选导出（2026-10-28，不 bump 版本）**：`iv_export_svg` 把矢量场景以
+/// **UTF-8 SVG 文本字节**交出（[`IvExportSvgFn`]，规范 §十五）。两阶段缓冲与
+/// `iv_render` 同构：`out = NULL` 查询、经输出参数 `needed` 回填所需字节数，
+/// 第二次真写。宿主缓存 SVG 后用自家的 resvg 按视口重渲；合并档的成员级矢量
+/// 声明（`is_vector` 是 DLL 级单值，位图成员占多数）走 `iv_metadata` 的
+/// `vector_exts` 键（分号分隔的后缀表，如 `wmf;wmz`）。
+///
+/// **v6（2026-10-28）**：**纯增量**的一代——v5 的全部导出签名与结构体布局**逐字节不变**，
+/// 新增三样东西：
+///
+/// 1. 可选导出 `iv_render_region`（[`IvRenderRegionFn`]）：把矢量文档的**指定区域**
+///    按指定密度直接光栅化成位图。这是"矢量图放大到 4000% 也无损"的**唯一缺口**——
+///    宿主已有的可视区域重渲机制（只渲看得见的那一块，画布恒为一屏大小）在内置 resvg
+///    路线上早就跑通了，但解码器侧没有对应通道，只能整幅渲染，放大即糊。
+/// 2. 请求结构体 [`IvRegionReq`]（40 字节，新结构体，**不改任何既有结构体**）。
+/// 3. 能力位 [`CAP_REGION`]（`1 << 6`）——宿主据此知道"这枚 DLL 能按区域渲染"。
+///
+/// **v5 兼容**：宿主按 `MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION(=6)` 区间收载，
+/// v5 的老 DLL（不含 `iv_render_region`）**照常加载、照常工作**——它们只是没有区域渲染
+/// 能力（宿主探测不到符号 = 缺能力，不是错误）。v6 是**加法**，不是断点：
+/// 没有任何既有导出改过签名，也没有任何既有结构体改过字段。
+///
 /// **为什么不是给 `IvDecoderInfo` 加字段**：规范 §九 立约「v5 起已发布的导出签名与
 /// 结构体永不再改，新能力一律走新增可选导出」。实测也支持这条纪律——往结构体**末尾**
 /// 追加字段会让宿主对旧 DLL 越界读，12/12 枚现役解码器在该处读到的是相邻 `.data` 的
 /// 垃圾值（`0x74726556`、`0x61746166`…）；塞进 `abi_version` 之后的 4 字节填充虽然
 /// `size_of` 不变，但依赖"rustc 把 static 的 padding 清零"这一**实现行为**，不是语言
 /// 保证。取证与对比见结构体断言与历史测试。
-pub const IV_ABI_VERSION: u32 = 5;
+pub const IV_ABI_VERSION: u32 = 6;
 
 // 兼容性立约（规范 §九）：**自 v5 起已发布的导出签名与结构体永不再改**。
 // 新能力一律走新增可选导出（如 `iv_render_raw`），宿主探测缺席 = 缺能力。
@@ -150,7 +195,24 @@ pub const CAP_MULTIFRAME: u32 = 1 << 3;
 /// 多页 / 子图：`page_index` 选页 + `page_count` 回填有语义。
 pub const CAP_MULTIPAGE: u32 = 1 << 4;
 /// 矢量：按需重渲染（尺寸变了要能重出，不是位图放大）。
+///
+/// ★ 2026-10-28：**本能力位不再与 `iv_export_svg` 绑定**。此前规范 §十五 规定
+/// "声明 `CAP_VECTOR` 的解码器必须实现 `iv_export_svg`（把矢量场景交成 SVG 文档
+/// 给宿主渲染）"——那条"宿主自己渲染矢量"的路线已整条退役（宪章 §5.2：矢量格式
+/// 一律由解码器按目标尺寸自渲染）。本位的含义回归本义：
+/// **"这枚 DLL 提供的是矢量解码"**（整幅按 target 尺寸重画 + 有
+/// [`CAP_REGION`] 时按区域重画）。
 pub const CAP_VECTOR: u32 = 1 << 5;
+/// **区域渲染**（v6 新增）：实现了可选导出 `iv_render_region`，能把文档的**指定区域**
+/// 按指定密度直接光栅化（[`IvRegionReq`]）。
+///
+/// ★ 这一位是"矢量图放大到 4000% 也无损"的技术前提：没有它，矢量格式只能整幅渲染，
+/// 放大时上屏必然是位图插值 ⇒ 糊；有它，宿主按"只渲看得见的那一块"请求，画布恒为一屏
+/// 大小，倍率再高也顶得住（与内置 resvg 的区域重渲同一条机制）。
+///
+/// 缺席 = 不支持区域渲染：宿主**不会**对它发区域请求（按整幅路线走，行为与今天一致），
+/// **不是错误**。宿主用 `GetProcAddress` 探测符号，符号在不在与这一位互为印证。
+pub const CAP_REGION: u32 = 1 << 6;
 
 /// 请求位标志：4 = **这一次请求接受原生降采样**（配套 `CAP_SCALED`）。
 ///
@@ -172,6 +234,19 @@ pub fn caps_from_legacy(is_vector: bool, has_render_raw: bool) -> u32 {
     }
     if has_render_raw {
         caps |= CAP_RAW_PARAM;
+    }
+    caps
+}
+
+/// 推定规则的 **v6 版**：多认一个硬证据——`iv_render_region` 符号在不在。
+///
+/// 为什么能推：[`CAP_REGION`] 的含义就是"有没有这个导出"，符号在不在**就是**这件事本身，
+/// 与 `iv_render_raw` → [`CAP_RAW_PARAM`] 同性质（不是"没测当 PASS"，是"有证据"）。
+/// 宿主在 [`CAP_REGION`] 这条上仍应**宁缺勿滥**：符号探测不到就当没有，宿主据此不走区域路线。
+pub fn caps_from_legacy_v6(is_vector: bool, has_render_raw: bool, has_render_region: bool) -> u32 {
+    let mut caps = caps_from_legacy(is_vector, has_render_raw);
+    if has_render_region {
+        caps |= CAP_REGION;
     }
     caps
 }
@@ -241,6 +316,48 @@ unsafe impl Sync for MetadataHolder {}
 pub struct MetadataFields(pub &'static [IvMetadataField]);
 unsafe impl Sync for MetadataFields {}
 
+/// 可选导出 `iv_export_svg` 的函数指针类型（宿主 `lib.get::<IvExportSvgFn>(b"iv_export_svg\\0")`）。
+/// 语义全文见规范 §十五；这里只写 ABI 层的硬约定。
+///
+/// ★ **2026-10-28 起宿主不再调用这个导出**（"宿主渲染矢量"那条路线整条退役：
+/// 宪章 §5.2「矢量格式一律由解码器按目标尺寸自渲染」）。**符号与类型保留**——
+/// ABI 冻结不删符号（老解码器实现了它也不会出事：宿主只是不再探测、不再调用）。
+/// 新写的解码器**不必**实现它。
+///
+/// **两阶段缓冲（照抄 `iv_render` 的先例）**：
+///
+/// 1. **查询**：`out = NULL`（`out_cap` 忽略）。解码器把矢量场景转换成 UTF-8 SVG 文本，
+///    把所需**字节数**（不含结尾 NUL）写进 `needed`（非 NULL 时），返回 [`ERR_OK`]。
+///    失败返回错误码：`ERR_UNRECOGNIZED` = 不是本解码器声明的矢量格式；`ERR_CORRUPT`
+///    = 数据损坏；`ERR_TOO_LARGE` = 超出解码器自设的解包/尺寸上限。
+/// 2. **写入**：宿主按 `needed` 分配缓冲后再次调用（`out != NULL`）。`out_cap < needed`
+///    → [`ERR_BUFFER_TOO_SMALL`]，不写一个字节；否则把 SVG 字节写进 `out` 并再次回填
+///    `needed`（两次调用必须给出同一个数），返回 [`ERR_OK`]。
+///
+/// **语义**：
+/// - `data`/`len` 与 `iv_render` 同源（同一份文件字节）；gzip 包装（`.wmz`）由解码器自解。
+/// - 返回的 SVG 必须**自包含可独立渲染**：根元素带尺寸（width/height 或 viewBox），
+///   不依赖外部文件；文本记录保留为 `<text>` + 通用 font-family（宿主的 resvg 用
+///   系统字体渲染），解码器不承诺内嵌字体或把文本转路径。
+/// - 缓冲由**宿主分配**（规范 §五「谁分配谁释放」），解码器只写、不提供 free。
+/// - `needed == NULL` 合法（宿主已从别处知道大小时）；查询阶段传 NULL 拿不到尺寸是
+///   宿主自己的责任。
+/// - 线程模型、`iv_last_error` 与可重入性和 `iv_render` 完全相同（规范 §六之二）。
+/// - **可选性**：宿主 `GetProcAddress` 探测，缺席 = 该解码器不提供矢量导出，不是错误；
+///   不 bump [`IV_ABI_VERSION`]。只应由声明了 [`CAP_VECTOR`] 的解码器实现。
+///
+/// # Safety
+/// 跨 DLL 边界的裸指针契约：`data` 指向宿主持有的 `len` 字节；`out` 为空或指向宿主
+/// 分配的 `out_cap` 字节可写缓冲；`needed` 为空或指向一个 `usize`。有效性只有宿主
+/// 能负责（规范 §三「指针参数的所有权」），所以这是 `unsafe extern "C"`。
+pub type IvExportSvgFn = unsafe extern "C" fn(
+    data: *const u8,
+    len: usize,
+    out: *mut u8,
+    out_cap: usize,
+    needed: *mut usize,
+) -> i32;
+
 /// 渲染请求（宿主 → 解码器）。`size_of == 24`。
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -259,6 +376,96 @@ pub struct IvRenderReq {
     /// MPO 的视角、DDS 的 mip 级。单页/动画格式忽略（动画帧选 `frame_index`）。
     pub page_index: u32,
 }
+
+/// 区域渲染请求（宿主 → 解码器，v6 新增）。`size_of == 40`。
+///
+/// 这是"矢量图放大到 4000% 也无损"的**唯一通道**：宿主只请求**看得见的那一块**
+/// （视口在文档坐标里的矩形），解码器按目标像素尺寸把这块**直接光栅化**。
+/// 画布恒为一屏大小 ⇒ 倍率再高也不撞像素硬顶；线条是矢量重画 ⇒ 不是位图插值放大。
+///
+/// # 坐标语义（最容易搞错的一条）
+///
+/// `x/y/w/h` 的单位是**文档的自然像素**——与 `iv_render` 查询阶段回报的
+/// `actual_w/actual_h`（自然尺寸）**同一坐标系**。解码器内部若用别的逻辑单位
+/// （点、1/72 英寸、device unit…），**自己**换算，宿主不参与。
+///
+/// # 密度
+///
+/// 密度 = `target_w / w`（宿主已经按设备像素算好）。解码器**必须**把
+/// `(x, y, w, h)` 这一块缩进 `target_w × target_h` 的画布——即"以密度
+/// `target_w / w` 重画"，不是"先把整块渲出来再拉伸"。
+///
+/// # 两阶段
+///
+/// 与 `iv_render` 同构：`out = NULL` 是**查询**阶段（回填 `info`，不写像素），
+/// 第二次才是写入。宿主按 `bytes_needed` 一次性分配（**无重试**）。
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IvRegionReq {
+    /// 区域左上角（文档自然像素坐标）。
+    pub x: f32,
+    /// 区域左上角（文档自然像素坐标）。
+    pub y: f32,
+    /// 区域宽（文档自然像素）。
+    pub w: f32,
+    /// 区域高（文档自然像素）。
+    pub h: f32,
+    /// 输出画布宽（像素）。0 = 与 `w` 同值（1:1）。
+    pub target_w: u32,
+    /// 输出画布高（像素）。0 = 与 `h` 同值（1:1）。
+    pub target_h: u32,
+    /// 宿主给的像素预算上限（0 = 不限）。超预算 → [`ERR_TOO_LARGE`]。
+    pub budget_bytes: u32,
+    /// 位标志（[`REQ_ALLOW_SCALED`] 等；矢量路线恒 0）。
+    pub flags: u32,
+    /// 要第几帧（0 起），语义同 [`IvRenderReq::frame_index`]。
+    pub frame_index: u32,
+    /// 要第几页/子图（0 起），语义同 [`IvRenderReq::page_index`]。
+    pub page_index: u32,
+}
+
+/// 可选导出 `iv_render_region` 的函数指针类型（v6 新增）。
+///
+/// 语义与 [`IvRenderReq`] / `iv_render` 对齐，差别只有两处：
+/// - 请求体换成 [`IvRegionReq`]（带区域与目标画布）；
+/// - `info`（[`IvRenderOut`]）里的 `actual_w/actual_h` 是**本次输出画布**的尺寸，
+///   `bytes_needed` 是画布字节数（RGBA8 = w×h×4）。
+///
+/// # 必须遵守的硬约定
+///
+/// 1. **不得**"先渲整块再缩放"——那是有损插值，"不是无损放大，是伪装"。
+/// 2. **不得**擅自拉伸变形：区域比例与画布比例不一致时，等比缩进并把实际画布
+///    回填到 `actual_w/actual_h`（宿主负责补边）。
+/// 3. 区域超出文档范围的部分渲染成**透明**（alpha = 0），不要报错。
+/// 4. 同一份字节会**连续**用不同区域请求（宿主每次平移/缩放都发一次）⇒
+///    解析结果**必须在进程内缓存**，不许每次重新解析文档。
+/// 5. 线程模型、`iv_last_error`、可重入性、缓冲归属与 `iv_render` 完全相同。
+///
+/// # 字体（**硬要求**：文字必然要渲染）
+///
+/// 矢量文档里的文字**必须被渲染出来**——这是硬要求，不是可选项：
+///
+/// 1. **字体优先级**：文档内嵌字体 → 文档指定的系统字体 → 任意可用的兜底字体。
+/// 2. **绝不许**因为找不到原字体就**丢字、空字、留白或崩溃**——那等于没渲染这张图。
+/// 3. 用了兜底字体时，在 `iv_last_error` 里记一句（宿主会把这句话转达给用户，
+///    例如"文档字体 X 缺失，已用兜底字体渲染"）。
+/// 4. ★ **跨机像素差异**：兜底字体在不同机器上可能不同 ⇒ 同一文件在两台机器上的
+///    像素**可能不一致**。这是"同一文件跨机同结果"这条立宪原则的**已登记例外**
+///    （见 `.plan/m153` §7.3 的例外登记簿），**接受**它——比"缺字体就不渲染文字"好得多。
+///
+/// # Safety
+///
+/// 与 `iv_render` 同一条指针契约：`data` 指向宿主持有的 `len` 字节；`out` 为空
+/// 或指向宿主分配的 `out_cap` 字节可写缓冲；`info` 指向一个 [`IvRenderOut`]。
+pub type IvRenderRegionFn = unsafe extern "C" fn(
+    data: *const u8,
+    len: usize,
+    req: *const IvRegionReq,
+    out: *mut u8,
+    out_cap: usize,
+    info: *mut IvRenderOut,
+    ext: *const c_char,
+) -> i32;
 
 /// 渲染结果（解码器 → 宿主）。`size_of == 48`。查询阶段只回填不写像素。
 #[repr(C)]
@@ -302,6 +509,8 @@ const _: () = assert!(size_of::<IvMetadata>() == 24);
 const _: () = assert!(size_of::<IvMetadataField>() == 16);
 const _: () = assert!(size_of::<IvRenderReq>() == 24);
 const _: () = assert!(size_of::<IvRenderOut>() == 48);
+// `IvRegionReq`（v6）= 4×f32（16）+ 6×u32（24）= 40；对齐 4，无填充。
+const _: () = assert!(size_of::<IvRegionReq>() == 40);
 
 // ══ 解码器样板（kit）══════════════════════════════════════════════════
 //
@@ -551,10 +760,75 @@ macro_rules! export_metadata {
     };
 }
 
+/// 声明**矢量导出**：生成可选导出 `iv_export_svg` 的薄包装，业务在 `export_svg_impl`
+/// 这一层（与 `probe_impl` / `render_impl` 同一分层：合并档直接调 impl，不过宏）。
+///
+/// ★ **2026-10-28 起宿主不再调用 `iv_export_svg`**（"宿主渲染矢量"那条路线退役）。
+/// 这个宏**保留**（ABI 冻结不删符号），但新写的解码器不必用它——矢量格式一律
+/// 走 `iv_render`（整幅按 target）+ `iv_render_region`（ABI v6 区域重渲）。
+///
+/// ```ignore
+/// rupix_abi::export_decoder! { id, name, exts, desc, is_vector, has_alpha }
+/// rupix_abi::export_svg!(export_svg_impl);
+/// ```
+///
+/// impl 的形状就是 [`IvExportSvgFn`] 去掉 `unsafe`：指针有效性由 impl 内部的显式
+/// `unsafe {}` 负责（规范 §三），[`guard`] 照旧把 panic 拦成 [`ERR_PANIC`]。
+/// 合并档（如 pro）**不用**这个宏：它自己写 `#[no_mangle] iv_export_svg` 转发到
+/// 唯一的矢量成员，避免多份导出重名（同 `export_decoder!` 的 standalone 约定）。
+#[macro_export]
+macro_rules! export_svg {
+    ($impl:path) => {
+        /// 可选导出：矢量场景导出为 UTF-8 SVG 文本字节（语义见 `$crate::IvExportSvgFn`）。
+        #[no_mangle]
+        #[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
+        pub extern "C" fn iv_export_svg(
+            data: *const u8,
+            len: usize,
+            out: *mut u8,
+            out_cap: usize,
+            needed: *mut usize,
+        ) -> i32 {
+            $crate::guard(|| $impl(data, len, out, out_cap, needed))
+        }
+    };
+}
+
+/// 声明**区域渲染**（v6）：生成可选导出 `iv_render_region` 的薄包装，业务在
+/// `export_region_impl` 这一层（与 `probe_impl` / `render_impl` 同一分层：合并档直接调
+/// impl，不过宏）。
+///
+/// ```ignore
+/// rupix_abi::export_decoder! { id, name, exts, desc, is_vector, has_alpha }
+/// rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_REGION);
+/// rupix_abi::export_region!(export_region_impl);
+/// ```
+///
+/// impl 的形状就是 [`IvRenderRegionFn`] 去掉 `unsafe`：指针有效性由 impl 内部的显式
+/// `unsafe {}` 负责（规范 §三），[`guard`] 照旧把 panic 拦成 [`ERR_PANIC`]。
+#[macro_export]
+macro_rules! export_region {
+    ($impl:path) => {
+        /// 可选导出：把文档的指定区域按目标画布直接光栅化（语义见 `$crate::IvRenderRegionFn`）。
+        #[no_mangle]
+        #[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
+        pub extern "C" fn iv_render_region(
+            data: *const u8,
+            len: usize,
+            req: *const $crate::IvRegionReq,
+            out: *mut u8,
+            out_cap: usize,
+            info: *mut $crate::IvRenderOut,
+            ext: *const std::ffi::c_char,
+        ) -> i32 {
+            $crate::guard(|| $impl(data, len, req, out, out_cap, info, ext))
+        }
+    };
+}
+
 // ---------------------------------------------------------------------------
 // kit：EXIF 方向取值（解码器侧共用，2026-10-19 m48）
 // ---------------------------------------------------------------------------
-
 /// 从一段 EXIF / TIFF 结构里只取**方向标签** `0x0112`（`IvRenderOut::orientation` 的来处）。
 ///
 /// # 为什么值得放进 kit
@@ -827,6 +1101,8 @@ mod tests {
         assert_eq!(size_of::<IvDecoderInfo>(), 48);
         assert_eq!(size_of::<IvRenderReq>(), 24);
         assert_eq!(size_of::<IvRenderOut>(), 48);
+        // v6 新增：区域渲染请求（4×f32 + 6×u32 = 40）。
+        assert_eq!(size_of::<IvRegionReq>(), 40);
     }
 
     /// 能力位是 ABI 的一部分，和错误码同样逐个钉死——挪号等于让老解码器谎报能力。
@@ -839,9 +1115,10 @@ mod tests {
                 CAP_RAW_PARAM,
                 CAP_MULTIFRAME,
                 CAP_MULTIPAGE,
-                CAP_VECTOR
+                CAP_VECTOR,
+                CAP_REGION
             ],
-            [0b1, 0b10, 0b100, 0b1000, 0b1_0000, 0b10_0000]
+            [0b1, 0b10, 0b100, 0b1000, 0b1_0000, 0b10_0000, 0b100_0000]
         );
         // 请求位标志也在发布出去的契约里：宿主与解码器各读一半，位号一样不许挪。
         assert_eq!(REQ_ALLOW_SCALED, 0b100);
@@ -858,6 +1135,35 @@ mod tests {
                 assert_eq!(caps_from_legacy(iv, rr) & CAP_SCALED, 0);
             }
         }
+    }
+
+    /// v6 的推定规则：`CAP_REGION` 只从**符号在不在**这个硬证据来，绝不凭空出现。
+    #[test]
+    fn caps_region_only_from_symbol_evidence() {
+        assert_eq!(
+            caps_from_legacy_v6(false, false, false),
+            CAP_FULL,
+            "没有区域导出就不许有区域能力位"
+        );
+        assert_eq!(
+            caps_from_legacy_v6(false, false, true),
+            CAP_FULL | CAP_REGION
+        );
+        // 向后兼容：老函数的行为一字未变。
+        assert_eq!(caps_from_legacy_v6(true, true, false), caps_from_legacy(true, true));
+    }
+
+    /// ABI 版本区间：宿主按 `5 ≤ abi ≤ 6` 收载——**v5 的老 DLL 照常加载**。
+    ///
+    /// 这条是"v6 兼容 v5"的机器凭据：v6 是纯增量（新增导出 + 新增结构体 + 新增能力位），
+    /// v5 的签名与布局逐字节未动 ⇒ 老 DLL 不必重编就能被 v6 宿主收载。
+    #[test]
+    fn abi_v6_keeps_v5_loadable() {
+        assert_eq!(IV_ABI_VERSION, 6);
+        // 下界（宿主侧的 MIN_ABI_VERSION）与本 crate 的一致性由宿主自己的测试盯；
+        // 这里只钉"v5 在区间内"这条兼容承诺。
+        assert!((5..=IV_ABI_VERSION).contains(&5));
+        assert!((5..=IV_ABI_VERSION).contains(&6));
     }
 
     /// 错误码是 ABI 的一部分，逐个钉死——改了含义等于 bump abi，绝不能悄悄挪号。

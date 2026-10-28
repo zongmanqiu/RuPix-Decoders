@@ -2,6 +2,17 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.3.1 — 2026-10-28 — abi 6
+
+- **变更**：ABI 代次前移到 **6**。v6 是**纯加法**（新增可选导出 `iv_render_region` 与新结构体 `IvRegionReq`），既有导出签名与结构体布局**逐字节未动** ⇒ 本档的解码行为与上一版完全一致。
+- **未变**：后缀集合、像素格式、识别与容错逻辑均不变；本档不提供任何矢量能力。
+
+## 0.3.0 — 2026-10-28 — abi 5
+
+- **变更**：新增 JNG（JPEG Network Graphics）成员；JPEG 图像 + PNG 灰度 alpha。
+- **认领**：7 个后缀（heic/heif/hif/avif/avifs/jxl/jng）。
+- **证据**：`renders_jpeg_with_png_alpha`、`claims_only_its_own_seven_suffixes`、CC0 `heic_640x480.heic` golden。
+
 ## 0.2.0 — 2026-10-27 — abi 5
 
 - **变更**：DLL 自述增加可扩展 `iv_metadata()`；包格式改为 ZIP + 同版本许可证目录。

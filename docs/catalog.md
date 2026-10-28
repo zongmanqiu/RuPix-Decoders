@@ -11,7 +11,7 @@
     "id": "common",
     "name": "Common Raster Set",
     "version": "<version>",
-    "abi": 5,
+    "abi": 6,
     "size": 1234567,
     "sha256": "e3b0…",
     "released": "YYYY-MM-DD",
@@ -32,7 +32,7 @@
 | `id` | `common` | 解码器标识；宿主按它认人，不从文件名反推 |
 | `name` | `Common Raster Set` | DLL 自述名称，不是 DLL 文件名 |
 | `version` | `<version>` | DLL 版本；来自 `workspace/decoders/<id>/Cargo.toml` |
-| `abi` | `5` | ABI 大版本；宿主按区间决定收不收 |
+| `abi` | `6` | ABI 大版本；宿主按区间决定收不收 |
 | `size` | `1234567` | 字节数（示例）；下载后先按它挡截断/多收 |
 | `sha256` | `e3b0…` | DLL 的 SHA-256；与实收字节逐项核对，挡同字节数替换 |
 | `released` | `YYYY-MM-DD` | 发布时间；未发布为空串 |
@@ -70,12 +70,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1   # 先有 DLL
 py tools/make_index.py                                        # 生成 decoders.json
 py tools/make_index.py --set-url '<id>=https://…/<id>_<version>.zip'
 py tools/make_index.py --set-github-url '<id>=https://…/<id>_<version>.zip'
-py tools/check_urls.py                                        # 有网时逐条下载核对
 ```
 
-`check_urls.py` 把清单里的地址真下载一遍，核对 `Content-Length` 与实收字节数是否等于
-清单 `size`；404 或对不上即红。未发布条目只提示，不判红。它是**发布门禁**，不在
-`build.ps1` 的离线路径里。
+发布 ZIP 由人工上传；本仓不检查下载地址是否可访问，也不把网络状态纳入门禁。
 
 ## 宿主怎么消费
 
@@ -91,6 +88,6 @@ py tools/check_urls.py                                        # 有网时逐条�
 - [ ] `size` 与 `decoder-dist` 里实际 DLL 一致（重新链接会变，必须重跑生成器）。
 - [ ] 四档 id 无重复；`id` 与文件名、DLL 自述一致。
 - [ ] `abi` 在宿主接受区间内（`MIN_ABI_VERSION ≤ abi ≤ IV_ABI_VERSION`）。
-- [ ] `released` 只在资产真的可下后才填。
-- [ ] `gitee` / `github` 都实测可下；`check_urls.py` 绿。
+- [ ] `released` 只在人工上传资产后才填。
+- [ ] `gitee` / `github` 已由人工上传。
 - [ ] 同 id 在发布目录与宿主镜像目录都只留一份。

@@ -3,7 +3,7 @@ name = "rupix-raw"
 # 0.3.0 → 0.4.0（2026-10-25）：rawpx 并入本档（多一个成员、多一个可选导出
 # `iv_render_raw`、认领后缀 29 → 40）。这不是一次"合并出一个新解码器"的版本重置，
 # 而是 raw 解码器自身的功能增长，所以延续 0.3.x 的线往上跳小版本。
-version = "0.5.0"
+version = "0.5.2"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 解码器：相机 RAW（CR2/CR3/NEF/ARW/DNG/RAF 等）+ 裸像素参数化数据（raw/rgba/gray/yuv…）"

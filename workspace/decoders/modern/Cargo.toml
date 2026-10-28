@@ -1,9 +1,9 @@
 [package]
 name = "rupix-modern"
-version = "0.2.0"
+version = "0.3.1"
 edition = "2021"
 license = "AGPL-3.0"
-description = "RuPix 合并解码器：现代格式（HEIC/HEIF/AVIF + JPEG XL）"
+description = "RuPix 合并解码器：现代格式（HEIC/HEIF/AVIF + JPEG XL + JNG）"
 
 [lib]
 # 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
@@ -19,4 +19,5 @@ rupix-merge-router = { workspace = true }
 #   av  = heic（HEVC 解码，开 `av1` feature 后连 AVIF 一起解）
 #   jxl = jxl-oxide
 rupix-av = { path = "../../singles/av", default-features = false }
+rupix-jng = { path = "../../singles/jng", default-features = false }
 rupix-jxl = { path = "../../singles/jxl", default-features = false }

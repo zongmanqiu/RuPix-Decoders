@@ -592,7 +592,7 @@ mod tests {
     fn abi_layout_asserts_hold() {
         assert_eq!(size_of::<IvRenderReq>(), 24);
         assert_eq!(size_of::<IvRenderOut>(), 48);
-        assert_eq!(IV_ABI_VERSION, 5);
+        assert_eq!(IV_ABI_VERSION, 6);
     }
 
     // ── probe ────────────────────────────────────────────────────────────────

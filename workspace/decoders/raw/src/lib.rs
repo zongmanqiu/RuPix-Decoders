@@ -116,10 +116,10 @@ export_decoder! {
 rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_SCALED | rupix_abi::CAP_RAW_PARAM);
 
 rupix_abi::export_metadata! {
-    "version" => "0.5.0",
+    "version" => "0.5.2",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-27",
+    "released" => "2026-10-28",
 }
 
 const BIT_DEPTH_8: u32 = 8;
@@ -292,6 +292,10 @@ pub fn render_impl(
             }
         };
         let (rgba, w, h, orientation) = (&d.0, d.1, d.2, d.3);
+        if (w as u64) * (h as u64) > MAX_PIXELS {
+            set_last_error("图片超过 6400 万像素的解码器上限");
+            return ERR_TOO_LARGE;
+        }
         let bytes_needed = rgba.len() as u64;
         if r.budget_bytes != 0 && bytes_needed > r.budget_bytes as u64 {
             set_last_error("图片太大，超出宿主给的内存预算");

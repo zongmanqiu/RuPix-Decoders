@@ -1,6 +1,6 @@
 [package]
 name = "rupix-pro"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 专业档：JPEG2000 / JPEG XR / EXR / KTX2 / DICOM / 科学影像 / 设计/矢量"
@@ -32,6 +32,10 @@ debug = 1
 rupix-abi = { workspace = true }
 rupix-merge-router = { workspace = true }
 rupix-pro-support = { workspace = true }
+# PSD/HDR 按分类归 pro：PSD 是分层创作，HDR 是专业浮点图像。
+# 两者从 common 迁入，单库仍住 workspace/singles/。
+rupix-pro-psd = { path = "../../singles/pro-psd", default-features = false }
+rupix-pro-hdr = { path = "../../singles/pro-hdr", default-features = false }
 
 rupix-pro-jp2 = { path = "../../singles/pro-jp2", default-features = false }
 rupix-pro-jxr = { path = "../../singles/pro-jxr", default-features = false }

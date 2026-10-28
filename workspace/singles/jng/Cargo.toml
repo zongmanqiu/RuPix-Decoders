@@ -1,0 +1,21 @@
+[package]
+name = "rupix-jng"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix decoder: JPEG Network Graphics (JNG)"
+
+[lib]
+name = "jng"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+zune-jpeg = "0.5"
+zune-core = "0.5"
+png = "0.18"
+crc32fast = "1"

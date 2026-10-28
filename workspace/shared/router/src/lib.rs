@@ -47,6 +47,32 @@ pub struct Member {
     pub render: RenderFn,
 }
 
+/// 成员的 `region_impl`：`iv_render_region`（**ABI v6**）的业务实现，签名与
+/// [`rupix_abi::IvRenderRegionFn`] 同形（去掉 `unsafe`）。
+///
+/// 区域渲染是"矢量图放大到 4000% 也无损"的**唯一**通道：宿主只给"看得见的
+/// 那一块，解码器按密度**重新光栅化**那一块（不是渲大图再缩）。
+pub type RegionFn = fn(
+    *const u8,
+    usize,
+    *const IvRegionReq,
+    *mut u8,
+    usize,
+    *mut IvRenderOut,
+    *const c_char,
+) -> i32;
+
+/// 合并档里**支持区域渲染**的成员。
+///
+/// 与 [`Member`] 分开成一张表：绝大多数成员是位图族，让它们也填一个"没有区域
+/// 能力"的空位，只会让每个合并档都多写一遍废话（而位图成员本来就不该有区域通道）。
+pub struct RegionMember {
+    /// 解码器 id（只用于排查与错误信息）。
+    pub id: &'static str,
+    /// 区域渲染的业务实现。
+    pub region: RegionFn,
+}
+
 /// 只有这两个码算"我解不了这个文件，换一家问"，其余都是对这份文件的最终判断。
 pub fn is_soft_fail(code: i32) -> bool {
     code == ERR_UNSUPPORTED || code == ERR_UNRECOGNIZED
@@ -225,4 +251,80 @@ pub fn render(
         }
         Err(code) => code,
     }
+}
+
+/// 「都没成」时的错误文本（区域通道版）。
+///
+/// 与 [`set_chain_error`] 同一口径，只是成员表换成了 [`RegionMember`]——
+/// 两张表的字段名一样，但 Rust 不肯让一个函数同时吃两种表（没有共同 trait），
+/// 所以这里抄一份形状（**不是**抄逻辑：判定条件与措辞保持一致）。
+fn set_region_chain_error(members: &[RegionMember], tried: &[&str]) {
+    if members.is_empty() {
+        set_last_error("这个解码库没有提供区域渲染能力（没有成员实现 iv_render_region）");
+        return;
+    }
+    if tried.is_empty() {
+        set_last_error("这个文件没有支持区域渲染的解码库（合并档里没有成员提供区域通道）");
+        return;
+    }
+    let names = tried.join("、");
+    let detail = rupix_abi::last_error_text();
+    if detail.is_empty() {
+        set_last_error(&format!(
+            "这个文件没有支持区域渲染的解码库（已试：{names}）"
+        ));
+    } else {
+        set_last_error(&format!("{detail}（已试：{names}）"));
+    }
+}
+
+/// `iv_render_region` 的实现（**ABI v6**）：按候选顺序逐个问，软失败换下一家。
+///
+/// 两阶段形状与 `iv_render` 同构：`out == NULL` 是查询阶段（回填 `info`，不写像素），
+/// 第二次才是写入。宿主按 `bytes_needed` 一次性分配，**不重试**。
+///
+/// ★ 区域通道与普通渲染**不是一回事**：这里的成员是"能把文档的指定一块按密度
+/// 重新光栅化"的那批（矢量族）。位图成员进了这张表 = 宿主会拿到"整篇缩到一小块"
+/// 的内容错误图，所以这张表只放真正实现了区域渲染的成员。
+#[allow(clippy::too_many_arguments)] // C ABI 形状：7 个参数由宿主契约固定，不能再打包
+#[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
+pub fn render_region(
+    members: &[RegionMember],
+    data: *const u8,
+    len: usize,
+    req: *const IvRegionReq,
+    out: *mut u8,
+    out_cap: usize,
+    info: *mut IvRenderOut,
+    ext: *const c_char,
+) -> i32 {
+    if data.is_null() || len == 0 {
+        set_last_error("内部错误（宿主传入空数据）");
+        return ERR_UNRECOGNIZED;
+    }
+    if info.is_null() {
+        set_last_error("内部错误（宿主传入空输出指针）");
+        return ERR_BUFFER_TOO_SMALL;
+    }
+    if req.is_null() {
+        set_last_error("内部错误（宿主传入空请求指针）");
+        return ERR_UNRECOGNIZED;
+    }
+    let mut last = ERR_UNRECOGNIZED;
+    let mut tried: Vec<&str> = Vec::new();
+    for m in members {
+        tried.push(m.id);
+        let code = (m.region)(data, len, req, out, out_cap, info, ext);
+        if code == ERR_OK {
+            return ERR_OK;
+        }
+        // 硬错误（坏文件 / 超预算 / OOM）立即返回：那是对这份文件的判断，
+        // 换一家也是同一个结论，继续试只会把错误文本换掉。
+        if !is_soft_fail(code) {
+            return code;
+        }
+        last = code;
+    }
+    set_region_chain_error(members, &tried);
+    last
 }

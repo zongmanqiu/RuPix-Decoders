@@ -1,6 +1,6 @@
 # RuPix 解码器仓库
 
-> **仓库入口**：**Gitee** | **GitHub**
+> **仓库入口**：[**Gitee**](https://gitee.com/qiuzongman/RuPix-Decoder) | [**GitHub**](https://github.com/zongmanqiu/RuPix-Decoder)
 
 RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交互、几何变换、路由与缓存，
 启动时扫描 exe 同级 `decoders/` 目录，按每个 DLL 的 `iv_decoder_info()` 自述认领后缀。
@@ -10,12 +10,14 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
 
 | DLL | 版本 | 认领后缀 | Gitee | GitHub |
 |---|---:|---:|---|---|
-| `common` | 0.2.2 | 33 | 下载 | 下载 |
-| `modern` | 0.2.0 | 6 | 下载 | 下载 |
-| `raw` | 0.5.0 | 40 | 下载 | 下载 |
-| `pro` | 0.2.1 | 33 | 下载 | 下载 |
+| `common` | 0.2.2 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/common_0.2.2/common_0.2.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/common_0.2.2/common_0.2.2.zip) |
+| `modern` | 0.3.0 | 7 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/modern_0.3.0/modern_0.3.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/modern_0.3.0/modern_0.3.0.zip) |
+| `raw` | 0.5.1 | 40 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/raw_0.5.1/raw_0.5.1.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/raw_0.5.1/raw_0.5.1.zip) |
+| `pro` | 0.2.2 | 33 | [下载](https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/pro_0.2.2/pro_0.2.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoder/releases/download/pro_0.2.2/pro_0.2.2.zip) |
 
-- 四档合计 112 个后缀；ABI 冻结 **v5**。
+- 四档合计 113 个后缀；ABI 冻结 **v6**（v5 兼容：区间收载）。
+- **兼容性立约**：ABI 永远兼容旧版本 DLL——宿主升级后，已装好的旧 DLL **不需要重新编译、
+  也不需要重新上传**，照常加载工作；新能力只以「新可选导出 + 新结构体」加法形式出现。
 - 安装：下载 `<id>_<version>.zip`，解压后把 DLL 和 `<id>_<version>/` 一起放进 `<exe>/decoders/`；
   `decoders/` 是用户目录，宿主只加载顶层 `*.dll`，许可证目录和其它文件不参与加载。
   ZIP 内的同版本目录含 `metadata.json`、`LICENSE`、`THIRD-PARTY-NOTICES.md`、`licenses/` 和 `SOURCE-OFFER.md`；

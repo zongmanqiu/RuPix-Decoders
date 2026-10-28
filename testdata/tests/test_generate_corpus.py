@@ -22,8 +22,8 @@ class RegistryTest(unittest.TestCase):
             if len(parts) < 3:
                 continue
             claimed.extend(e.strip().lstrip(".") for e in parts[2].split(";") if e.strip())
-        self.assertEqual(len(registry.REGISTRY), 112)
-        self.assertEqual(len(set(registry.SUFFIXES)), 112)
+        self.assertEqual(len(registry.REGISTRY), 113)
+        self.assertEqual(len(set(registry.SUFFIXES)), 113)
         self.assertEqual(set(claimed), set(registry.SUFFIXES))
 
     def test_only_selects_exact_suffixes(self):
@@ -49,7 +49,7 @@ class CliTest(unittest.TestCase):
         args = generate_corpus.parse_args([])
         self.assertEqual(args.tier, DEFAULT_TIER)
         self.assertEqual(DEFAULT_TIER, "10M")
-        self.assertEqual(len(args.only_entries), 112)
+        self.assertEqual(len(args.only_entries), 113)
 
     def test_default_out_is_temp_testdata(self):
         args = generate_corpus.parse_args([])

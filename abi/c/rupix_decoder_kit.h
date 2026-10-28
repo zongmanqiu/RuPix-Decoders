@@ -41,7 +41,9 @@
  * 1. Version + error codes + pixel formats (values frozen; see abi/src/lib.rs)
  * ------------------------------------------------------------------------ */
 
-#define RUPIX_ABI_VERSION 5u
+/* 6 = current contract (v5 remains the frozen floor: v6 is additive, no
+ * published struct/signature changed, old v5 DLLs stay loadable). */
+#define RUPIX_ABI_VERSION 6u
 
 /* Error codes - the host maps each class to a different UI message; never
  * collapse "I cannot do this" into "the file is corrupt" (fallback chain). */
@@ -72,8 +74,8 @@
 #define RUPIX_PF_NV12     13u
 
 /* Decode-capability bitmap - the value returned by the OPTIONAL export iv_caps().
- * v4 addition, retained in v5, does NOT bump RUPIX_ABI_VERSION (rule: never change published
- * exports or structs; new capability goes through a new optional export).
+ * Retained since v4 (v5/v6 unchanged), does NOT bump RUPIX_ABI_VERSION (rule: never change
+ * published exports or structs; new capability goes through a new optional export).
  *
  * bit set = supported. Only ever ADD bits, never renumber published ones (the
  * host routes by these bits, so a renumber makes old decoders lie).
@@ -88,6 +90,10 @@
 #define RUPIX_CAP_MULTIFRAME  8u
 #define RUPIX_CAP_MULTIPAGE   16u
 #define RUPIX_CAP_VECTOR      32u
+/* v6 region rendering. The bit is published here for value parity with
+ * abi/src/lib.rs; the C kit does not yet declare RupixRegionReq /
+ * iv_render_region, so a C decoder cannot claim this bit today. */
+#define RUPIX_CAP_REGION      64u
 
 /* Request intent bit (IvRenderReq.flags). The capability bitmap says whether a
  * decoder CAN decode scaled; this bit says whether THIS request WANTS it.
@@ -300,5 +306,20 @@ typedef int32_t (*RupixRenderFn)(const uint8_t* data, size_t len,
                                  const RupixRenderReq* req,
                                  uint8_t* out, size_t out_cap,
                                  RupixRenderOut* info, const char* ext);
+
+/* iv_export_svg (OPTIONAL, v5 addition, does not bump RUPIX_ABI_VERSION): export the
+ * vector scene as UTF-8 SVG text bytes. Two-phase, same shape as iv_render:
+ *   call 1: out == NULL -> convert and store the required byte count (excluding the
+ *           trailing NUL) into *needed when needed != NULL; return RUPIX_ERR_*.
+ *   call 2: host allocates `needed` bytes and calls again with out != NULL;
+ *           out_cap < needed -> RUPIX_ERR_BUFFER_TOO_SMALL (nothing is written);
+ *           otherwise the SVG bytes are written and RUPIX_ERR_OK is returned.
+ * The SVG must be self-contained and independently renderable (the root element
+ * carries a size; text stays as <text> with a generic font-family - the host's
+ * resvg renders it with system fonts). The buffer is host-owned; the decoder only
+ * writes. Decoders without vector export simply omit the symbol (the host probes
+ * it with GetProcAddress); only CAP_VECTOR decoders should implement it. */
+typedef int32_t (*RupixExportSvgFn)(const uint8_t* data, size_t len,
+                                    uint8_t* out, size_t out_cap, size_t* needed);
 
 #endif /* RUPIX_DECODER_KIT_H */

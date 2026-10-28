@@ -21,8 +21,8 @@ WHY THE SAMPLES ARE KEYED BY SUFFIX AND NOT BY DECODER
 Four choices worth knowing before editing:
 
 * Noise is the point. It is the worst case for every entropy coder, which is what lets a
-  100 MiB file exist inside the size gate at all: the viewer refuses anything over 41 MP or
-  164 MB of RGBA (decoders themselves cap at 64 MP, see MAX_PIXELS below), so a bigger sample
+  100 MiB file exist inside the size gate at all: the viewer refuses anything over 64 MP or
+  256 MB of RGBA (see MAX_PIXELS below - the same number the decoders cap at), so a bigger sample
   would be a sample the host won't open and we could not measure.
 * A tier is a **floor**, not an exact size. Dimensions grow until the encoded file clears
   it. When a format cannot clear a tier inside the pixel bound or its own ceiling (1-bit PBM,
@@ -64,6 +64,7 @@ import os
 import random
 import struct
 import sys
+import zlib
 from pathlib import Path
 
 Image = None   # Pillow, loaded on first use - see pil()
@@ -104,16 +105,16 @@ def load_config(path):
         cfg[key] = q if q.is_absolute() else ROOT / q
     cfg["tiers"] = {str(k): int(v) for k, v in cfg["tiers"].items()}
     return cfg
-# Two gates exist and the host's is the tighter one, so samples obey the tighter one:
-# decoders answer ERR_TOO_LARGE above 64 MP (the per-decoder `const MAX_PIXELS` in
-# each decoder crate - kept equal by tools/check_caps.py, which also
-# checks the mirror value below against main/src/core/pixels.rs), while the viewer refuses
-# anything over 41 MP or 164 MB of RGBA (main/src/core/pixels.rs MAX_PIXELS). A sample above
+# Two gates exist and they now share the same number (2026-10-28, host raised its bound
+# from 41 MP to 64 MP): decoders answer ERR_TOO_LARGE above 64 MP (the per-decoder
+# `const MAX_PIXELS` in each decoder crate - kept equal by tools/check_caps.py, which also
+# checks the mirror value below against main/src/core/pixels.rs), and the viewer refuses
+# anything over 64 MP or 256 MB of RGBA (main/src/core/pixels.rs MAX_PIXELS). A sample above
 # the host bound is only good for testing the refusal, so we stay under it and every row in
 # the manifest is a file the viewer can actually open. To probe the 64 MP decoder gate, call
 # the ABI directly with budget_bytes = 0 (the decoder then applies only its own cap).
-MAX_PIXELS = 41_000_000
-MAX_SIDE = int(math.isqrt(MAX_PIXELS))  # 6324
+MAX_PIXELS = 64 * 1024 * 1024
+MAX_SIDE = int(math.isqrt(MAX_PIXELS))  # 8192
 GROW = 1.4
 GROW_ATTEMPTS = 24
 
@@ -137,7 +138,7 @@ ROUND = {".dds": 4, ".dcm": 2}
 # Pillow 11 cannot reopen these from the bytes alone (no sniff hook), so "verify by
 # reopening" stays quiet about them - the DLL itself is the judge for those formats.
 NO_READBACK = {".pam", ".hdr", ".dcm", ".ktx", ".nii", ".nrrd", ".mrc",
-                ".mrcs", ".ccp4", ".map", ".dcx", ".wbmp"}
+                ".mrcs", ".ccp4", ".map", ".dcx", ".wbmp", ".jng"}
 # Suffixes whose file name is the only thing distinguishing them from the source row.
 ALIAS_NOTE = {".rle": "无压缩 BMP，BMP 的 RLE4/RLE8 分支仍未覆盖",
               ".exif": "JPEG 字节，EXIF 段未写入"}
@@ -192,6 +193,7 @@ PLAN = [
     ("core", ".dds", "dds", {}),
     ("common", ".cur", "cur", {}),
     ("common", ".ani", "ani", {}),
+    ("modern", ".jng", "jng", {}),
 ]
 PLAN += [("jpeg", e, "alias", {"src": ".jpg"})
          for e in (".jpeg", ".jpe", ".jfif", ".jif", ".jfi", ".exif", ".jps", ".mpo")]
@@ -254,7 +256,7 @@ def coverage_errors():
 # suffix the common DLL can read, not just the one member literally named "common".
 TIER_MEMBERS = {
     "common": ["jpeg", "png", "gif", "tiff", "qoi", "common", "core"],
-    "modern": ["av", "jxl"],
+    "modern": ["av", "jng", "jxl"],
     "raw": ["rawpx", "raw"],
     "pro": ["pro-jp2", "pro-jxr", "pro-exr", "pro-ktx2", "pro-dicom",
             "pro-sci", "pro-small", "pro-xcf", "pro-ase", "pro-djvu", "pro-wmf"],
@@ -539,6 +541,40 @@ def _riff_chunk(chunk_id, body):
     return bytes(out)
 
 
+def _jng_chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+
+def encode_jng(side, rng):
+    image = snow("RGB", side, rng)
+    jpeg = io.BytesIO()
+    image.save(jpeg, format="JPEG", quality=92)
+    alpha = pil().new("L", (side, side))
+    alpha.putdata([int(255 * y / max(1, side - 1)) for y in range(side) for _ in range(side)])
+    alpha_png = io.BytesIO()
+    alpha.save(alpha_png, format="PNG")
+    png = alpha_png.getvalue()
+    offset = 8
+    idat = bytearray()
+    while offset < len(png):
+        length = struct.unpack(">I", png[offset:offset + 4])[0]
+        kind = png[offset + 4:offset + 8]
+        body = png[offset + 8:offset + 8 + length]
+        offset += 12 + length
+        if kind == b"IDAT":
+            idat += body
+        if kind == b"IEND":
+            break
+    jhdr = (struct.pack(">II", side, side)
+            + bytes([14, 8, 8, 0, 8, 0, 0, 0]))
+    return (b"\x8bJNG\r\n\x1a\n"
+            + _jng_chunk(b"JHDR", jhdr)
+            + _jng_chunk(b"JDAT", jpeg.getvalue())
+            + _jng_chunk(b"IDAT", bytes(idat))
+            + _jng_chunk(b"IEND", b""))
+
+
 def encode_ani(side, rng):
     """RIFF/ACON with two identical ICO frames. The ANI reader cares about frame count,
     rate and ICO payload, not about the animation's artistic content."""
@@ -558,7 +594,7 @@ def encode_ani(side, rng):
 
 
 HAND = {".qoi": encode_qoi, ".pam": encode_pam, ".psd": encode_psd, ".hdr": encode_hdr,
-        ".cur": encode_cur, ".ani": encode_ani,
+        ".cur": encode_cur, ".ani": encode_ani, ".jng": encode_jng,
         ".dds": encode_dds, ".dcx": encode_dcx, ".wbmp": encode_wbmp,
         ".ktx": encode_ktx1, ".nii": encode_nii, ".nrrd": encode_nrrd,
         ".mrc": encode_mrc, ".dcm": encode_dicom}
@@ -602,7 +638,7 @@ def grow(path, kind, ext, opts, tier_bytes, seed):
         r = ROUND.get(ext, 1)
         side += (-side) % r
         if side * side > MAX_PIXELS:
-            # DDS rounds 6403 -> 6404, which is just over the 41 MP cap.
+            # DDS rounds 8191 -> 8192, which is just over the 64 MP cap.
             side = (MAX_SIDE // r) * r
     return side, path.stat().st_size, "capped(ATTEMPTS)"
 

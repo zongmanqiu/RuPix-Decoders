@@ -4,10 +4,10 @@
 
 | 档 | 版本 | 后缀数 | 状态 | 成员 | 文档 |
 |---|---:|---:|---|---:|---|
-| `common` | 0.2.2 | 33 | 已发布（2026-10-27，见 decoders.json） | 8 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
-| `modern` | 0.2.0 | 6 | 已发布（2026-10-27，见 decoders.json） | 2 | [README](modern/README.md) · [HISTORY](modern/HISTORY.md) |
-| `raw` | 0.5.0 | 40 | 已发布（2026-10-27，见 decoders.json） | 1（rawpx 仅走 iv_render_raw） | [README](raw/README.md) · [HISTORY](raw/HISTORY.md) · [DESIGN](raw/DESIGN.md) |
-| `pro` | 0.2.1 | 33 | 已发布（2026-10-27，见 decoders.json） | 11 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
+| `common` | 0.2.3 | 31 | 已发布（2026-10-28，见 decoders.json） | 6 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
+| `modern` | 0.3.1 | 7 | 已发布（2026-10-28，见 decoders.json） | 3 | [README](modern/README.md) · [HISTORY](modern/HISTORY.md) |
+| `raw` | 0.5.2 | 40 | 已发布（2026-10-28，见 decoders.json） | 1（rawpx 仅走 iv_render_raw） | [README](raw/README.md) · [HISTORY](raw/HISTORY.md) · [DESIGN](raw/DESIGN.md) |
+| `pro` | 0.3.0 | 35 | 0.3.0（2026-10-28，见 decoders.json） | 13 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
 
 - 限制与已知空白见各档 `README.md`；对外变化见各档 `HISTORY.md`。
 - 路由、workspace、ABI 快照见 [`../docs/architecture.md`](../../docs/architecture.md)。

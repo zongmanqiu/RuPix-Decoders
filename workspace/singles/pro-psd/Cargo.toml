@@ -1,5 +1,5 @@
 [package]
-name = "rupix-psd"
+name = "rupix-pro-psd"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0"
@@ -7,7 +7,7 @@ description = "RuPix 解码器：Photoshop PSD（zune-psd，8/16 位 RGB/RGBA/�
 
 [lib]
 # 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
-name = "psd"
+name = "pro_psd"
 crate-type = ["cdylib", "rlib"]
 
 [features]

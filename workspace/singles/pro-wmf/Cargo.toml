@@ -18,3 +18,7 @@ rupix-abi = { workspace = true }
 rupix-pro-support = { path = "../../shared/pro-support" }
 wmf-core = { version = "0.1.2", default-features = false, features = ["svg"] }
 resvg = "0.49"
+# .wmz = gzip 包装的 WMF：iv_export_svg 导出前先解包（规范 §十五）。
+# rust_backend = miniz_oxide，纯 Rust；flate2/miniz_oxide 本就在 pro 依赖图里（exr 传入），
+# 显式声明不新增 crate。
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }

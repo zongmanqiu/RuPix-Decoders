@@ -500,7 +500,7 @@ mod tests {
     fn abi_layout_asserts_hold() {
         assert_eq!(size_of::<IvRenderReq>(), 24);
         assert_eq!(size_of::<IvRenderOut>(), 48);
-        assert_eq!(iv_abi_version(), 5);
+        assert_eq!(iv_abi_version(), rupix_abi::IV_ABI_VERSION);
     }
 
     /// 两阶段一致性：查询回报的尺寸/bytes_needed 与渲染输出一致。

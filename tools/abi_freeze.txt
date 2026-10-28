@@ -1,0 +1,58 @@
+# Frozen ABI fingerprint - one line per published item.
+# A published line may NEVER change or disappear; only new lines may be
+# appended (run: python tools/check_abi_freeze.py --update).
+# Guarded by tools/check_abi_freeze.py inside workspace/build.ps1.
+abi=6
+layout IvDecoderInfo=48
+layout IvMetadata=24
+layout IvMetadataField=16
+layout IvRegionReq=40
+layout IvRenderOut=48
+layout IvRenderReq=24
+struct IvDecoderInfo id:*const c_char display_name:*const c_char abi_version:u32 extensions:*const c_char is_vector:i32 has_alpha:i32 description:*const c_char
+struct IvMetadata size:u32 version:u32 field_count:u32 reserved:u32 fields:*const IvMetadataField
+struct IvMetadataField key:*const c_char value:*const c_char
+struct IvRegionReq x:f32 y:f32 w:f32 h:f32 target_w:u32 target_h:u32 budget_bytes:u32 flags:u32 frame_index:u32 page_index:u32
+struct IvRenderOut actual_w:u32 actual_h:u32 bytes_needed:u64 pixel_format:u32 bit_depth:u32 orientation:i32 already_oriented:i32 frame_count:u32 frame_delay_ms:u32 page_count:u32 icc_len:u32
+struct IvRenderReq target_w:u32 target_h:u32 budget_bytes:u32 flags:u32 frame_index:u32 page_index:u32
+const CAP_FULL=1
+const CAP_MULTIFRAME=8
+const CAP_MULTIPAGE=16
+const CAP_RAW_PARAM=4
+const CAP_REGION=64
+const CAP_SCALED=2
+const CAP_VECTOR=32
+const ERR_BUFFER_TOO_SMALL=4
+const ERR_CORRUPT=2
+const ERR_OK=0
+const ERR_OOM=5
+const ERR_PANIC=6
+const ERR_TOO_LARGE=7
+const ERR_UNRECOGNIZED=1
+const ERR_UNSUPPORTED=3
+const IV_ABI_VERSION=6
+const METADATA_VERSION=1
+const PF_BGRA8=8
+const PF_GRAY16=3
+const PF_GRAY8=0
+const PF_GRAY_F32=6
+const PF_I420=11
+const PF_NV12=13
+const PF_RGB16=4
+const PF_RGB8=1
+const PF_RGBA16=5
+const PF_RGBA8=2
+const PF_RGBA_F32=7
+const PF_UYVY=10
+const PF_YUY2=9
+const PF_YV12=12
+const REQ_ALLOW_SCALED=4
+type IvExportSvgFn (data:*const u8, len:usize, out:*mut u8, out_cap:usize, needed:*mut usize)->i32
+type IvRenderRegionFn (data:*const u8, len:usize, req:*const IvRegionReq, out:*mut u8, out_cap:usize, info:*mut IvRenderOut, ext:*const c_char)->i32
+export iv_abi_version ()->u32
+export iv_caps ()->u32
+export iv_decoder_info ()->*const IvDecoderInfo
+export iv_export_svg (data:*const u8, len:usize, out:*mut u8, out_cap:usize, needed:*mut usize)->i32
+export iv_last_error (buf:*mut c_char, len:usize)->i32
+export iv_metadata ()->*const IvMetadata
+export iv_render_region (data:*const u8, len:usize, req:*const IvRegionReq, out:*mut u8, out_cap:usize, info:*mut IvRenderOut, ext:*const c_char)->i32

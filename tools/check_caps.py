@@ -5,20 +5,22 @@
 Two numbers used to be kept in step by hand, and nothing read them:
 
   * every decoder declares **its own** `const MAX_PIXELS: u64 = 64 * 1024 * 1024;`
-    (12 copies as of 2026-10-24; the 11 pro singles share one copy in `pro-support/`). Their doc comments cross-reference each other
+    (14 copies as of 2026-10-28; the 11 pro singles share one copy in `pro-support/`). Their doc comments cross-reference each other
     ("与 core / png / jpeg / tiff 同口径", "与 core 解码器同一道闸") - a manual
     invariant with no machine behind it, which is exactly the shape that m56
     learned to collapse in the host repo.
   * `testdata/make_samples.py` mirrors the **host** bound
-    (`main/src/core/pixels.rs`: `MAX_PIXELS = 40_000_000`) because a sample the
+    (`main/src/core/pixels.rs`: `MAX_PIXELS = 64 * 1024 * 1024`) because a sample the
     viewer refuses is not a sample. That is a third copy of a host truth, in
     another language, hand-synced.
 
 Same identifier, two different gates: the decoders' 64 MP is an *allocation*
-guard inside each DLL, the host's 40 MP is the viewer's hard top. This script
-deliberately does **not** unify them and does not rename either one (renaming
-would mean rebuilding 12 DLLs to buy readability only). It only asserts that
-each side is internally consistent.
+guard inside each DLL, the host's 64 MP is the viewer's hard top. They now carry
+the **same number** (2026-10-28: the host raised its bound from 41 MP to 64 MP, so
+the two align - above 64 MP the decoders refuse first, and no host-side budget can
+push past that). This script deliberately does **not** unify them into one name and
+does not rename either one (renaming would mean rebuilding 12 DLLs to buy
+readability only). It only asserts that each side is internally consistent.
 
 Checks - equality only, never "which value is right", so there is no
 false-positive shape to train people to ignore (contrast check_anchors.py,
@@ -49,7 +51,7 @@ SAFE = re.compile(r"^[0-9_()*+\-/ ]+$")
 
 
 def value(expr):
-    """Evaluate a literal like `64 * 1024 * 1024` / `40_000_000`. Letters are rejected."""
+    """Evaluate a literal like `64 * 1024 * 1024` / `67_108_864`. Letters are rejected."""
     text = expr.strip().rstrip(",")
     if not SAFE.match(text):
         raise ValueError(f"无法求值的表达式：{expr!r}")

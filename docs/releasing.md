@@ -5,7 +5,7 @@
 | 事实 | 真源 |
 |---|---|
 | DLL 版本 | `workspace/decoders/<id>/Cargo.toml` 的 `[package] version` |
-| ABI 版本 | `abi/src/lib.rs` 的 `IV_ABI_VERSION`（当前 5） |
+| ABI 版本 | `abi/src/lib.rs` 的 `IV_ABI_VERSION`（当前 6） |
 | 发布状态 | `decoders.json` 的 `released` / `gitee` / `github` |
 | 对外变化 | `workspace/decoders/<id>/HISTORY.md` |
 
@@ -27,7 +27,7 @@
 4. 每枚 ZIP 上传到自己的 release：tag 与资产名都用 `<id>_<version>`。
    - Gitee：`https://gitee.com/qiuzongman/RuPix-Decoder/releases/download/<id>_<version>/<id>_<version>.zip`
    - GitHub：`https://github.com/zongmanqiu/RuPix-Decoder/releases/download/<id>_<version>/<id>_<version>.zip`
-5. 上传后跑 `check_urls.py`；它会真下载 ZIP、解出 DLL 并核对 size/sha256。
+5. 资产由人工上传；本仓不做联网地址校验。
 6. 宿主侧刷新 `decoders.json` 镜像，验证「可下载」卡与安装。
 
 > 清单可以先提交、资产后上传；那段时间该列地址会 404，宿主如实报下载失败。
@@ -47,7 +47,7 @@
 - 宿主收载是区间判定：`MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION`；
   低于下界或高于宿主一律拒载。
 - 宿主按 `(后缀, 能力位图)` 选解码器，不按解码器身份；能力位由 DLL 的 `iv_caps()` 自报。
-- 下载失败、字节数不符、ABI 越界都在宿主侧拒绝；本仓的 `check_urls.py` 只做发布前核对。
+- 下载失败、字节数不符、ABI 越界都在宿主侧拒绝；本仓不做联网地址校验。
 
 ## 发布前清单
 
@@ -55,10 +55,9 @@
 - [ ] 四枚 DLL 都在 `decoder-dist`，同 id 无旧版本。
 - [ ] 每枚 DLL 的 Gitee / GitHub release 都已上传，tag 与资产名一致。
 - [ ] `decoders.json` 的 `size` / `sha256` / `version` / `abi` / `formats` 与 DLL 自述一致。
-- [ ] `released` 已填；`gitee` / `github` 都实测可下。
+- [ ] `released` 已填；`gitee` / `github` 已由人工上传。
 - [ ] ZIP 内 `metadata.json` 与 `decoders.json` 同一条目逐字段一致（含地址与日期）。
 - [ ] 已记录最终 ZIP 的 size / SHA-256；重新打包后数字已更新。
 - [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 LICENSE、notices、licenses 与 `SOURCE-OFFER.md`。
-- [ ] `check_urls.py` 绿。
 - [ ] `workspace/decoders/<id>/HISTORY.md` 已记录本次对外变化；**没有状态/待上传/包生成/tag 行**。
 - [ ] 宿主 `docs_consistency` 与 smoke 已跑（并排开发时）。

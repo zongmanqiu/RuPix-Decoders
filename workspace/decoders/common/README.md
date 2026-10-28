@@ -1,14 +1,14 @@
 # `common` — 常见位图合集（合并档 · 1 枚 DLL）
 
-一枚 DLL 装 8 个「每格式冠军」，认领 **33 个后缀**。合并的动机只有一个：**省体积**。
+一枚 DLL 装 6 个「每格式冠军」，认领 **31 个后缀**。合并的动机只有一个：**省体积**。
 
 每枚独立解码器都自带一份底座（空壳 + 一份 Rust 运行时，按 `qoi` 那枚 192 KB 反推约 150 KB/枚）。
-八个成员单飞时底座重复 8 次，库本体却一分不少；合成一枚后底座只剩 1 份。
+六个成员单飞时底座重复 6 次，库本体却一分不少；合成一枚后底座只剩 1 份。
 
 | 量法 | 体积 |
 |---|---|
 | 原 6 枚独立解码器合计（`core`+`jpeg`+`png`+`gif`+`tiff`+`qoi`） | 3884 KB |
-| 合并档（0.2.2，2026-10-27 发布，新增 JPS/MPO/CUR/ANI） | **1,975,296 B（约 1929 KB）** |
+| 合并档（0.2.3，2026-10-28 发布，新增 JPS/MPO/CUR/ANI） | **1,898,496 B（约 1854 KB）** |
 | 差（对原 6 枚口径） | 约 **−50%** |
 
 ## 成员
@@ -20,8 +20,6 @@
 | `gif` | `gif` 0.14 | gif | 本机实测 223 Mpix/s，无对手 |
 | `tiff` | `tiff` 0.11 | tif tiff | 本机实测 435 Mpix/s，全场第一 |
 | `qoi` | 自研（零依赖） | qoi | 规范本身只有几百行，引库不划算 |
-| `psd` | `zune-psd`（只解头）+ 自解像素 | psd | 8/16 位、RGB/RGBA/灰度、RLE/无压缩四格全解 |
-| `hdr` | `image` 的 `hdr` feature | hdr | Radiance RGBE → 线性 f32 → u8，零额外依赖 |
 | `core` | `image` 0.25 + `image-webp` | apng webp bmp dib rle ico icon cur ani pnm ppm pgm pbm pam dds ff tga | 通用兜底：低成本格式 + 冠军让位时接住 |
 
 **没有 `turbo` 腿**：`jpeg` 以 `default-features = false` 依赖，`turbo` feature 关闭
@@ -58,8 +56,6 @@
 - `animation_frames_fall_back_inside_the_dll`：两帧 GIF 的第 2 帧由 `gif` 软失败、
   `core` 接住（渲染阶段让位）。第一版合并只在查询阶段让位，实测 `sample-gif.gif`
   从第 2 帧起停住不动，这条就是补的回归。
-- `psd_and_hdr_render_through_the_merged_entry_point`：`psd_red_2x2.psd` 与
-  `hdr_red_2x2.hdr` 从合并入口（含 `ext = NULL` 嗅探）各解出 2×2 纯红。
 
 错误文本会把**最后一家的原话**留在前面（`rupix_abi::last_error_text`），
 尾巴才写"common 已试：tiff、core"。用户要看的是"为什么打不开"，不是"试过谁"。
@@ -97,7 +93,7 @@ cargo 没有"按依赖方隔离 feature"的开关，只能切成两个构建图�
 ## 自测
 
 ```bash
-cargo test --release -p rupix-common -- --test-threads=1   # 8 项
+cargo test --release -p rupix-common -- --test-threads=1   # 7 项
 ```
 
 体积与像素一致性的对撞脚本在宿主项目 `.temp/` 下（`m138_smoke_daily.py`、

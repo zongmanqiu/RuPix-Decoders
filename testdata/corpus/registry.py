@@ -61,6 +61,7 @@ _GROUPS: tuple[tuple[str, str, str, str], ...] = (
     ("A1", "heif", "heic heif", "aliases share the HEIF core"),
     ("A1", "heif", "hif", ""),
     ("A1", "avif", "avif avifs", "aliases share the AVIF core"),
+    ("A1", "jng", "jng", "JPEG + PNG alpha"),
     ("A1", "jxl", "jxl", ""),
     ("A1", "jxr", "jxr wdp hdp", "aliases share the JXR core"),
     ("A1", "rawpx", "gray gry bgra rgb rgba i420 nv12 uyvy yuv yuy2 yv12", ""),
