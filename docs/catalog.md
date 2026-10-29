@@ -86,7 +86,7 @@ py tools/make_index.py --set-github-url '<id>=https://…/<id>_<version>.zip'
 ## 发布前核对
 
 - [ ] `size` 与 `decoder-dist` 里实际 DLL 一致（重新链接会变，必须重跑生成器）。
-- [ ] 四档 id 无重复；`id` 与文件名、DLL 自述一致。
+- [ ] 八档 id 无重复；`id` 与文件名、DLL 自述一致。
 - [ ] `abi` 在宿主接受区间内（`MIN_ABI_VERSION ≤ abi ≤ IV_ABI_VERSION`）。
 - [ ] `released` 只在人工上传资产后才填。
 - [ ] `gitee` / `github` 已由人工上传。

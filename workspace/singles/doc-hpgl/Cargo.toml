@@ -1,0 +1,21 @@
+[package]
+name = "rupix-doc-hpgl"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix doc member: HP-GL/HP-GL2 plotting language"
+
+[lib]
+name = "doc_hpgl"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+nom-hpgl = "0.2.0"
+nom = "3.2.1"
+resvg = "0.49"

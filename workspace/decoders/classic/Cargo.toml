@@ -1,0 +1,37 @@
+[package]
+name = "rupix-classic-dll"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix classic raster tier: PCX/DCX/PNM/PAM/WBMP/XBM/XPM/PICT/ILBM/SGI"
+
+[lib]
+name = "classic"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+# The implementation is a separate single crate; this manifest only assembles
+# the DLL. Keeping the format code in singles/ lets tests run without a cdylib
+# and avoids a second `classic` package name in one graph.
+[workspace]
+resolver = "2"
+
+[workspace.dependencies]
+rupix-abi = { path = "../../../abi" }
+rupix-merge-router = { path = "../../shared/router" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+debug = 1
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-merge-router = { workspace = true }
+rupix-classic = { path = "../../singles/classic" }

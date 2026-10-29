@@ -2,6 +2,12 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.2.4 — 2026-10-29 — abi 6
+
+- 收口为 24 个默认后缀：移出 `pnm/ppm/pgm/pbm/pam`、`qoi`、`ff`、`dds`。
+- 迁入 `icns`（来自 pro），使用 pro-small 的 ICNS 实现；common 只声明 `icns`，不声明 PCX/DCX/WBMP/XBM。
+- PNM/PAM 目标 classic、DDS 目标 texture、QOI/FF 目标 modern；classic/texture 未建期间这些后缀暂不由任何 DLL 认领。
+
 ## 0.2.3 — 2026-10-28 — abi 6
 
 - **变更**：ABI 代次前移到 **6**。v6 是**纯加法**（新增可选导出 `iv_render_region` 与新结构体 `IvRegionReq`），既有导出签名与结构体布局**逐字节未动** ⇒ 本档的解码行为与上一版完全一致。

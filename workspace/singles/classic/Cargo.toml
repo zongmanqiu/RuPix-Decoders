@@ -1,0 +1,19 @@
+[package]
+name = "rupix-classic"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix classic raster implementation (PCX/DCX/PNM/PAM/WBMP/XBM/XPM/PICT/ILBM/SGI)"
+
+[lib]
+name = "classic_impl"
+crate-type = ["rlib"]
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+
+image = { version = "0.25.10", default-features = false, features = ["pnm"] }
+image-extras = { version = "0.1.1", default-features = false, features = ["pcx", "sgi", "wbmp", "xbm", "xpm"] }
+oxideav-pict = { version = "0.0.5", default-features = false }
+oxideav-iff = { version = "0.0.11", default-features = false }

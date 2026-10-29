@@ -46,6 +46,9 @@ pub fn fill_info(
     orientation: i32,
     icc_len: u32,
 ) {
+    if info.is_null() {
+        return;
+    }
     let oi = unsafe { &mut *info };
     oi.actual_w = w;
     oi.actual_h = h;
@@ -77,6 +80,10 @@ pub fn write_rgba(
 ) -> i32 {
     let bytes = px.len() as u64;
     let icc_len = icc.len() as u64;
+    if out.is_null() || info.is_null() {
+        set_last_error("内部错误（空输出指针）");
+        return ERR_BUFFER_TOO_SMALL;
+    }
     if (out_cap as u64) < bytes + icc_len {
         set_last_error("内部错误（宿主给的缓冲小于申报值）");
         return ERR_BUFFER_TOO_SMALL;

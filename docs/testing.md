@@ -6,7 +6,7 @@
 cargo test --release --workspace -- --test-threads=1
 ```
 
-三个构建图各跑一次（根 / `workspace/singles/` / `workspace/decoders/pro/`）。原因不是洁癖：
+七个构建图各跑一次（根 / `workspace/singles/` / `workspace/decoders/{pro,classic,texture,doc,doc-legacy}/`）。原因不是洁癖：
 解码器持有进程级会话池（GIF/APNG 的 `SESSIONS` 是 2 槽 LRU），并行跑会让两条用例
 互相挤掉缓存，把"顺序播放"断言挤成假失败。杀软锁新链接二进制也会让并行 runner
 看起来像挂了。

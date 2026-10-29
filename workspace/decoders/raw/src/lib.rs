@@ -116,10 +116,10 @@ export_decoder! {
 rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_SCALED | rupix_abi::CAP_RAW_PARAM);
 
 rupix_abi::export_metadata! {
-    "version" => "0.5.2",
+    "version" => "0.5.3",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-28",
+    "released" => "2026-10-29",
 }
 
 const BIT_DEPTH_8: u32 = 8;
@@ -348,7 +348,11 @@ fn fill_info(info: *mut IvRenderOut, w: u32, h: u32, bytes_needed: u64, orientat
     oi.orientation = orientation;
     // 方向由宿主补转（与"旋转/镜像全在 exe"的边界一致）。
     oi.already_oriented = 0;
-    // v4：单页；ICC 不透传。frame/delay 缺省 0 = 静态。
+    // Static still: report frame_count=1 explicitly. The ABI treats 0 as
+    // "unknown" and the host reuses the IvRenderOut buffer across requests.
+    oi.frame_count = 1;
+    oi.frame_delay_ms = 0;
+    // v4：单页；ICC 不透传。
     oi.page_count = 1;
     oi.icc_len = 0;
 }

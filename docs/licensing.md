@@ -13,7 +13,7 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 `raw` 还单独列出静态链接的 `rawler 0.7.2` 上游 commit、crate 校验值与重链接说明。
 这是源码获取/重链接材料，不把第三方源码打进 ZIP，也不是法律意见。
 
-- `MIT` / `Apache-2.0` / `BSD-2-Clause` / `BSD-3-Clause` / `0BSD` / `Zlib` / `ISC` 类；
+- `MIT` / `Apache-2.0` / `BSD-2-Clause` / `BSD-3-Clause` / `BSL-1.0` / `0BSD` / `Zlib` / `ISC` 类；
 - `CC0-1.0` / `Unlicense` / `WTFPL` / `MPL-2.0`（文件级 copyleft，动态分发可接受）；
 - `LGPL-2.1` / `LGPL-2.1-or-later`（`rawler`；固定 0.7.2，单 DLL 静态链接，发布包附 LGPL 文本与 `SOURCE-OFFER.md`）；
 - `AGPL-3.0` / `AGPL-3.0-only`（本仓自身）；
@@ -44,7 +44,7 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 python tools/check_licenses.py
 ```
 
-它读 root / singles / pro 三个 workspace 的完整 `cargo metadata`：
+它读全部七个 workspace 的完整 `cargo metadata`：
 
 - 每个包必须有 `license` 或 `license_file`；
 - `license` 按 SPDX 的 `OR` / `AND` / 旧式 `/` 拆分，每个 id 都必须在允许表里；
@@ -62,3 +62,10 @@ cargo audit
 ```
 
 新增依赖、升级大版本、换许可证时，同步 `THIRD-PARTY-NOTICES.md` 与本文件。
+
+## doc-legacy 的 C++ 静态成员
+
+`libcdr` / `libzmf` / `librevenge` 为 MPL-2.0；`libwpg` 为 MPL-2.0 / LGPL-2.1+
+（本项目按 MPL 分支使用，同时保留 LGPL 文本）。它们由 `.3rd` 源码静态编入
+`doc.dll`；发布包必须附对应源码提供说明与许可证。Boost / ICU / libpng / lcms2 / zlib
+按各自宽松许可证处理。

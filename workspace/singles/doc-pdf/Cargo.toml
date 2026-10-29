@@ -1,0 +1,20 @@
+[package]
+name = "rupix-doc-pdf"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix doc member: PDF through the pure-Rust hayro rasterizer"
+
+[lib]
+name = "doc_pdf"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+hayro = "0.8.0"
+image = { version = "0.25", default-features = false, features = ["png"] }

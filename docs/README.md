@@ -19,7 +19,7 @@
 
 | 文件 | 职责 |
 |---|---|
-| [`architecture.md`](architecture.md) | 三个 workspace、档 vs 单库、路由、ABI 快照、边界 |
+| [`architecture.md`](architecture.md) | 七个 workspace、档 vs 单库、路由、ABI 快照、边界 |
 | [`vector-decoder.md`](vector-decoder.md) | 矢量解码器（ABI v6）：区域渲染、字体、默认接格式、验收 |
 | [`building.md`](building.md) | 工具链、target 目录、`build.ps1` 顺序、profile、形态 A/B |
 | [`releasing.md`](releasing.md) | 版本、tag、双镜像上传、清单回填、发布顺序 |
@@ -27,6 +27,6 @@
 | [`licensing.md`](licensing.md) | 许可证允许表、供应链门禁、未覆盖项 |
 | [`catalog.md`](catalog.md) | `decoders.json` 十三个字段、镜像 URL、宿主消费、完整性判据 |
 | [`contributing.md`](contributing.md) | 新增/修改解码器的完整步骤与文档同步清单 |
-| [`history-policy.md`](history-policy.md) | 四档 `HISTORY.md` 的格式、版本语义、记录边界 |
+| [`history-policy.md`](history-policy.md) | 八档 `HISTORY.md` 的格式、版本语义、记录边界 |
 | [`pitfalls.md`](pitfalls.md) | 本仓踩过的坑；编号 D，不与宿主 K 号混用 |
 | [`design-adoption.md`](design-adoption.md) | 已采纳/已拒绝/待评估的架构决策 |

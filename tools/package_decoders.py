@@ -32,6 +32,10 @@ TIERS = {
     "modern": ("rupix-modern", ROOT / "workspace"),
     "raw": ("rupix-raw", ROOT / "workspace"),
     "pro": ("rupix-pro", ROOT / "workspace" / "decoders" / "pro"),
+    "classic": ("rupix-classic-dll", ROOT / "workspace" / "decoders" / "classic"),
+    "texture": ("rupix-texture-dll", ROOT / "workspace" / "decoders" / "texture"),
+    "doc": ("rupix-doc", ROOT / "workspace" / "decoders" / "doc"),
+    "doc-legacy": ("rupix-doc-legacy-tier", ROOT / "workspace" / "decoders" / "doc-legacy"),
 }
 
 

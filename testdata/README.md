@@ -7,7 +7,7 @@
 > `golden/heic_640x480.heic` 来自 `loremfile.dev/heic/640x480.heic`，CC0 1.0；HEIF/HIF 共用该容器。
 | `make_samples.py` + `samples.json`：1/10/100 MiB 雪花/真实 seed 生成器（默认 10M） | **是**（只有脚本和配置） | — | — |
 | `golden/`：31 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、HEIC、JNG、2 帧最小 GIF、最小 PSD/HDR、无 alpha JXR、公版 DjVu 扫描…） | **是** | 456 KB | `include_bytes!` **编译期**进测试二进制 |
-| 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 默认 10M 档 113 个；`--tier all` 时 339 个（113 后缀 × 3 档） | 运行时读文件 |
+| 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 默认 10M 档 104 个；`--tier all` 时 312 个（104 后缀 × 3 档） | 运行时读文件 |
 
 划分标准是两条，缺一不可：**能不能用脚本算出来** + **算出来的字节能不能保证永远不变**。
 - 能算且字节恒定（雪花噪声、按尺寸增长的 1/10/100 MB）→ **不进仓库**，一条命令随时重建；
@@ -31,7 +31,6 @@
 只是用来查"这枚样本本该由谁读"。
 
 ## `golden/` 的规矩
-
 - **新增样本放这里，不要放进 `workspace/decoders/<tier>/` 或 `workspace/singles/<id>/`**：
   文件名自带信息（`grey16_4x4.tif`、`prog_64x48.jpg`），后缀就是格式；两个 crate 想看同一份样本时
   直接引用同一路径，不需要拷贝。
@@ -54,8 +53,7 @@
 
 - `.jpeg/.jpe/.jfif/.jif/.jfi/.exif` ← `.jpg`
 - `.tiff` ← `.tif`；`.dib/.rle` ← `.bmp`；`.icon` ← `.ico`；`.pnm` ← `.ppm`
-- `.j2k/.j2c/.jpc/.jpx/.jpf/.jpt` ← `.jp2`；`.pcc` ← `.pcx`
-- `.mrcs/.ccp4/.map` ← `.mrc`；`.dicom` ← `.dcm`
+- `.j2k/.j2c/.jpc/.jpx/.jpf/.jpt` → `.jp2`；`.pcc` → `.pcx`
 
 裸像素后缀（`.bgra/.rgb/.rgba/.gray/.gry/.i420/.yuv/.yv12/.nv12/.yuy2/.uyvy`）也不共享字节：
 每个后缀按自己的布局、形状和像素预算生成，1M 档例如 `.bgra` 4:3、`.rgba` 3:2。
@@ -96,20 +94,20 @@ seed 按档位选：1M/10M 优先选**最接近目标**且能打开的小样本�
 
 ```text
 .temp/corpus/raw/<ext>/<file>    # 29 个相机 RAW
-.temp/corpus/real/<ext>/<file>   # HEIC/AVIF/JXL/EXR/JXR/XCF/WMF/ASE/DjVu/KTX2/FF
+.temp/corpus/real/<ext>/<file>   # HEIC/AVIF/JXL/EXR/JXR/XCF/WMF/ASE/DjVu/FF
 ```
 
-`--check` 仍只验清单覆盖（66 generated + 47 seeds = 113）；`--strict` 才会检查
+`--check` 仍只验清单覆盖（58 generated + 46 seeds = 104）；`--strict` 才会检查
 每个 seed 文件真的存在。`build.ps1` 只跑 `--check`，不把外部语料变成构建依赖。
 
 `--only modern` 现在会生成/复制 JXL、HEIC、AVIF 的真实 seed（JNG 为合成样本）；`raw` 会复制 29 个
-相机的真实 RAW；`pro` 会复制 EXR/JXR/XCF/WMF/ASE/DjVu/KTX2。
+相机的真实 RAW；`pro` 会复制 EXR/JXR/XCF/WMF/ASE/DjVu。
 
 ## 档位是下限，不是精确值
 
 边长一路长到文件**超过**该档为止；格式/像素/seed 上限不足以达到该档时，manifest
-写 `capped(...)` 并给出真实尺寸，不填充、不伪造。当前默认 **10M 档 113 个样本**；
-`--tier all` 时为 113 个后缀 × 3 档 = 339 个样本。
+写 `capped(...)` 并给出真实尺寸，不填充、不伪造。当前默认 **10M 档 104 个样本**；
+`--tier all` 时为 104 个后缀 × 3 档 = 312 个样本。
 
 典型物理上限：
 
@@ -133,7 +131,8 @@ seed 按档位选：1M/10M 优先选**最接近目标**且能打开的小样本�
 |---|---|---|
 | raw | `.3fr .ari .arw .cr2 .cr3 .crm .crw .dcr .dcs .dng .erf .fff .iiq .kdc .mef .mos .mrw .nef .nrw .orf .ori .pef .qtk .raf .raw .rw2 .rwl .srw .x3f` | 26 个后缀在 manifest 标为 raw.pixls.us CC0；`.crm`（dnglab test media）、`.dcs`（rawsamples.ch）、`.qtk`（qtkn_decoder）没有明确再分发许可。逐条来源见 [RAW-CORPUS.md](RAW-CORPUS.md) |
 | modern | `.heic .heif .hif .avif .avifs .jxl .jng` | 本仓基准记录 真实样本 + BandiSoft 的 Canon HIF + JNG |
-| pro | `.exr .jxr .wdp .hdp .xcf .wmf .ase .aseprite .djvu .djv .ktx2` | OpenEXR-images、kimageformats、xcf-rs、ImageMagick、Aseprite、Wikimedia、KTX-Software |
+| pro | `.exr .jxr .wdp .hdp .xcf .ase .aseprite` | OpenEXR-images、kimageformats、xcf-rs、Aseprite |
+| doc | `.wmf .djvu .djv` | ImageMagick、Wikimedia |
 | core | `.ff` | 按 farbfeld 规范手写真实 RGBA16 样本 |
 
 seed 的逐文件 URL、字节数、sha256、许可见
@@ -167,13 +166,13 @@ corpus**，只在 local-only 目录测试。不得用 0 字节文件、改名 DN
 - `workspace/decoders/*/src/lib.rs` 声明的每个后缀必须**恰好出现一次**；新增认领不补台账，
   `tools/check_claims.py` 直接红。
 
-当前 `check_claims.py` 读数：**113 个后缀，verified 83，unverified 30**。未验证的主要缺口是
+当前 `check_claims.py` 读数：**152 个后缀，verified 123，unverified 29**。未验证的主要缺口是
 相机 RAW、`.ff` 等无本机编码器的格式全部使用 `.temp/corpus`
 真实 seed（见 `make_samples.py --seed-dir`）；别名后缀共用同一个成员证据。
 
 ## 与 `golden/` 的分工
 
-| | `golden/`（入库，456 KB，31 个） | 生成器产物（仓库外，默认 113 个；`--tier all` 为 339 个 = 113 后缀 × 3 档） |
+| | `golden/`（入库，456 KB，31 个） | 生成器产物（仓库外，默认 104 个；`--tier all` 为 312 个 = 104 后缀 × 3 档） |
 |---|---|---|
 | 用途 | **断言正确性**：能不能解、值对不对、该不该拒绝 | **压性能与尺寸/内存门** |
 | 入口 | `include_bytes!` 编译期嵌入测试二进制 | 运行时读文件（`main/examples/core_smoke.rs`、`main/examples/decoder_smoke.rs`） |
@@ -191,3 +190,29 @@ corpus**，只在 local-only 目录测试。不得用 0 字节文件、改名 DN
 ## RAW / rawpx 样本记录
 
 逐后缀的本地案例、来源、许可、冒烟尺寸和 rawpx 生成样本，见 [RAW-CORPUS.md](RAW-CORPUS.md)。
+
+## 按 DLL 的冒烟视图
+
+`by_dll/<dll-id>/` 是给“只拿一枚 DLL 试效果”用的视图：
+
+- 可入库样本放 `testdata/by_dll/<dll-id>/`；来源不明/只在本地使用的真实样本放
+  `<repo>/../.temp/by_dll/<dll-id>/`；
+- 生成器仍按后缀生成一份，不因为按 DLL 查看而复制字节；一个后缀只归一个 DLL
+  （`tools/check_claims.py` 守这条），所以 `by_dll` 只是目录视图；
+- 当前 `doc` 的样本清单、真实样本路径和测试命令见
+  [`by_dll/doc/README.md`](by_dll/doc/README.md)。
+- 从生成结果生成按 DLL 视图：`python testdata/by_dll.py`（默认输出 `.temp/by_dll`）。
+
+## classic 案例包
+
+20 个后缀各一份 16×16 合成样本，全部由 `make_classic_samples.py` 生成，无
+第三方图片；生成图按 CC0-1.0 释放。运行：
+
+```powershell
+cd RuPix-Decoder
+python testdata/make_classic_samples.py --zip
+```
+
+输出到 `.temp/classic-samples/`（含 `manifest.json` / `README.md`），`--zip`
+另写 `.temp/classic-samples.zip`。说明见
+[`CLASSIC-SAMPLES.md`](CLASSIC-SAMPLES.md)。

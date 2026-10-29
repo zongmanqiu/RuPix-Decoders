@@ -423,6 +423,8 @@ fn fill_info_gif_header(info: *mut IvRenderOut, w: u32, h: u32, count: u32) {
     oi.orientation = 1;
     oi.already_oriented = 0;
     oi.frame_count = count;
+    // 查询阶段还不知道首帧时长；显式写 0，别让上一个文件的值留在宿主缓冲里。
+    oi.frame_delay_ms = 0;
     // v4：GIF 单文件单页；ICC 不透传（image 不出 ICC，语义先通）。
     oi.page_count = 1;
     oi.icc_len = 0;
@@ -740,7 +742,8 @@ mod gif_anim {
             let n = data.len();
             let mut head = [0u8; 32];
             let mut tail = [0u8; 32];
-            head.copy_from_slice(&data[..n.min(32)]);
+            let n32 = n.min(32);
+            head[..n32].copy_from_slice(&data[..n32]);
             let t = &data[n.saturating_sub(32)..];
             tail[..t.len()].copy_from_slice(t);
             (n as u64, head, tail)
@@ -987,7 +990,8 @@ mod apng_anim {
             let n = data.len();
             let mut head = [0u8; 32];
             let mut tail = [0u8; 32];
-            head.copy_from_slice(&data[..n.min(32)]);
+            let n32 = n.min(32);
+            head[..n32].copy_from_slice(&data[..n32]);
             let t = &data[n.saturating_sub(32)..];
             tail[..t.len()].copy_from_slice(t);
             (n as u64, head, tail)

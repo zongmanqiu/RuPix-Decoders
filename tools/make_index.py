@@ -223,11 +223,11 @@ def main() -> int:
     previous = load_previous(out)
     today = datetime.date.today().isoformat()
 
-    # 已知 id（decode 源码目录名）——发布目录里混进来的夹具/改名残留一律跳过。
+    # Known ids (source dir names) - fixtures / rename leftovers in the dist dir are skipped.
     known = set()
-    for base in (ROOT / "workspace" / "decoders", ROOT / "decoders-cpp" / "decoders"):
-        if base.is_dir():
-            known |= {p.name for p in base.iterdir() if p.is_dir()}
+    base = ROOT / "workspace" / "decoders"
+    if base.is_dir():
+        known |= {p.name for p in base.iterdir() if p.is_dir()}
 
     entries: list[dict] = []
     skipped: list[str] = []
@@ -238,7 +238,7 @@ def main() -> int:
             continue
         pid, version = parsed
         if pid not in known:
-            skipped.append(f"{dll.name}（decoders-*/decoders/ 下没有 {pid} 这个档）")
+            skipped.append(f"{dll.name}（workspace/decoders/ 下没有 {pid} 这个档）")
             continue
 
         sd = read_self_description(dll)

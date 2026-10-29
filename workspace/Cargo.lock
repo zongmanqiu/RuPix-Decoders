@@ -403,6 +403,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fearless_simd"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -596,6 +602,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "hayro-jpeg2000"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c75ab947623ef4ccaa7acf0579edf7cbb5a73838e3839a7be73335e522f433a1"
+dependencies = [
+ "fearless_simd",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -639,6 +654,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "icns"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f55019ac1db606ff01afed8a9d18d91b83e6463da421084f767c89026467b619"
+dependencies = [
+ "byteorder",
+ "hayro-jpeg2000",
+ "png",
 ]
 
 [[package]]
@@ -1470,15 +1496,15 @@ dependencies = [
 
 [[package]]
 name = "rupix-common"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "rupix-abi",
  "rupix-core",
  "rupix-gif",
+ "rupix-icns",
  "rupix-jpeg",
  "rupix-merge-router",
  "rupix-png",
- "rupix-qoi",
  "rupix-tiff",
 ]
 
@@ -1493,11 +1519,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "rupix-ff"
+version = "0.1.0"
+dependencies = [
+ "rupix-abi",
+ "rupix-pro-support",
+]
+
+[[package]]
 name = "rupix-gif"
 version = "0.1.0"
 dependencies = [
  "gif",
  "rupix-abi",
+]
+
+[[package]]
+name = "rupix-icns"
+version = "0.1.0"
+dependencies = [
+ "icns",
+ "rupix-abi",
+ "rupix-pro-support",
 ]
 
 [[package]]
@@ -1537,13 +1580,15 @@ dependencies = [
 
 [[package]]
 name = "rupix-modern"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "rupix-abi",
  "rupix-av",
+ "rupix-ff",
  "rupix-jng",
  "rupix-jxl",
  "rupix-merge-router",
+ "rupix-qoi",
 ]
 
 [[package]]
@@ -1570,7 +1615,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-raw"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "flashraw",
  "rawler",

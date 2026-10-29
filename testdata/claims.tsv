@@ -7,25 +7,45 @@ common	jpeg	jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo	verified	golden:golden_16x12.
 common	png	png	verified	golden:red_1x1.png	1x1 RGBA PNG
 common	gif	gif	verified	golden:anim_2x2_2f.gif	2-frame GIF
 common	tiff	tif;tiff	verified	golden:cmyk_8x8.tif	CMYK / 16-bit / palette fixtures in tests
-common	qoi	qoi	verified	tests:rupix-qoi	inline QOI codec tests
+common	icns	icns	verified	tests:rupix-icns	standalone ICNS decoder
+common	core	apng;webp;bmp;dib;rle;ico;icon;cur;ani;tga	verified	tests:rupix-core	CUR reuses ICO type 2; ANI parses RIFF/ICO frames
 pro	psd	psd	verified	golden:psd_red_2x2.psd	2x2 PSD; moved from common 2026-10-28 (classification: professional creation/HDR)
 pro	hdr	hdr	verified	golden:hdr_red_2x2.hdr	2x2 Radiance HDR; moved from common 2026-10-28 (classification: professional creation/HDR)
-common	core	apng;webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;tga	verified	tests:rupix-core	CUR reuses ICO type 2; ANI parses RIFF/ICO frames
-common	core	ff	unverified	-	no image-rs magic and no .ff fixture; core has no ext path
 modern	av	heic;heif;hif	verified	golden:heic_640x480.heic	CC0 HEIC fixture from loremfile.dev/heic/640x480.heic; HEIF/HIF aliases share the container
 modern	av	avif;avifs	verified	golden:1x1_red.avif	1x1/4x4/gray/alpha/rotation AVIF fixtures
 modern	jng	jng	verified	golden:jng_64x48_alpha.jng	JPEG image with PNG alpha mask
 modern	jxl	jxl	verified	golden:1x1_red.jxl	codestream and container fixtures
+modern	qoi	qoi	verified	tests:rupix-qoi	from common; QOI codec tests
+modern	ff	ff	verified	tests:rupix-ff	from common; farbfeld
 raw	rawler	3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f	unverified	-	29 local seeds in .temp/corpus/raw; 26 have CC0 sources, crm/dcs/qtk have no explicit redistribution grant; committed RAW golden is sniff-only; see testdata/RAW-CORPUS.md
 raw	rawpx	rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy	verified	tests:rupix-rawpx	11 parameterized raw-pixel suffixes; .raw is counted in the camera group
 pro	pro-jp2	jp2;j2k;j2c;jpc;jpx;jpf;jpt	verified	tests:rupix-pro-jp2	member tests; no per-suffix golden
 pro	pro-jxr	jxr;wdp;hdp	verified	golden:jxr_rgb_64x64.jxr	no-alpha RGB decode; WDP/HDP aliases share the same bytes
 pro	pro-exr	exr	verified	tests:rupix-pro-exr	member tests; no per-suffix golden
-pro	pro-ktx2	ktx;ktx2	verified	tests:rupix-pro-ktx2	member tests; no per-suffix golden
-pro	pro-dicom	dcm;dicom	verified	tests:rupix-pro-dicom	member tests; no per-suffix golden
-pro	pro-sci	nii;nrrd;mrc;mrcs;ccp4;map	verified	tests:rupix-pro-sci	member tests; no per-suffix golden
-pro	pro-small	pcx;pcc;dcx;icns;wbmp;xbm	verified	tests:rupix-pro-small	member tests; no per-suffix golden
 pro	pro-xcf	xcf	verified	tests:rupix-pro-xcf	member tests; no per-suffix golden
 pro	pro-ase	ase;aseprite	verified	tests:rupix-pro-ase	member tests; no per-suffix golden
-pro	pro-djvu	djvu;djv	verified	golden:djvu_pd_scan.djvu	public-domain scan decode; DJV alias shares the same bytes
-pro	pro-wmf	wmf	verified	tests:rupix-pro-wmf	member tests; no per-suffix golden
+texture	dds	dds	verified	tests:rupix-texture-impl	DDS via image-extras/dds
+texture	ktx	ktx;ktx2	verified	tests:rupix-texture-impl	KTX/KTX2 via ktx2 + texture2ddecoder
+texture	astc	astc	verified	tests:rupix-texture-impl	raw ASTC via texture2ddecoder
+texture	pvr	pvr	verified	tests:rupix-texture-impl	PVR v3 PVRTC via texture2ddecoder
+texture	basis	basis	verified	tests:rupix-texture-impl	Basis via basisu
+texture	blp	blp	verified	tests:rupix-texture-impl	BLP1/BLP2 JPEG/palette/DXT/BGRA self-written
+texture	vtf	vtf	verified	tests:rupix-texture-impl	VTF via vtf
+doc	cad	dwg;dwt;dxf	verified	tests:rupix-doc-cad	member tests; pure-Rust acadrust path
+doc	meta	wmf;wmz	verified	tests:rupix-pro-wmf	wrapper-free reuse of proven pro-wmf
+doc	djvu	djvu;djv	verified	tests:rupix-pro-djvu	wrapper-free reuse of proven pro-djvu
+doc	emf	emf;emz	verified	tests:rupix-doc-emf	emsdk render path
+doc	hpgl	hp;hpg;plo;hg;hgl;plt;hp1;hp2;hpgl;hpgl2;gl2	verified	tests:rupix-doc-hpgl	nom-hpgl parser + resvg
+doc	pdf	pdf	verified	tests:rupix-doc-pdf	hayro rasterizer
+doc	print	ps;ps1;ps2;ps3;prn;eps;ai	verified	tests:rupix-doc-print	stet PostScript interpreter
+doc	xps	xps;oxps	verified	tests:rupix-doc-xps	justpdf-formats XPS
+doc-legacy	legacy	cmx;ccx;wpg;zmf;zbr	verified	tests:rupix-doc-legacy	libcdr/libwpg/libzmf static C++ shim
+classic	pnm	pnm;ppm;pgm;pbm;pam	verified	tests:rupix-classic	PNM/PAM P1-P7 via image crate
+classic	pcx	pcx;pcc	verified	tests:rupix-classic	PCX/PCC
+classic	dcx	dcx	verified	tests:rupix-classic	first PCX page in DCX
+classic	wbmp	wbmp	verified	tests:rupix-classic	WBMP
+classic	xbm	xbm	verified	tests:rupix-classic	XBM
+classic	xpm	xpm	verified	tests:rupix-classic	XPM
+classic	pict	pict;pct;pic	verified	tests:rupix-classic	PICT via oxideav-pict
+classic	ilbm	ilbm;lbm;iff	verified	tests:rupix-classic	IFF/ILBM via oxideav-iff
+classic	sgi	sgi;iris;bw	verified	tests:rupix-classic	SGI; rgb/rgba stay raw

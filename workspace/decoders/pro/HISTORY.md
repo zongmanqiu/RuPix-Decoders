@@ -2,6 +2,23 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.4.2 — 2026-10-29 — abi 6
+
+- `ktx` / `ktx2` 移出（目标 texture），`dcm` / `dicom`、`nii`、`nrrd`、`mrc` / `mrcs` / `ccp4` / `map` 移出（目标 medical）。
+- `pro` 后缀从 26 降到 **16**；`ktx/ktx2` 归 texture，DICOM/NIfTI/MRC 等归 medical。
+- 本档只保留：JPEG2000 家族、JXR/WDP/HDP、EXR、PSD、HDR、XCF、ASE/ASEPRITE。
+
+## 0.4.1 — 2026-10-28 — abi 6
+
+- `icns` 移交 common；`pcx/pcc/dcx/wbmp/xbm` 暂时移出，随后由 classic 0.1.0 接管。
+- pro 后缀从 32 降到 26；不再装配 `pro-small`；单库仍保留供 common/classic 复用。
+- 本轮是所有权重排，不是解码器行为变更；classic 0.1.0 已接管这些后缀；本档不再声明。
+
+## 0.4.0 — 2026-10-28 — abi 6
+
+- WMF/WMZ、DjVu/DjV 移交给 `doc` 合并档；`pro` 后缀从 35 降到 32，不再声明 `CAP_REGION` / `vector_exts`。
+- `pro` 装配层不再依赖 `pro-wmf` / `pro-djvu`；单库保留给 `doc` 复用。
+
 ## 0.3.0 — 2026-10-28 — abi 6
 
 - **变更**：① ABI 代次前移到 **6**（纯加法，既有导出签名与结构体布局逐字节未动）。② WMF/WMZ 成员实现可选导出 `iv_render_region`（**ABI v6 区域渲染**）：宿主给出"看得见的那一块"与目标画布，解码器按密度**重新光栅化**——矢量图放大到 4000% 也无损。③ 矢量路线改为**解码器自渲染**：不再实现 `iv_export_svg`、不再声明 `CAP_VECTOR`（矢量格式一律由解码器按目标尺寸渲染）。

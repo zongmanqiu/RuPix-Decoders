@@ -1,0 +1,21 @@
+[package]
+name = "rupix-doc-emf"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix doc member: EMF/EMZ metafile"
+
+[lib]
+name = "doc_emf"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+emfsdk = { version = "0.2.0", features = ["render"] }
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+image = { version = "0.25", default-features = false, features = ["png"] }

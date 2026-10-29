@@ -1,0 +1,18 @@
+[package]
+name = "rupix-ff"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix farbfeld (.ff) decoder"
+
+[lib]
+name = "ff"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }

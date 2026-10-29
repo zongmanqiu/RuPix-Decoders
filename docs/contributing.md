@@ -42,7 +42,7 @@
 1. `workspace/decoders/<tier>/Cargo.toml` 加依赖：
    `rupix-<id> = { path = "../../workspace/singles/<id>", default-features = false }`。
 2. `src/lib.rs` 的 `MEMBERS` 加一行。
-3. 认领后缀写进该档 `export_decoder!` 的 `extensions`；四档后缀两两不相交
+3. 认领后缀写进该档 `export_decoder!` 的 `extensions`；八档后缀两两不相交
    （`check_claims.py` 守着）。
 4. 新开一档时，还要加进根 `Cargo.toml` 的 `members`，并补
    `workspace/decoders/<tier>/README.md` + `HISTORY.md`。
@@ -63,7 +63,7 @@
   只写版本/日期/ABI/变更，不写上传状态、ZIP 生成、release tag（见 `history-policy.md`）。
 - `解码器开发规范.md` §八：自查清单（若 ABI 语义变化）。
 - `testdata/claims.tsv`：认领后缀 / 成员 / 证据状态变化时。
-- 根 `README.md`：只改四档表的版本/后缀数/发布状态，不抄细节。
+- 根 `README.md`：只改八档表的版本/后缀数/发布状态，不抄细节。
 - `decoders.json`：`py tools/make_index.py` 重生成。
 - `docs/architecture.md`：workspace / 路由 / 能力位变化时。
 - `docs/catalog.md`：字段或镜像规则变化时。

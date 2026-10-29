@@ -1,0 +1,48 @@
+[package]
+name = "rupix-doc"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix document tier: PDF/PS/EPS/AI/CAD/metafiles/DjVu/HPGL/XPS"
+
+[lib]
+name = "doc"
+crate-type = ["cdylib", "rlib"]
+
+# Keep doc in its own workspace so PDF/PostScript/CAD/EMF/XPS dependencies
+# never feature-unify into common/modern/raw. The first slice is pure Rust;
+# future C/C++ members can be added here without changing that boundary.
+[workspace]
+resolver = "2"
+
+[workspace.dependencies]
+rupix-abi = { path = "../../../abi" }
+rupix-merge-router = { path = "../../shared/router" }
+rupix-pro-support = { path = "../../shared/pro-support" }
+
+[profile.release]
+# 2026-10-28 体积/性能对照：3 为 28.8 MB，s 为 26.7 MB（约 -7.4%），
+# 样本总耗时在噪声内；z 为 24.2 MB 但慢约 10%。默认选 s。
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+debug = 1
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-merge-router = { workspace = true }
+rupix-pro-support = { workspace = true }
+
+# Members. `pro-wmf` / `pro-djvu` are the proven singleton implementations
+# that doc now owns at the assembly layer; `standalone` is off so their own
+# ABI exports do not leak into doc.dll.
+rupix-doc-cad = { path = "../../singles/doc-cad", default-features = false }
+rupix-pro-wmf = { path = "../../singles/pro-wmf", default-features = false }
+rupix-pro-djvu = { path = "../../singles/pro-djvu", default-features = false }
+rupix-doc-emf = { path = "../../singles/doc-emf", default-features = false }
+rupix-doc-hpgl = { path = "../../singles/doc-hpgl", default-features = false }
+rupix-doc-pdf = { path = "../../singles/doc-pdf", default-features = false }
+rupix-doc-print = { path = "../../singles/doc-print", default-features = false }
+rupix-doc-xps = { path = "../../singles/doc-xps", default-features = false }

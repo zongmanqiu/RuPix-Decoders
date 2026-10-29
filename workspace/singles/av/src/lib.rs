@@ -243,6 +243,10 @@ fn fill_info_oriented(
     oi.bit_depth = BIT_DEPTH_8;
     oi.orientation = orientation;
     oi.already_oriented = already_oriented;
+    // Static still: report it explicitly. The host reuses IvRenderOut across
+    // requests, so leaving these untouched can leak a previous file's frame count.
+    oi.frame_count = 1;
+    oi.frame_delay_ms = 0;
     // v4：单页；ICC 不透传。frame/delay 缺省 0 = 静态（heic 动图后续再接）。
     oi.page_count = 1;
     oi.icc_len = 0;

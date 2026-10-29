@@ -30,24 +30,23 @@ Four choices worth knowing before editing:
   `capped` with the size actually achieved rather than pretending.
 * Alias suffixes keep the same pixels on purpose: `.jpeg .jpe .jfif .jif .jfi .exif` are
   JPEG under another suffix, `.dib .rle` are BMP, `.icon` is ICO, `.pnm` is PPM, `.tiff` is
-  TIFF, `.j2k .j2c .jpc .jpx .jpf .jpt` are JP2, `.pcc` is PCX, `.mrcs .ccp4 .map` are MRC
-  and `.dicom` is DICOM - that is how the host routes them and the decoder never sees the
-  suffix as a hint. They start as hard links, then a final pass gives every file in a tier a
-  unique byte length (format-safe trailers; `.heif` gets a `free` box, `.dicom` a trailing
-  padding element). This is deliberate: sorting by size must not make two distinct files
+  TIFF, `.j2k .j2c .jpc .jpx .jpf .jpt` are JP2, `.pcc` is PCX. They start as hard links,
+  then a final pass gives every file in a tier a
+  unique byte length (format-safe trailers; `.heif` gets a `free` box). This is deliberate: sorting by size must not make two distinct files
   look identical. Caveat: `.rle` gets an uncompressed BMP, so the BMP RLE4/RLE8 code paths
   stay untested.
 
 Formats with no encoder reachable from here are backed by real seeds in `<seed-dir>/raw/<ext>/`
 and `<seed-dir>/real/<ext>/` (default `.temp/corpus`): camera RAW, HEIC/AVIF/JXL, EXR/JXR,
-XCF/WMF/ASE/DjVu/KTX2 and `.ff`. Seeds are reused at every tier; when a seed is smaller
+XCF/WMF/ASE/DjVu and `.ff`. Seeds are reused at every tier; when a seed is smaller
 than a tier the manifest records `capped(SEED ...)`, and a missing seed makes `--strict`
 fail. Nothing is fabricated.
 
 Dependency: Pillow, for the containers it can save. QOI, PAM/P7, Radiance .hdr, .psd, DXT1
-.dds, DCX, WBMP, KTX1, NIfTI, NRRD, MRC and DICOM are hand-encoded below against the specs
-our DLLs read. The .hdr writer emits literal-only scanlines, so the ">128 repeat" branch is
-exercised by the crate's own unit tests, not by these samples. .dds is written as BC1 because
+.dds, DCX and WBMP are hand-encoded below against the specs; texture/medical helpers
+remain for future packs, but are not part of the current plan. The .hdr writer emits
+literal-only scanlines, so the ">128 repeat" branch is exercised by the crate's own unit
+tests, not by these samples. .dds is written as BC1 because
 that is all core can decode: image-rs' DDS decoder accepts only DXT1/DXT3/DXT5 (plus DX10
 headers in the BC1-BC3 range), so uncompressed RGB/RGBA DDS and BC4-BC7 stay
 ERR_UNSUPPORTED - Pillow opens them, the DLL does not, and the compressed sample is the one
@@ -166,9 +165,19 @@ RAW_SEED_EXT = (
 REAL_SEED_EXT = (
     ".heic", ".heif", ".hif", ".avif", ".avifs", ".jxl", ".exr", ".jxr",
     ".wdp", ".hdp", ".xcf", ".wmf", ".ase", ".aseprite", ".djvu", ".djv",
-    ".ktx2", ".ff",
+    ".ff",
 )
 SEED_EXT = RAW_SEED_EXT + REAL_SEED_EXT
+# Classic has a dedicated 20-file pack: testdata/make_classic_samples.py.
+# The general generator keeps these out because PICT/ILBM/SGI/XPM need Rust encoders.
+# doc/doc-legacy are real decoders but their generators are not in this plan yet.
+SKIP_EXT = {".xpm", ".pict", ".pct", ".pic", ".ilbm", ".lbm", ".iff",
+            ".sgi", ".iris", ".bw",
+            ".ai", ".ccx", ".cmx", ".dwg", ".dwt", ".dxf", ".emf", ".emz",
+            ".eps", ".gl2", ".hg", ".hgl", ".hp", ".hp1", ".hp2", ".hpg",
+            ".hpgl", ".hpgl2", ".oxps", ".pdf", ".plo", ".plt", ".prn", ".ps",
+            ".ps1", ".ps2", ".ps3", ".wmz", ".wpg", ".xps", ".zbr", ".zmf",
+            ".ktx2", ".astc", ".pvr", ".basis", ".blp", ".vtf"}
 
 # (claimed_by, ext, kind, options). The first field is METADATA, not an output path: one
 # sample per suffix is generated once and shared by whoever claims that suffix. kind:
@@ -190,7 +199,6 @@ PLAN = [
     ("core", ".pbm", "pil", {}),
     ("core", ".pam", "pam", {}),
     ("core", ".tga", "pil", {}),
-    ("core", ".dds", "dds", {}),
     ("common", ".cur", "cur", {}),
     ("common", ".ani", "ani", {}),
     ("modern", ".jng", "jng", {}),
@@ -205,23 +213,17 @@ PLAN += [("rawpx", e, "rawpx", {}) for e in sorted(RAWPX)]
 # pro tier. Encodable formats are generated; the rest are resolved from real seeds.
 PLAN += [
     ("pro-jp2", ".jp2", "pil", {"format": "JPEG2000"}),
-    ("pro-small", ".pcx", "pil", {"format": "PCX"}),
-    ("pro-small", ".icns", "pil", {"format": "ICNS"}),
-    ("pro-small", ".xbm", "pil", {"format": "XBM"}),
-    ("pro-small", ".wbmp", "wbmp", {}),
-    ("pro-small", ".dcx", "dcx", {}),
-    ("pro-ktx2", ".ktx", "ktx", {}),
-    ("pro-sci", ".nii", "nii", {}),
-    ("pro-sci", ".nrrd", "nrrd", {}),
-    ("pro-sci", ".mrc", "mrc", {}),
-    ("pro-dicom", ".dcm", "dicom", {}),
+    ("classic", ".pcx", "pil", {"format": "PCX"}),
+    ("common", ".icns", "pil", {"format": "ICNS"}),
+    ("classic", ".xbm", "pil", {"format": "XBM"}),
+    ("classic", ".wbmp", "wbmp", {}),
+    ("classic", ".dcx", "dcx", {}),
+    ("texture", ".dds", "dds", {}),
+    ("texture", ".ktx", "ktx", {}),
 ]
 PLAN += [("pro-jp2", e, "alias", {"src": ".jp2"})
          for e in (".j2k", ".j2c", ".jpc", ".jpx", ".jpf", ".jpt")]
-PLAN += [("pro-small", ".pcc", "alias", {"src": ".pcx"})]
-PLAN += [("pro-sci", e, "alias", {"src": ".mrc"})
-         for e in (".mrcs", ".ccp4", ".map")]
-PLAN += [("pro-dicom", ".dicom", "alias", {"src": ".dcm"})]
+PLAN += [("classic", ".pcc", "alias", {"src": ".pcx"})]
 
 # No silent skips: every non-encodable suffix must have a real seed.
 SEED_MEMBER = {ext: "raw" for ext in RAW_SEED_EXT}
@@ -231,7 +233,7 @@ CLAIMS = ROOT / "testdata" / "claims.tsv"
 
 
 def coverage_errors():
-    planned = {ext for _, ext, _, _ in PLAN}
+    planned = {ext for _, ext, _, _ in PLAN} | SKIP_EXT
     seeded = set(SEED_EXT)
     if not CLAIMS.is_file():
         return ["claims ledger missing: %s" % CLAIMS]
@@ -258,8 +260,9 @@ TIER_MEMBERS = {
     "common": ["jpeg", "png", "gif", "tiff", "qoi", "common", "core"],
     "modern": ["av", "jng", "jxl"],
     "raw": ["rawpx", "raw"],
-    "pro": ["pro-jp2", "pro-jxr", "pro-exr", "pro-ktx2", "pro-dicom",
-            "pro-sci", "pro-small", "pro-xcf", "pro-ase", "pro-djvu", "pro-wmf"],
+    "classic": ["pnm", "pcx", "dcx", "wbmp", "xbm", "xpm", "sgi", "pict", "ilbm"],
+    "texture": ["dds", "ktx", "astc", "pvr", "basis", "blp", "vtf"],
+    "pro": ["pro-jp2", "pro-jxr", "pro-exr", "pro-psd", "pro-hdr", "pro-xcf", "pro-ase"],
 }
 DECODER_IDS = sorted({p for p, *_ in PLAN} | set(SEED_MEMBER.values()))
 
@@ -799,7 +802,7 @@ def main():
         return 0
 
     selected_tiers = list(tiers.items()) if args.tier == "all" else [(args.tier, tiers[args.tier])]
-    known_exts = {ext for _, ext, *_ in PLAN} | set(SEED_EXT)
+    known_exts = {ext for _, ext, *_ in PLAN} | set(SEED_EXT) | SKIP_EXT
     only_exts = set()
     only_filter = bool(args.only.strip())
     for tok in (t.strip() for t in args.only.split(",")):

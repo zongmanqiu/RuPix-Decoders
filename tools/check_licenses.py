@@ -23,6 +23,10 @@ MANIFESTS = [
     ROOT / "workspace" / "Cargo.toml",
     ROOT / "workspace" / "singles" / "Cargo.toml",
     ROOT / "workspace" / "decoders" / "pro" / "Cargo.toml",
+    ROOT / "workspace" / "decoders" / "classic" / "Cargo.toml",
+    ROOT / "workspace" / "decoders" / "texture" / "Cargo.toml",
+    ROOT / "workspace" / "decoders" / "doc" / "Cargo.toml",
+    ROOT / "workspace" / "decoders" / "doc-legacy" / "Cargo.toml",
 ]
 ALLOWED = {
     "0BSD",
@@ -32,6 +36,7 @@ ALLOWED = {
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
+    "BSL-1.0",
     "CC0-1.0",
     "IJG",
     "ISC",

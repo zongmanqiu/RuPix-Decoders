@@ -1,7 +1,7 @@
 # `modern` —— 现代格式合并档（HEIC / HEIF / AVIF / JPEG XL / JNG）
 
-一枚 DLL 认领 7 个后缀：`heic heif hif avif avifs jxl jng`。
-成员三个：`av`（HEIC/HEIF + AVIF，`heif-oxide` + `zenavif`）、`jxl`（`jxl-oxide`）与 `jng`（JPEG + PNG alpha）。
+一枚 DLL 认领 9 个后缀：`heic heif hif avif avifs jxl jng qoi ff`。
+成员五个：`av`（HEIC/HEIF + AVIF）、`jxl`、`jng`、`qoi`、`ff`（Farbfeld）。
 
 > 发布形态：`build.ps1` 产出 `modern.dll`，发布名 `modern_<ver>.dll`。
 > 单库 `av` / `jxl` 不再发布——它们在 `workspace/singles/` 里保留，只作 bench 与 A/B 的参考实现。
@@ -9,7 +9,7 @@
 ## 为什么放在一起
 
 1. **崩溃域要与日常格式隔开**：`heif-oxide` 0.1.x、`jxl-oxide` 0.12.x 是整批库里最年轻的两个，
-   一张坏 HEIC 三振出局，不该连累 `common` 那 31 个后缀；
+   一张坏 HEIC 三振出局，不该连累 `common` 那 24 个后缀；
 2. **低频但强绑定**：会打开 HEIC 的人几乎一定也会碰到别人发来的 JXL，反之亦然；
 3. 同属"现代容器 + 现代编码"，将来接 AVIF 序列 / JPEG XL 动画时同族共享解析。
 

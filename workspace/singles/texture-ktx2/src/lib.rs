@@ -15,7 +15,7 @@ use std::ffi::c_char;
 
 #[cfg(feature = "standalone")]
 export_decoder! {
-    id: "pro-ktx2",
+    id: "texture-ktx2",
     name: "KTX Texture",
     extensions: "ktx;ktx2",
     description: "KTX1 未压缩 8 位 + KTX2（未压缩 RGBA/BGRA/RGB/R8、BC1/BC3/BC7）",

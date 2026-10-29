@@ -2,8 +2,8 @@
 
 ## 粒度
 
-- 只给**四个发布 DLL** 写历史：`workspace/decoders/{common,modern,raw,pro}/HISTORY.md`。
-- 22 个单库不单独写历史：它们不是独立发布物，历史由所属档的记录覆盖；
+- 只给**八个发布 DLL** 写历史：`workspace/decoders/{common,modern,raw,pro,classic,texture,doc,doc-legacy}/HISTORY.md`。
+- 33 个单库不单独写历史：它们不是独立发布物，历史由所属档的记录覆盖；
   单库 README 只写当前实现与限制。
 - ABI 版本史不放在这里，放 `解码器开发规范.md` §九。档历史只写“DLL 对用户/宿主可见的变化”。
 
@@ -85,7 +85,7 @@
 
 `tools/check_history.py` 校验：
 
-- 四份 `HISTORY.md` 存在；
+- 八份 `HISTORY.md` 存在；
 - 最新标题的版本 = `Cargo.toml` 版本；
 - 标题格式必须是 `## <version> — <YYYY-MM-DD> — abi <N>`；不接受 `未发布` 标题；
 - 最新标题日期 = `decoders.json.released`（已发布时）；日期不能在未来；

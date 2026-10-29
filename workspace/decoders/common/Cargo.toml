@@ -1,9 +1,9 @@
 [package]
 name = "rupix-common"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 license = "AGPL-3.0"
-description = "RuPix 合并解码器：常见位图合集（JPEG/PNG/APNG/GIF/TIFF/QOI/WebP/BMP/ICO/TGA/DDS/PNM）"
+description = "RuPix 合并解码器：默认位图合集（JPEG/PNG/GIF/TIFF/ICNS/WebP/BMP/ICO/TGA）"
 
 [lib]
 # 目录名 = 解码器 id = lib name（build.ps1 靠这个约定找产物并改名发布）。
@@ -30,7 +30,7 @@ rupix-jpeg = { path = "../../singles/jpeg", default-features = false }
 rupix-png = { path = "../../singles/png", default-features = false }
 rupix-gif = { path = "../../singles/gif", default-features = false }
 rupix-tiff = { path = "../../singles/tiff", default-features = false }
-rupix-qoi = { path = "../../singles/qoi", default-features = false }
+rupix-icns = { path = "../../singles/icns", default-features = false }
 # 包名 `rupix-core` 的 lib name 是 `core`，与 sysroot 的 `core` 同名；
 # 这里显式改名，避免把内置 crate 顶掉。
 core_rs = { package = "rupix-core", path = "../../singles/core", default-features = false, features = ["webp-rust"] }

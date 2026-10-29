@@ -1,0 +1,19 @@
+[package]
+name = "rupix-icns"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix ICNS decoder"
+
+[lib]
+name = "icns_decoder"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+icns = "0.5.0"

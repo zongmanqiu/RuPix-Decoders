@@ -1,0 +1,24 @@
+[package]
+name = "rupix-doc-cad"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix doc member: DWG/DXF via pure-Rust acadrust + dxf_to_svg"
+
+[lib]
+name = "doc_cad"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+# Pure-Rust path: DWG/DXF parsing and DWG -> DXF conversion. Disabling
+# `parallel` keeps the decoder's single-thread contract (no Rayon pool).
+acadrust = { version = "0.6.8", default-features = false }
+dxf = "0.6.2"
+dxf_to_svg = "1.0.0"
+resvg = "0.49"

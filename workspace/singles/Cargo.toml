@@ -6,9 +6,19 @@ resolver = "2"
 # 在这里跑出的是各单库自己的 DLL，只给 bench / A-B 排查用。
 members = [
     "av",
+    "classic",
     "core",
+    "ff",
     "gif",
+    "icns",
     "pro-hdr",
+    "doc-cad",
+    "doc-emf",
+    "doc-hpgl",
+    "doc-pdf",
+    "doc-print",
+    "doc-xps",
+    "doc-legacy",
     "jpeg",
     "jng",
     "jxl",
@@ -18,16 +28,16 @@ members = [
     "pro-exr",
     "pro-jp2",
     "pro-jxr",
-    "pro-ktx2",
+    "texture-ktx2",
     "pro-ase",
     "pro-xcf",
     "pro-sci",
-    "pro-small",
     "pro-wmf",
     "pro-psd",
     "qoi",
     "rawpx",
     "tiff",
+    "texture",
 ]
 
 [workspace.dependencies]

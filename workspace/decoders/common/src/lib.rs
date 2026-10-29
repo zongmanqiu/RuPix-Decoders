@@ -28,9 +28,9 @@ use std::ffi::c_char;
 export_decoder! {
     id: "common",
     name: "Common Raster Set",
-    extensions: "jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo;png;apng;gif;tif;tiff;qoi;\
-webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;ff;tga",
-    description: "常见位图合集：照片、截图与图标",
+    extensions: "jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo;png;apng;gif;tif;tiff;\
+webp;bmp;dib;rle;ico;icon;cur;ani;tga;icns",
+    description: "常见位图合集：照片、截图、图标与 macOS 图标",
     is_vector: 0,
     has_alpha: 1,
 }
@@ -41,10 +41,10 @@ webp;bmp;dib;rle;ico;icon;cur;ani;pnm;ppm;pgm;pbm;pam;dds;ff;tga",
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.2.3",
+    "version" => "0.2.4",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-28",
+    "released" => "2026-10-29",
 }
 
 /// 成员表。**顺序不影响路由**（按探针置信度排序），只影响同分时的先后。
@@ -73,9 +73,9 @@ static MEMBERS: &[Member] = &[
         render: tiff::render_impl,
     },
     Member {
-        id: "qoi",
-        probe: qoi::probe_impl,
-        render: qoi::render_impl,
+        id: "icns",
+        probe: icns_decoder::probe_impl,
+        render: icns_decoder::render_impl,
     },
     // 通用兜底放最后：它报 50，本来就压不过报 100 的冠军；放最后只是让同分时
     // "专才优先"，也方便出问题时一眼看出兜底有没有接住。

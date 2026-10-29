@@ -136,11 +136,17 @@ fn fingerprint(input: &[u8]) -> (u64, u64) {
         }
         h
     }
-    if input.len() <= 128 {
+    if input.len() <= 192 {
         (fnv(input), input.len() as u64)
     } else {
+        // Sample a middle block too: same-length files from one camera share
+        // the TIFF header and trailer, so ends-only keys collided and the
+        // cache served the previous file's pixels.
+        let mid = input.len() / 2 - 32;
         (
-            fnv(&input[..64]).wrapping_mul(31) ^ fnv(&input[input.len() - 64..]),
+            fnv(&input[..64]).wrapping_mul(31)
+                ^ fnv(&input[mid..mid + 64]).wrapping_mul(131)
+                ^ fnv(&input[input.len() - 64..]),
             (input.len() as u64) << 1 | 1,
         )
     }

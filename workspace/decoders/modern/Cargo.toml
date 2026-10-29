@@ -1,6 +1,6 @@
 [package]
 name = "rupix-modern"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 合并解码器：现代格式（HEIC/HEIF/AVIF + JPEG XL + JNG）"
@@ -21,3 +21,5 @@ rupix-merge-router = { workspace = true }
 rupix-av = { path = "../../singles/av", default-features = false }
 rupix-jng = { path = "../../singles/jng", default-features = false }
 rupix-jxl = { path = "../../singles/jxl", default-features = false }
+rupix-qoi = { path = "../../singles/qoi", default-features = false }
+rupix-ff = { path = "../../singles/ff", default-features = false }

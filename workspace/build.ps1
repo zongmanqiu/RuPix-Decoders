@@ -150,8 +150,13 @@ Write-ToolchainReport (Join-Path $buildRoot "toolchain_report.txt")
 
 Push-Location $root
 try {
-    $code = Invoke-Native { cargo build --release --workspace }
-    if ($code -ne 0) { exit $code }
+    # Build each root tier SEPARATELY: one cargo invocation unions the feature
+    # sets of common/modern/raw through shared deps (modern grew +448 KB on
+    # 2026-10-29). The workspace test run below still covers all of them.
+    foreach ($pkg in @("rupix-common", "rupix-modern", "rupix-raw")) {
+        $code = Invoke-Native { cargo build --release -p $pkg }
+        if ($code -ne 0) { exit $code }
+    }
     # Serial, always (AGENTS.md section 7): the decoder decoders keep process-global state
     # (gif/apng SESSIONS is a 2-slot LRU pool). Run in parallel, two tests evict each
     # other's session and a "sequential playback" assertion suddenly sees a rebuilt
@@ -175,46 +180,112 @@ if (Test-Path $benchRoot) {
     try {
         $code = Invoke-Native { cargo fmt --check }
         if ($code -ne 0) { Write-Host "[ERROR] cargo fmt --check failed in singles"; exit 1 }
-        $code = Invoke-Native { cargo clippy --all-targets --release --workspace -- -D warnings }
+        # rupix-doc-legacy is GNU-only (build.rs rejects MSVC) and lives in this
+        # workspace for source layout only; exclude it here and build it below.
+        $code = Invoke-Native { cargo clippy --all-targets --release --workspace --exclude rupix-doc-legacy -- -D warnings }
         if ($code -ne 0) { Write-Host "[ERROR] cargo clippy failed in singles"; exit 1 }
-        $code = Invoke-Native { cargo build --release --workspace }
+        $code = Invoke-Native { cargo build --release --workspace --exclude rupix-doc-legacy }
         if ($code -ne 0) { exit $code }
         # Serial, always: same process-global session pools as the tier tests.
-        $code = Invoke-Native { cargo test --release --workspace -- --test-threads=1 }
+        $code = Invoke-Native { cargo test --release --workspace --exclude rupix-doc-legacy -- --test-threads=1 }
+        if ($code -ne 0) { exit $code }
+        $code = Invoke-Native { cargo clippy --release -p rupix-doc-legacy --target x86_64-pc-windows-gnu -- -D warnings }
+        if ($code -ne 0) { Write-Host "[ERROR] cargo clippy failed in singles/doc-legacy"; exit 1 }
+        $code = Invoke-Native { cargo build --release -p rupix-doc-legacy --target x86_64-pc-windows-gnu }
+        if ($code -ne 0) { exit $code }
+        $code = Invoke-Native { cargo test --release -p rupix-doc-legacy --target x86_64-pc-windows-gnu -- --test-threads=1 }
         if ($code -ne 0) { exit $code }
     } finally {
         Pop-Location
     }
 }
 
-# --- pro: a THIRD cargo workspace (see decoders/pro/Cargo.toml) ---
-# Its image/exr/resvg deps would unify features into common/raw and bloat every tier
-# (measured 2026-10-25: common +685 KB, raw +834 KB). Separate workspace = clean graph.
-# Build it here and stage pro.dll/pdb into the root target dir so Publish-One sees it.
-$proRoot = Join-Path $root "decoders\pro"
-if (Test-Path (Join-Path $proRoot "Cargo.toml")) {
-    Push-Location $proRoot
+# --- separate-workspace tiers (pro / classic / doc / doc-legacy / texture) ------------
+# Any decoders/<id>/Cargo.toml that declares its own [workspace] is built on its
+# own: sharing one cargo invocation would unify features across tiers (measured
+# 2026-10-25: common +685 KB, raw +834 KB when pro's image/exr came along).
+# Resolve target-dir, target triple and [lib] name from the tier's own manifest
+# instead of hardcoding them: doc-legacy builds for x86_64-pc-windows-gnu (so its
+# output sits one directory deeper) and its [lib] name is doc_legacy while the
+# published id is doc-legacy.
+$separate = @(Get-ChildItem (Join-Path $root "decoders") -Directory | Where-Object {
+    $toml = Join-Path $_.FullName "Cargo.toml"
+    (Test-Path $toml) -and (Select-String -Path $toml -Pattern '^\[workspace\]' -Quiet)
+})
+foreach ($dir in $separate) {
+    $id = $dir.Name
+    $tomlPath = Join-Path $dir.FullName "Cargo.toml"
+    $manifest = Get-Content $tomlPath -Raw
+    # [lib] name is what cargo emits; the published file is <id>.dll.
+    $libName = $id
+    $lm = [regex]::Match($manifest, '(?ms)^\[lib\][^\[]*?^name\s*=\s*"([^"]+)"')
+    if ($lm.Success) { $libName = $lm.Groups[1].Value }
+
+    Push-Location $dir.FullName
     try {
         $code = Invoke-Native { cargo fmt --check }
-        if ($code -ne 0) { Write-Host "[ERROR] cargo fmt --check failed in pro"; exit 1 }
+        if ($code -ne 0) { Write-Host ("[ERROR] cargo fmt --check failed in {0}" -f $id); exit 1 }
         $code = Invoke-Native { cargo clippy --all-targets --release -- -D warnings }
-        if ($code -ne 0) { Write-Host "[ERROR] cargo clippy failed in pro"; exit 1 }
-        $code = Invoke-Native { cargo build --release --workspace }
+        if ($code -ne 0) { Write-Host ("[ERROR] cargo clippy failed in {0}" -f $id); exit 1 }
+        $code = Invoke-Native { cargo build --release }
         if ($code -ne 0) { exit $code }
-        $code = Invoke-Native { cargo test --release --workspace -- --test-threads=1 }
+        # Serial, always: same process-global session pools as the root tier tests.
+        $code = Invoke-Native { cargo test --release -- --test-threads=1 }
         if ($code -ne 0) { exit $code }
     } finally {
         Pop-Location
     }
-    $proTarget = Join-Path $root "..\..\.temp\pro-target\release"
-    if (-not (Test-Path (Join-Path $proTarget "pro.dll"))) {
-        Write-Error "pro workspace produced no pro.dll"
+
+    # Resolve the real target dir through cargo (honors .cargo/config.toml and
+    # CARGO_BUILD_TARGET_DIR); fall back to the config value if metadata fails.
+    $targetDir = $null
+    try {
+        $metaJson = & cargo metadata --no-deps --format-version 1 2>$null
+        if ($LASTEXITCODE -eq 0 -and $metaJson) {
+            $targetDir = ($metaJson | ConvertFrom-Json).target_directory
+        }
+    } catch { }
+    $cfgPath = Join-Path $dir.FullName ".cargo\config.toml"
+    if (-not $targetDir) {
+        if (-not (Test-Path $cfgPath)) { Write-Host ("[ERROR] no target-dir for {0}" -f $id); exit 1 }
+        $m = [regex]::Match((Get-Content $cfgPath -Raw), '(?m)^target-dir\s*=\s*"([^"]+)"')
+        if (-not $m.Success) { Write-Host ("[ERROR] no target-dir in {0}" -f $cfgPath); exit 1 }
+        $targetDir = [System.IO.Path]::GetFullPath((Join-Path $dir.FullName $m.Groups[1].Value))
+    }
+    $triple = ""
+    if (Test-Path $cfgPath) {
+        $tm = [regex]::Match((Get-Content $cfgPath -Raw), '(?m)^target\s*=\s*"([^"]+)"')
+        if ($tm.Success) { $triple = $tm.Groups[1].Value }
+    }
+    $relDir = Join-Path $targetDir "release"
+    if ($triple) { $relDir = Join-Path (Join-Path $targetDir $triple) "release" }
+
+    $built = Join-Path $relDir "$libName.dll"
+    if (-not (Test-Path $built)) {
+        Write-Host ("[ERROR] {0} workspace produced no {1}.dll under {2}" -f $id, $libName, $relDir)
         exit 1
     }
-    Copy-Item -Force (Join-Path $proTarget "pro.dll") (Join-Path $target "pro.dll")
-    if (Test-Path (Join-Path $proTarget "pro.pdb")) {
-        Copy-Item -Force (Join-Path $proTarget "pro.pdb") (Join-Path $target "pro.pdb")
-    }
+    Copy-Item -Force $built (Join-Path $target "$id.dll")
+    $builtPdb = Join-Path $relDir "$libName.pdb"
+    if (Test-Path $builtPdb) { Copy-Item -Force $builtPdb (Join-Path $target "$id.pdb") }
+    Write-Host ("separate workspace: {0} ({1}.dll)" -f $id, $libName)
+}
+
+# --- coverage gate: every decoders/<id> must belong to a build path ------------
+# Publish-One hard-errors on a missing DLL, but only after everything is built;
+# this makes a tier that was never wired into either workspace fail up front
+# (doc/doc-legacy/texture were in that state until 2026-10-29).
+$rootToml = Get-Content (Join-Path $root "Cargo.toml") -Raw
+$rootMembers = @([regex]::Matches($rootToml, '(?m)^\s*"(decoders/[^"]+)"') | ForEach-Object {
+    Split-Path $_.Groups[1].Value -Leaf
+})
+$builtIds = @($rootMembers) + @($separate | ForEach-Object { $_.Name })
+$unbuilt = @(Get-ChildItem (Join-Path $root "decoders") -Directory |
+    Where-Object { $builtIds -notcontains $_.Name } | ForEach-Object { $_.Name })
+if ($unbuilt.Count -gt 0) {
+    Write-Host ("[ERROR] tier(s) not wired into any build path: {0}" -f ($unbuilt -join ", "))
+    Write-Host "        add them to workspace/Cargo.toml members or give them their own [workspace]"
+    exit 1
 }
 
 # --- form-B sub-build (per decoder), stage the DLL into <target-dir>/release ---

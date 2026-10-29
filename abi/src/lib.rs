@@ -1150,7 +1150,10 @@ mod tests {
             CAP_FULL | CAP_REGION
         );
         // 向后兼容：老函数的行为一字未变。
-        assert_eq!(caps_from_legacy_v6(true, true, false), caps_from_legacy(true, true));
+        assert_eq!(
+            caps_from_legacy_v6(true, true, false),
+            caps_from_legacy(true, true)
+        );
     }
 
     /// ABI 版本区间：宿主按 `5 ≤ abi ≤ 6` 收载——**v5 的老 DLL 照常加载**。

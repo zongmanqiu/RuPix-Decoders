@@ -12,14 +12,17 @@
 
 | 档 | 版本 | 成员库 | 许可证 |
 |---|---|---|---|
-| `common` | 0.2.2 | `zune-jpeg` 0.5、`png` 0.18、`gif` 0.14、`tiff` 0.11、`zune-psd` 0.5、`image` 0.25（含 `hdr`）、`image-webp` 0.2、自研 `qoi` | 见 §二；`qoi` 为本仓自写，无第三方 |
-| `modern` | 0.2.0 | `heif-oxide` 0.1、`zenavif` 0.1、`jxl-oxide` 0.12、`moxcms` 0.8、`rayon` 1.x | 见 §二；注意 `zenavif` / `rav1d-safe` 的 AGPL 分支 |
-| `raw` | 0.5.1 | `rawler` 0.7.2、`flashraw` 0.1.1、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`flashraw` = MIT/Apache-2.0（X3F 回退）；`rawpx` 无第三方 |
-| `pro` | 0.2.1 | `hayro-jpeg2000` 0.4、`jxr` 0.2、`exr` 1.74、`ktx2` 0.5 + `texture2ddecoder` 0.1、`dicom-pixeldata` 0.10、`image` 0.25、自研 NIfTI/NRRD/MRC、`pcx` 0.2、`wbmp` 0.1、`xbm` 0.3、`icns` 0.5、`xcf` 0.4、`aseprite-loader` 0.4、`djvu-rs` 0.42、`wmf-core` 0.1 + `resvg` 0.49 | 见 §二；`xcf` = Unlicense |
+| `common` | 0.2.4 | `zune-jpeg` 0.5、`png` 0.18、`gif` 0.14、`tiff` 0.11、`zune-psd` 0.5、`image` 0.25（含 `hdr`）、`image-webp` 0.2、自研 `qoi` | 见 §二；`qoi` 为本仓自写，无第三方 |
+| `modern` | 0.3.2 | `heif-oxide` 0.1、`zenavif` 0.1、`jxl-oxide` 0.12、`moxcms` 0.8、`rayon` 1.x | 见 §二；注意 `zenavif` / `rav1d-safe` 的 AGPL 分支 |
+| `raw` | 0.5.3 | `rawler` 0.7.2、`flashraw` 0.1.1、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`flashraw` = MIT/Apache-2.0（X3F 回退）；`rawpx` 无第三方 |
+| `pro` | 0.4.2 | `hayro-jpeg2000` 0.4、`jxr` 0.2、`exr` 1.74、`image` 0.25、`zune-psd` 0.5、`xcf` 0.4、`aseprite-loader` 0.4 | 见 §二；`xcf` = Unlicense；KTX/DICOM/NIfTI 归 texture/medical |
+| `texture` | 0.1.0 | `image` 0.25（JPEG/zune-jpeg）、`image-extras`/`dds` 0.2、`ktx2` 0.5、`texture2ddecoder` 0.1、`basisu` 0.1、`vtf` 0.4（含 `texpresso`） | 见 §二；BLP1/BLP2 头/调色板/DXT 为本仓自写 |
+| `doc` | 0.1.0 | `acadrust` 0.6、`dxf`/`dxf_to_svg`、`hayro` 0.8、`stet` 0.9、`emfsdk` 0.2、`justpdf-formats` 0.1、`nom-hpgl` 0.2、`djvu-rs` 0.42、`wmf-core` 0.1、`resvg` 0.49 | 见 §二 |
+| `doc-legacy` | 0.1.0 | `libcdr` 0.1.9、`libwpg` 0.3.4、`libzmf` 0.0.2、`librevenge` 0.0.5、ICU 78、libpng、lcms2、zlib、Boost | 见 §二 |
 | `abi` / `router` | 0.5.0 / 0.1.0 | —（本仓自写） | AGPL-3.0 |
 
-> 单库（`workspace/singles/*`）只用于 bench / A-B，**不发布**；它们的依赖是上面四档的子集，
-> 不额外分发。四档均无 C 依赖。
+> 单库（`workspace/singles/*`）只用于 bench / A-B，**不发布**；它们的依赖是上面发布档的子集，
+> 不额外分发。除 `doc-legacy` 的静态 C++ 库外，发布档无 C 依赖。
 
 ## 二、第三方库
 
@@ -56,6 +59,18 @@
 | `pcx` / `wbmp` / `xbm` | 0.2.5 / 0.1.2 / 0.3.0 | MIT OR Apache-2.0 OR WTFPL / MIT OR Apache-2.0 / Apache-2.0 OR MIT | [实读字段] 小格式 |
 | `icns` / `xcf` | 0.5.0 / 0.4.0 | MIT / Unlicense | [实读字段] macOS 图标 / GIMP 工程 |
 | `aseprite-loader` / `djvu-rs` | 0.4.2 / 0.42.0 | MIT OR Apache-2.0 / MIT | [实读字段] Aseprite / DjVu |
+| `acadrust` | 0.6.8 | MPL-2.0 | [实读字段] `doc-cad` 的 DWG/DXF 纯 Rust 解析；自带 DWG 代码来源声明，见 crate `THIRD_PARTY_NOTICES.md` |
+| `dxf` / `dxf_to_svg` | 0.6.2 / 1.0.0 | MIT | [实读字段] `doc-cad` 的 DXF 二次解析与 SVG 输出 |
+| `hayro` | 0.8.0 | Apache-2.0 OR MIT | [实读字段] `doc-pdf` 的纯 Rust PDF 光栅化 |
+| `stet` | 0.9.0 | Apache-2.0 OR MIT | [实读字段] `doc-print` 的纯 Rust PostScript/EPS 解释器；内置字体资源随 crate 分发 |
+| `emfsdk` | 0.2.0 | MIT OR Apache-2.0 | [实读字段] `doc-emf` 的 EMF/EMF+ 解析与光栅化 |
+| `justpdf-formats` | 0.1.2 | MIT OR Apache-2.0 | [实读字段] `doc-xps` 的 XPS 解析/渲染；仅启用 `xps` feature |
+| `nom-hpgl` | 0.2.0 | Apache-2.0 | [实读字段] `doc-hpgl` 的 HP-GL 命令解析 |
+| `libcdr` | 0.1.9 | MPL-2.0 | [实读字段] `doc-legacy` 的 CMX/CCX；静态编入，源码提供义务 |
+| `libwpg` | 0.3.4 | MPL-2.0 OR LGPL-2.1+ | [实读字段] `doc-legacy` 的 WPG；项目按 MPL 分支使用，保留 LGPL 文本 |
+| `libzmf` | 0.0.2 | MPL-2.0 | [实读字段] `doc-legacy` 的 ZMF/ZBR；静态编入，源码提供义务 |
+| `librevenge` | 0.0.5 | MPL-2.0 | [实读字段] 上述三个库的公共 C++ 接口 |
+| `ICU` / `libpng` / `lcms2` / `zlib` / `Boost` | 78 / 1.6.58 / 2.19.1 / 1.3.2 / 1.91.0 | Unicode-3.0 / Zlib / MIT / Zlib / BSL-1.0 | [实读字段] C++ 静态链接依赖 |
 | `wmf-core` / `resvg` / `tiny-skia` | 0.1.2 / 0.49.0 / 0.12.0 | MIT / Apache-2.0 OR MIT / BSD-3-Clause | [实读字段] WMF 矢量光栅化（与宿主 SVG 同栈但各自链接） |
 
 ## 三、LGPL / AGPL 组件说明

@@ -1,12 +1,12 @@
 [package]
-name = "rupix-pro-small"
+name = "rupix-texture-ktx2"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0"
-description = "RuPix pro 档成员：PCX / WBMP / XBM / ICNS（小格式合集）"
+description = "RuPix texture 档成员：KTX/KTX2 纹理（未压缩 + BC1/BC3/BC7）"
 
 [lib]
-name = "pro_small"
+name = "texture_ktx2"
 crate-type = ["cdylib", "rlib"]
 
 [features]
@@ -16,7 +16,5 @@ standalone = []
 [dependencies]
 rupix-abi = { workspace = true }
 rupix-pro-support = { path = "../../shared/pro-support" }
-icns = "0.5.0"
-pcx = "0.2.5"
-wbmp = "0.1.2"
-xbm = "0.3.0"
+ktx2 = "0.5.0"
+texture2ddecoder = { version = "0.1.2", features = ["alloc"] }

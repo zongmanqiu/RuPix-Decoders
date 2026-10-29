@@ -7,9 +7,9 @@
 
 | ID | 决策 | 理由 | 落点 |
 |---|---|---|---|
-| A01 | 三个 cargo workspace（根 / singles / pro） | feature 并集导致 `LNK2005`；pro 依赖会污染前三档 | 根 `Cargo.toml`、`workspace/singles/Cargo.toml`、`workspace/decoders/pro/Cargo.toml` |
+| A01 | 每个构建图一个 cargo workspace（根 / singles / pro / classic / texture / doc / doc-legacy） | feature 并集导致 `LNK2005`；pro 依赖会污染根档；doc-legacy 还要换 GNU 工具链 | 各 workspace 的 `Cargo.toml` / `.cargo/config.toml` |
 | A02 | 档 workspace 全局 `opt-level = 3` | 逐包清单靠人记会漂；实测代价约 +97 KB | 根 `[profile.release]` |
-| A03 | 四档纯 Rust | 无 C 工具链、无 `-sys`/`cc`/`bindgen`；分发简单 | 各档依赖与 `THIRD-PARTY-NOTICES.md` |
+| A03 | 发布档以纯 Rust 为主 | 七枚无 C 工具链、无 `-sys`/`cc`/`bindgen`；`doc-legacy` 例外（libcdr/libwpg/libzmf 只有静态 C++） | 各档依赖与 `THIRD-PARTY-NOTICES.md` |
 | A04 | 合并档（common/modern/raw/pro） | 每枚独立解码器自带底座；合并省体积，不改变速度 | `workspace/decoders/*` |
 | A05 | `pro` 独立 workspace | 防 EXR/AVIF 后端被 feature 统一编进每一枚 DLL | `workspace/decoders/pro/Cargo.toml` |
 | A06 | `decoders.json` 扁平数组 + `size` 完整性 | 只有一种东西；文件名可算；`size` 比哈希更好懂 | `decoders.json`、`make_index.py` |
@@ -28,7 +28,7 @@
 | R01 | `rust-full` 并集安装档 | 体积与维护成本换不来用户价值；已按用户要求撤除 |
 | R02 | `opt-level = s` 作为默认 | 四 DLL 体积 −15.89%，但 JPEG/PNG 各慢约 4–5 ms；默认仍用 3 |
 | R03 | `opt-level = z` 用于解码热路径 | JPEG 3 MP 慢约 4.6 倍；热循环吃不了体积优化 |
-| R04 | 22 个单库各写 HISTORY | 单库不是独立发布物，22 份会腐；由所属档覆盖 |
+| R04 | 33 个单库各写 HISTORY | 单库不是独立发布物，33 份会腐；由所属档覆盖 |
 | R05 | `docs/` 恢复成逐 DLL 一份详细文档 | 与"文档跟着代码走"冲突；每档 README 已承担 |
 | R06 | 把单库和档塞进一个 workspace | feature 并集直接链接失败（D01） |
 

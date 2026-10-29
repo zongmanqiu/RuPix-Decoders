@@ -1,9 +1,9 @@
 [package]
 name = "rupix-pro"
-version = "0.3.0"
+version = "0.4.2"
 edition = "2021"
 license = "AGPL-3.0"
-description = "RuPix 专业档：JPEG2000 / JPEG XR / EXR / KTX2 / DICOM / 科学影像 / 设计/矢量"
+description = "RuPix 专业档：JPEG2000 / JPEG XR / EXR / PSD / HDR / 设计源文件"
 readme = "README.md"
 
 [lib]
@@ -40,11 +40,5 @@ rupix-pro-hdr = { path = "../../singles/pro-hdr", default-features = false }
 rupix-pro-jp2 = { path = "../../singles/pro-jp2", default-features = false }
 rupix-pro-jxr = { path = "../../singles/pro-jxr", default-features = false }
 rupix-pro-exr = { path = "../../singles/pro-exr", default-features = false }
-rupix-pro-ktx2 = { path = "../../singles/pro-ktx2", default-features = false }
-rupix-pro-dicom = { path = "../../singles/pro-dicom", default-features = false }
-rupix-pro-sci = { path = "../../singles/pro-sci", default-features = false }
-rupix-pro-small = { path = "../../singles/pro-small", default-features = false }
 rupix-pro-xcf = { path = "../../singles/pro-xcf", default-features = false }
 rupix-pro-ase = { path = "../../singles/pro-ase", default-features = false }
-rupix-pro-djvu = { path = "../../singles/pro-djvu", default-features = false }
-rupix-pro-wmf = { path = "../../singles/pro-wmf", default-features = false }

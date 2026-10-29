@@ -39,6 +39,7 @@ fn dimensions(data: &[u8]) -> Option<(u32, u32)> {
 fn decode(data: &[u8]) -> Result<(u32, u32, Vec<u8>), (i32, &'static str)> {
     let x = parse(data)?;
     let (w, h) = x.dimensions();
+    support::check_dims(w, h, 0)?;
     let layer = x
         .layers
         .iter()
@@ -53,7 +54,8 @@ fn decode(data: &[u8]) -> Result<(u32, u32, Vec<u8>), (i32, &'static str)> {
     for y in 0..h {
         for xx in 0..w {
             if xx < layer.width && y < layer.height {
-                let p = px[(y as usize) * layer.width as usize + xx as usize].0;
+                let idx = (y as usize) * layer.width as usize + xx as usize;
+                let p = px.get(idx).ok_or((ERR_CORRUPT, "XCF 图层像素被截断"))?.0;
                 rgba.extend_from_slice(&p);
             } else {
                 rgba.extend_from_slice(&[0, 0, 0, 0]);

@@ -237,6 +237,7 @@ fn fill_info(info: *mut IvRenderOut, width: u32, height: u32, bytes_needed: u64)
     out.already_oriented = 1;
     out.frame_count = 1;
     out.frame_delay_ms = 0;
+    out.page_count = 1;
     out.icc_len = 0;
 }
 

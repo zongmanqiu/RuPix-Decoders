@@ -24,3 +24,7 @@ target-dir = "../../../.temp/singles-target"
 # ★ 这一行与根 `.cargo/config.toml` 逐字相同（两个构建图都要静态 CRT）。
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
+
+# doc-legacy single needs the GNU linker explicitly (same path as its tier).
+[target.x86_64-pc-windows-gnu]
+linker = "C:/msys64/ucrt64/bin/x86_64-w64-mingw32-gcc.exe"

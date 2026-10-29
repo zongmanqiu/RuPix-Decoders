@@ -21,6 +21,10 @@ MANIFESTS = [
     (ROOT / "workspace" / "Cargo.toml", "root"),
     (ROOT / "workspace" / "singles" / "Cargo.toml", "singles"),
     (ROOT / "workspace" / "decoders" / "pro" / "Cargo.toml", "pro"),
+    (ROOT / "workspace" / "decoders" / "classic" / "Cargo.toml", "classic"),
+    (ROOT / "workspace" / "decoders" / "texture" / "Cargo.toml", "texture"),
+    (ROOT / "workspace" / "decoders" / "doc" / "Cargo.toml", "doc"),
+    (ROOT / "workspace" / "decoders" / "doc-legacy" / "Cargo.toml", "doc-legacy"),
 ]
 
 

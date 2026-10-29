@@ -39,29 +39,33 @@
    2026-10-25 写解码器符号归档时原样复发一次）。注释写英文，别写中文。
 4. **禁止**把日志、草稿、一次性脚本写进本仓库；仓库内的长期文件只有
    `README/AGENTS/LICENSE/Cargo.toml`、`abi/`（契约 + kit + `abi/c/` 的 C 单头）、
-   `workspace/shared/router/`（四档共用路由内核）、`workspace/decoders/`（**发布档**，一个文件夹一枚 DLL）、
-   `workspace/singles/`（单库，**第三个 cargo workspace**，见下）、
+   `workspace/shared/router/`（各档共用路由内核）、`workspace/decoders/`（**发布档**，一个文件夹一枚 DLL）、
+   `workspace/singles/`（单库，**独立 cargo workspace**，见下）、
    `testdata/`（生成器 + `golden/` 证物）、`tools/`、`workspace/.cargo/`、`build.ps1`、
    `docs/`（**只放跨模块流程/设计**，地图 `docs/README.md`）、
    `解码器开发规范.md`、`THIRD-PARTY-NOTICES.md`、`decoders.json`、`DOCS_MANIFEST.md`。
    `dist/` 不在仓库里；发布暂存落 `../.temp/decoder-dist`。
-   变更史写在 `workspace/decoders/<id>/HISTORY.md`（四档各一份）；ABI 版本史写在
+   变更史写在 `workspace/decoders/<id>/HISTORY.md`（各档一份）；ABI 版本史写在
    `解码器开发规范.md` §九。本仓库不再另养无主的日志文件。
-5. **三个构建图**（2026-10-25 重组后）：
-   - `workspace/decoders/<id>/` = **发布档**（common / modern / raw）：只做装配（依赖表 +
-     `MEMBERS` 路由表），一行解码逻辑都不写；根 workspace 成员 = `abi` + `router` + `workspace/shared/pro-support` + 三档。
-   - `workspace/decoders/pro/` = **专业档**（第四个发布 DLL），**独立 workspace**：它的 `image` / `exr` /
-     `resvg` 依赖一旦与前三档同图，会把 EXR/AVIF 等后端通过 feature 统一编进每一枚 DLL
-     （2026-10-25 实测：common +685 KB、raw +834 KB）。它有自己的 `[workspace]`、`Cargo.lock`、
-     `.cargo/config.toml`（target-dir = `../../../../.temp/pro-target`）。
+5. **七个构建图**（2026-10-29 现状）：
+   - `workspace/decoders/<id>/` = **发布档**：只做装配（依赖表 + `MEMBERS` 路由表），
+     一行解码逻辑都不写。默认加进根 workspace 的 `members`。
+   - 根 workspace（`workspace/Cargo.toml`）成员 = `shared/router` + `shared/pro-support` +
+     `decoders/{common,modern,raw}`（`abi` 是外部 path 依赖）。
    - `workspace/singles/<id>/` = **单库**（每格式一个参考实现，bench 横评/A-B 用）：
-     同时是独立解码器（`standalone` feature 生成 `#[no_mangle] iv_*`），**不发布**。
+     同时是独立解码器（`standalone` feature 生成 `#[no_mangle] iv_*`），**不发布**；
+     自己的 `[workspace]` / `.cargo/config.toml`（target-dir = `../../../.temp/singles-target`，
+     **`+crt-static` 必须逐字复制**）/ `[profile.release]`（`z` + 逐包 `opt-level = 3`）。
+   - **独立 workspace 档**（各自 `[workspace]` + `Cargo.lock` + `.cargo/config.toml`）：
+     `pro`（`../../../../.temp/pro-target`；`image`/`exr` 会与根档 feature 统一：
+     实测 common +685 KB、raw +834 KB）、`classic`、`texture`、`doc`（`opt-level = "s"`）、
+     `doc-legacy`（`target = "x86_64-pc-windows-gnu"`，`[lib] name = doc_legacy`，
+     链 libcdr/libwpg/libzmf 静态 C++）。
    同一 cargo 调用里不同形态并存时 feature 取**并集**，档会链进多份 `iv_abi_version`
-   （实测 `LNK2005`）。所以 `workspace/singles/` 有自己的 `[workspace]`、自己的 `.cargo/config.toml`
-   （target-dir = `../../../.temp/singles-target`，**`+crt-static` 必须逐字复制**）、自己的
-   `[profile.release]`（`z` + 逐包 `opt-level = 3`，单库口径）。
-   根 workspace 的档 profile 用**全局 `opt-level = 3`**（不抄单库逐包清单：那份名单靠人记，会漂）。
-   `build.ps1` 依次跑根 workspace、singles workspace、pro workspace；**单库不发布**，只做测试门禁。
+   （实测 `LNK2005`）。根 workspace 的档 profile 用**全局 `opt-level = 3`**
+   （不抄单库逐包清单：那份名单靠人记，会漂）。
+   `build.ps1` 依次跑根、singles，以及每个自带 `[workspace]` 的档；**单库不发布**，只做测试门禁。
+   覆盖闸：任何 `decoders/<id>` 既不在根 members、又没有自己的 `[workspace]` 即报错。
 6. 单向关系：`宿主 → 契约（宿主侧快照）` 与 `本仓库发布目录 → 宿主解码器目录`
    （发布目录 = `../.temp/decoder-dist`，不在本仓库里）。
    解码器**永远不依赖宿主代码**；宿主缺席时本仓库必须照样能构建。
@@ -90,11 +94,12 @@
 
 - **现状（实读）**：`IV_ABI_VERSION = 6`（`abi/src/lib.rs`），abi crate 版本 **0.6.0**；
   下界仍是 `MIN_ABI_VERSION = 5`（v5 是签名冻结下界，v6 只做加法 ⇒ v5 老 DLL 不重编照常收载）。
-  发布产物 **4 档**（abi6）：`common` = **0.2.3**（31 后缀）、`modern` = **0.3.1**（7 后缀）、
-  `raw` = **0.5.2**（40 后缀，含 rawpx 并入）、`pro` = **0.3.0**（35 后缀）。
-  单库 **22 枚**住 `workspace/singles/`（不发布）：11 枚通用 + 11 枚 `pro-*`。
-  **四档发布 DLL 纯 Rust、零 C 编译依赖**；单库 `workspace/singles/core` 默认 `webp-c`
-  仍链 `libwebp-sys2`（C，仅 bench/A-B 用，不进发布档）。
+  发布产物 **8 档**（abi6）：`common` = **0.2.4**（24 后缀）、`modern` = **0.3.2**（9）、
+  `raw` = **0.5.3**（40，含 rawpx 并入）、`pro` = **0.4.2**（16）、`classic` = **0.1.0**（20）、
+  `texture` = **0.1.0**（8）、`doc` = **0.1.0**（30）、`doc-legacy` = **0.1.0**（5）。
+  单库 **33 枚**住 `workspace/singles/`（不发布）；`pro-sci` / `pro-dicom` 暂无发布档认领。
+  **七枚发布 DLL 纯 Rust**；`doc-legacy` 链静态 C++（libcdr/libwpg/libzmf + librevenge + ICU）。
+  单库 `workspace/singles/core` 默认 `webp-c` 仍链 `libwebp-sys2`（C，仅 bench/A-B 用，不进发布档）。
 - **宿主收载是区间判定**：`MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION`，出界一律拒载。
 - **★ 兼容性立约（永久条款，2026-10-28 用户拍板）**：**ABI 永远兼容旧版本 DLL；
   新 ABI 不得影响旧 DLL 的运行** ⇒ 宿主升级后，用户机器上的旧 DLL **不需要重编、
@@ -158,7 +163,7 @@
   `common` / `modern` / `raw` 在 `workspace/` 下跑 `cargo build --release -p rupix-<id>`，
   `pro` 在 `workspace/decoders/pro/` 下跑 `cargo build --release -p rupix-pro`；
   测试把 `build` 换成 `test -- --test-threads=1`。`build.ps1` 只在用户明确要求全量发版时用。
-  单档构建后只替换 `.build/decoders/<id>_<ver>.dll` 并只重打该档 ZIP；不要重打其他三档。
+  单档构建后只替换 `.build/decoders/<id>_<ver>.dll` 并只重打该档 ZIP；不要重打其他档。
 - 发布目录**只有** DLL（在 `../.temp/decoder-dist`）；中间产物在 `<target-dir>/release/<id>.dll`（`<target-dir>` =
   `../../.temp/decoder-target`，由 `build.ps1` 从 `workspace/.cargo/config.toml` 解析，不在源码目录里），
   脚本改名后拷出。
@@ -245,7 +250,7 @@
   挤成假失败的。宿主侧同因，见 `<宿主>/build/5_test.bat` 注释）。
 - `panic = "unwind"` **不许改 `abort`**：宿主靠 `catch_unwind` + C SEH 层隔离坏解码器，abort 会带走整个进程。
 - 解码库热路径保持 `opt-level = 3`（singles workspace 默认 `z`，JPEG 3MP 会慢 4.6 倍），
-  例外清单见 `workspace/singles/Cargo.toml`；四档发布 workspace 用全局 `opt-level = 3`。
+  例外清单见 `workspace/singles/Cargo.toml`；发布 workspace 默认全局 `opt-level = 3`（`doc` 除外，用 `s`）。
   形态 A 的 C 侧由 `build.rs` 的 `cc .opt_level(3)` 单独管（Rust profile 管不到 cc）。
 - 第三方 C 源一律放**仓库外**的 `../.3rd/<name>-<ver>/`，带 `LICENSE` + `SOURCE.md`
   （版本 / sha256 / 下载源），规则见 `.3rd/README.md`；
@@ -302,7 +307,7 @@
 7. 同一次改动内同步：`workspace/singles/<id>/README.md`（新增解码器就新写一份）、
    `workspace/singles/README.md` 总表、`workspace/decoders/<tier>/README.md`（成员表 + 认领后缀）、
    `workspace/decoders/<tier>/HISTORY.md`（对外可见变化一条）、`解码器开发规范.md` §八自查清单、
-   根 `README.md` 的四档表、`docs/` 对应页（架构/清单/测试）、
+   根 `README.md` 的八档表、`docs/` 对应页（架构/清单/测试）、
    `testdata/claims.tsv`（新增认领必须登记成员与证据；没有证据就写 `unverified` + 原因）、
    宿主 `<宿主>/docs/架构总览.md` §四解码器矩阵、
    本文件第二节版本现状；最后 `py tools/make_index.py` 重生成清单。
@@ -332,9 +337,9 @@
 | 编译 + 测试 + 发布 | `build.ps1` | exit 0，打印 `done: N decoder(s) published to <path> (abi v5)`，末尾清单自检不报结构缺口 |
 | 依赖门禁 | `python tools/check_deps.py` | `violations: 0` |
 | 闸值门禁 | `python tools/check_caps.py` | `violations: 0`。管**等值**不管"哪个值才对"：① 各 crate 各自抄的 `const MAX_PIXELS`（64 MP，**分配闸**）必须同值——这条口径以前只靠注释互相引用（"与 core / png / jpeg / tiff 同口径"），没人读；② 宿主 `main/src/core/pixels.rs` 的 `MAX_PIXELS`（41 MP，**看图硬顶**）必须等于 `testdata/make_samples.py` 里那份镜像值（宿主不在这儿就打印 skip，不装成通过）。★ **同名两值是有意的**：两道闸管两件不同的事，改名统一会要重编 DLL 只换可读性，已判废（宿主 m120）；自证：`--selftest` |
-| 认领门禁 | `python tools/check_claims.py` | `violations: 0`：四档的 `extensions:` 字面量两两不相交；每个后缀在 `testdata/claims.tsv` 恰好出现一次；`verified` 必须有 golden/测试证据，`unverified` 必须有原因 |
+| 认领门禁 | `python tools/check_claims.py` | `violations: 0`：各档的 `extensions:` 字面量两两不相交；每个后缀在 `testdata/claims.tsv` 恰好出现一次；`verified` 必须有 golden/测试证据，`unverified` 必须有原因 |
 | 文档门禁 | `python tools/check_docs.py` | `missing: 0`（每个 `workspace/decoders/<id>/` 有 `README.md` + `HISTORY.md`、根 `解码器开发规范.md` 在、全仓相对链接可达、行数预算、`DOCS_MANIFEST` 覆盖、旧路径词、锚点不越界不落空行、**任何 .rs/.md/.ps1 文件里没有裸 NUL 字节、`.ps1` 全 ASCII**） |
-| 历史门禁 | `python tools/check_history.py` | `violations: 0`（四档 HISTORY 存在；最新版本 = `Cargo.toml`；ABI = `IV_ABI_VERSION`；日期 = `decoders.json.released`；**禁 `状态`/待上传/发布包生成/未发布/release tag/仓库 URL**） |
+| 历史门禁 | `python tools/check_history.py` | `violations: 0`（各档 HISTORY 存在；最新版本 = `Cargo.toml`；ABI = `IV_ABI_VERSION`；日期 = `decoders.json.released`；**禁 `状态`/待上传/发布包生成/未发布/release tag/仓库 URL**） |
 | 依赖方向 | `python tools/check_deps_direction.py` | `violations: 0`（`cargo metadata` 判 abi 叶子、workspace/shared/router/workspace/shared/pro-support 只依赖 abi、单库不依赖档、档只组装单库） |
 | 工作区配置 | `python tools/check_workspace_config.py` | `violations: 0`（三图 target-dir / `+crt-static` / release profile 不漂） |
 | 秘密扫描 | `python tools/check_secrets.py` | `violations: 0`（公开仓无密钥/令牌/个人路径） |

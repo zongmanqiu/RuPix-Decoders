@@ -1,0 +1,30 @@
+[package]
+name = "rupix-doc-legacy-tier"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix doc-legacy tier: CMX/WPG/ZMF/ZBR"
+
+[lib]
+name = "doc_legacy"
+crate-type = ["cdylib", "rlib"]
+
+[workspace]
+resolver = "2"
+
+[workspace.dependencies]
+rupix-abi = { path = "../../../abi" }
+rupix-merge-router = { path = "../../shared/router" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+debug = 1
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-merge-router = { workspace = true }
+rupix-doc-legacy = { path = "../../singles/doc-legacy", default-features = false }

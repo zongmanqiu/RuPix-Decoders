@@ -14,7 +14,7 @@
 **做法**：单库与档分 workspace（`workspace/singles/` 独立，`workspace/decoders/pro/` 独立），
 各自 target-dir；不要为了"少跑一次 cargo"合并构建图。
 
-## D02 三个构建图共用一个 target → `raw.dll` / `raw.pdb` 互相覆盖
+## D02 多个构建图共用一个 target → `raw.dll` / `raw.pdb` 互相覆盖
 
 **现象**：cargo 报 output filename collision，或发布出来的 DLL 是另一个 workspace 的。
 

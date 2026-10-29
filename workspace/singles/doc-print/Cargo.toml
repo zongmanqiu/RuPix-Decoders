@@ -1,0 +1,20 @@
+[package]
+name = "rupix-doc-print"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix doc member: PostScript/EPS/AI via the pure-Rust stet interpreter"
+
+[lib]
+name = "doc_print"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["standalone"]
+standalone = []
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+stet = { version = "0.9.0", default-features = false, features = ["render"] }
+image = { version = "0.25", default-features = false, features = ["png"] }

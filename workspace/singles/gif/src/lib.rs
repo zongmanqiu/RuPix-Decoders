@@ -295,7 +295,8 @@ fn fingerprint(data: &[u8]) -> (u64, [u8; 32], [u8; 32]) {
     let n = data.len();
     let mut head = [0u8; 32];
     let mut tail = [0u8; 32];
-    head.copy_from_slice(&data[..n.min(32)]);
+    let n32 = n.min(32);
+    head[..n32].copy_from_slice(&data[..n32]);
     let t = &data[n.saturating_sub(32)..];
     tail[..t.len()].copy_from_slice(t);
     (n as u64, head, tail)

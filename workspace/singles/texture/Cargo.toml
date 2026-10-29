@@ -1,0 +1,20 @@
+[package]
+name = "rupix-texture-impl"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "RuPix texture implementation: DDS/KTX/KTX2/ASTC/PVR/Basis/BLP/VTF"
+
+[lib]
+name = "texture_impl"
+crate-type = ["rlib"]
+
+[dependencies]
+rupix-abi = { workspace = true }
+rupix-pro-support = { path = "../../shared/pro-support" }
+
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+image-extras = { version = "0.1.1", default-features = false, features = ["dds"] }
+texture2ddecoder = { version = "0.1.2", features = ["alloc"] }
+basisu = "0.1.0"
+vtf = "0.4.1"

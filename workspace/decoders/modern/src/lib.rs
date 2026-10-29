@@ -23,8 +23,8 @@ use std::ffi::c_char;
 export_decoder! {
     id: "modern",
     name: "Modern Formats (HEIC/AVIF/JXL/JNG)",
-    extensions: "heic;heif;hif;avif;avifs;jxl;jng",
-    description: "现代格式：手机照片与高效压缩图像",
+    extensions: "heic;heif;hif;avif;avifs;jxl;jng;qoi;ff",
+    description: "现代格式：手机照片、高效压缩图像与 QOI/Farbfeld",
     is_vector: 0,
     has_alpha: 1,
 }
@@ -34,10 +34,10 @@ export_decoder! {
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.3.1",
+    "version" => "0.3.2",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-28",
+    "released" => "2026-10-29",
 }
 
 static MEMBERS: &[Member] = &[
@@ -55,6 +55,16 @@ static MEMBERS: &[Member] = &[
         id: "jxl",
         probe: jxl::probe_impl,
         render: jxl::render_impl,
+    },
+    Member {
+        id: "qoi",
+        probe: qoi::probe_impl,
+        render: qoi::render_impl,
+    },
+    Member {
+        id: "ff",
+        probe: ff::probe_impl,
+        render: ff::render_impl,
     },
 ];
 

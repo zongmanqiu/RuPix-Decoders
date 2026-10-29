@@ -6,7 +6,7 @@
 | 文件 | 何时更新 | 验证 |
 |---|---|---|
 | `开发指南.md` | 修改/发布流程、交付检查表、版本与地址真源变化 | `manual`（发布演练）；本文件是流程唯一正本 |
-| `README.md` | 四档版本/后缀数/发布状态、安装方式、文档入口变化 | `check_docs.py` 链接；四档表与 `decoders.json` / `Cargo.toml` 人工核对 |
+| `README.md` | 八档版本/后缀数/发布状态、安装方式、文档入口变化 | `check_docs.py` 链接；八档表与 `decoders.json` / `Cargo.toml` 人工核对 |
 | `AGENTS.md` | 仓库边界、ABI 冻结、构建/发布落点、测试红线、新增解码器顺序变化 | `build.ps1` + `check_docs.py`；人工核对 |
 | `解码器开发规范.md` | ABI 结构/错误码/导出/像素格式/能力位/版本策略变化 | `build.ps1` + 宿主 `cargo test --lib core::abi` |
 | `docs/README.md` | 文档增删或职责变化 | `check_docs.py` 链接 |
@@ -22,7 +22,7 @@
 | `docs/pitfalls.md` | 新增本仓专属坑；编号只增不改 | `manual`（评审） |
 | `docs/design-adoption.md` | 采纳/拒绝/待评估的决策变化 | `manual`（评审） |
 | `docs/licensing.md` | 许可证允许表、依赖许可策略、供应链门禁变化 | `check_licenses.py` |
-| `workspace/decoders/README.md` | 四档矩阵、状态、链接变化 | `check_docs.py` + 人工核对 |
+| `workspace/decoders/README.md` | 八档矩阵、状态、链接变化 | `check_docs.py` + 人工核对 |
 | `workspace/decoders/<id>/README.md` | 该档成员、后缀、能力位、限制变化 | `check_docs.py` 必需文件/链接；人工核对 |
 | `workspace/decoders/<id>/HISTORY.md` | 该档每次对外可见变化 | `check_history.py` |
 | `workspace/decoders/raw/DESIGN.md` | raw 显影/画幅/分箱/缓存/错误码的设计变化 | `manual`（评审）+ raw 测试 |
