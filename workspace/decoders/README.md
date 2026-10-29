@@ -1,6 +1,7 @@
 # 发布档
 
 `workspace/decoders/` 下**一个目录一枚发布 DLL**。目录名 = 解码器 id = DLL 文件主干名；
+表中的版本与状态只是门面，真源是各档 `Cargo.toml` 与根 `decoders.json`；
 `[lib] name` 通常同 id（唯一例外 `doc-legacy` → `doc_legacy`）。
 
 | 档 | 版本 | 后缀数 | 状态 | 成员 | 文档 |

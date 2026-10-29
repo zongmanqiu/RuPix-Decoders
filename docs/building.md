@@ -63,7 +63,7 @@ pro、classic、texture、doc、doc-legacy 的测试，也不会发布/镜像/�
 | `../.temp/symbols/decoders/` | pdb 取证归档 | `build.ps1` |
 | `../.build/decoders/` | 宿主运行目录（并排开发镜像） | 可选；`RUPIX_NO_HOST_SYNC=1` 跳过 |
 
-## profile
+## 编译 profile
 
 | workspace | opt-level | LTO | codegen-units | strip | panic | debug |
 |---|---|---|---|---|---:|---|

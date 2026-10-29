@@ -2,24 +2,21 @@
 
 > **仓库入口**：[**Gitee**](https://gitee.com/qiuzongman/RuPix-Decoders) | [**GitHub**](https://github.com/zongmanqiu/RuPix-Decoders)
 
-RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交互、几何变换、路由与缓存，
-启动时扫描 exe 同级 `decoders/` 目录，按每个 DLL 的 `iv_decoder_info()` 自述认领后缀。
-本仓库是这些 DLL 的源码、契约与构建入口；当前八枚 DLL（common/modern/raw/pro/classic/texture/doc/doc-legacy），
-其中 classic / texture / doc 为纯 Rust 独立档，doc-legacy 含 C++ 静态库。
-
 ## 发布 DLL
 
-| DLL | 版本 | 认领后缀 | Gitee | GitHub |
-|---|---:|---:|---|---|
-| `common` | 0.2.4 | 24 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) |
-| `modern` | 0.3.2 | 9 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) |
-| `raw` | 0.5.3 | 40 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) |
-| `pro` | 0.4.2 | 16 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) |
-| `classic` | 0.1.0 | 20 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) |
-| `texture` | 0.1.0 | 8 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) |
-| `doc` | 0.1.0 | 30 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc_0.1.0/doc_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc_0.1.0/doc_0.1.0.zip) |
-| `doc-legacy` | 0.1.0 | 5 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc-legacy_0.1.0/doc-legacy_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc-legacy_0.1.0/doc-legacy_0.1.0.zip) |
+| DLL | 版本 | 认领后缀 | ZIP 大小 | 发行日期 | Gitee | GitHub |
+|---|---:|---:|---:|---:|---|---|
+| `common` | 0.2.4 | 24 | 0.96 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) |
+| `modern` | 0.3.2 | 9 | 2.90 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) |
+| `raw` | 0.5.3 | 40 | 3.74 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) |
+| `pro` | 0.4.2 | 16 | 0.79 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) |
+| `classic` | 0.1.0 | 20 | 0.39 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) |
+| `texture` | 0.1.0 | 8 | 1.12 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) |
+| `doc` | 0.1.0 | 30 | 12.86 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc_0.1.0/doc_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc_0.1.0/doc_0.1.0.zip) |
+| `doc-legacy` | 0.1.0 | 5 | 16.06 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc-legacy_0.1.0/doc-legacy_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc-legacy_0.1.0/doc-legacy_0.1.0.zip) |
 
+- 表中 ZIP 大小为约值（1 MB = 1024×1024 B，四舍五入两位）；精确字节以实际资产为准，
+  发行日期 = `decoders.json.released`，版本与发布状态以 `decoders.json` 为准。
 - 八枚合计 152 个后缀；ABI 冻结 **v6**（v5 兼容：区间收载）。
 - **兼容性立约**：ABI 永远兼容旧版本 DLL——宿主升级后，已装好的旧 DLL **不需要重新编译、
   也不需要重新上传**，照常加载工作；新能力只以「新可选导出 + 新结构体」加法形式出现。
@@ -29,7 +26,7 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
   源码获取/重链接说明见 `SOURCE-OFFER.md`。
 - 下载：release 资产，每枚 ZIP 一个 `<id>_<version>` tag。机器可读清单是 [`decoders.json`](decoders.json)，
   `size`/`sha256` 描述 DLL，URL 指向 ZIP；字段、镜像与校验规则见 [`docs/catalog.md`](docs/catalog.md)。
-- 不发布：`workspace/singles/` 的 33 个单库只作 bench 对照、档的装配来源与 A/B 排查。
+- 不发布：`workspace/singles/` 的单库只作 bench 对照、档的装配来源与 A/B 排查（总表见 [`workspace/singles/README.md`](workspace/singles/README.md)）。
 
 ## 文档地图
 
@@ -48,7 +45,7 @@ RuPix 的位图解码全部在 DLL 里：宿主 `rupix.exe` 只做窗口、交�
 | 已采纳 / 已拒绝的架构决策 | [`docs/design-adoption.md`](docs/design-adoption.md) |
 | 每档的成员、限制与历史 | [`workspace/decoders/`](workspace/decoders/README.md) |
 | 未来格式规划、目标 DLL 划分 | [`解码器能力规划.md`](解码器能力规划.md) |
-| 33 个单库总表 | [`workspace/singles/README.md`](workspace/singles/README.md) |
+| 单库总表 | [`workspace/singles/README.md`](workspace/singles/README.md) |
 | 仓库硬规则 | [`AGENTS.md`](AGENTS.md) |
 
 ## 构建
@@ -65,7 +62,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
 
 - DLL 版本看各档 `Cargo.toml` 的 `[package] version`；ABI 版本看 `abi/src/lib.rs` 的 `IV_ABI_VERSION`。
 - 每档的对外变化看 `workspace/decoders/<id>/HISTORY.md`；ABI 版本史在 `解码器开发规范.md` §九。
-- 发布状态以 `decoders.json` 的 `released` / `gitee` / `github` 为准，README 的表只是门面。
+- 版本、后缀数、发布状态以 `decoders.json` 为准（版本源头是各档 `Cargo.toml`）；README 的表只是门面。
 
 ## 许可证
 

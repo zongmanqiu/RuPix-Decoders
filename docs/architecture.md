@@ -10,7 +10,7 @@ workspace**，不是按目录美观分的，而是按 **feature 隔离**、**工
 | workspace | 位置 | 成员 | 产物 | 发布 |
 |---|---|---|---|---|
 | 根档 | `workspace/Cargo.toml` | `shared/router`、`shared/pro-support`、`decoders/{common,modern,raw}`（`abi` 是外部 path 依赖） | `common.dll`、`modern.dll`、`raw.dll` | 是 |
-| 单库 | `workspace/singles/Cargo.toml` | `workspace/singles/*` 共 33 个 | 单库 DLL（bench/A-B 用） | 否 |
+| 单库 | `workspace/singles/Cargo.toml` | `workspace/singles/*`（清单见 `singles/README.md`） | 单库 DLL（bench/A-B 用） | 否 |
 | 专业档 | `workspace/decoders/pro/Cargo.toml` | `rupix-pro` + `pro-*` 单库 | `pro.dll` | 是 |
 | 经典位图档 | `workspace/decoders/classic/Cargo.toml` | `rupix-classic-dll` + `singles/classic` | `classic.dll` | 是 |
 | 纹理档 | `workspace/decoders/texture/Cargo.toml` | `rupix-texture-dll` + `texture` / `texture-ktx2` 单库 | `texture.dll` | 是 |

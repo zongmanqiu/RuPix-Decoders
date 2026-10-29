@@ -94,12 +94,12 @@
 
 - **现状（实读）**：`IV_ABI_VERSION = 6`（`abi/src/lib.rs`），abi crate 版本 **0.6.0**；
   下界仍是 `MIN_ABI_VERSION = 5`（v5 是签名冻结下界，v6 只做加法 ⇒ v5 老 DLL 不重编照常收载）。
-  发布产物 **8 档**（abi6）：`common` = **0.2.4**（24 后缀）、`modern` = **0.3.2**（9）、
-  `raw` = **0.5.3**（40，含 rawpx 并入）、`pro` = **0.4.2**（16）、`classic` = **0.1.0**（20）、
-  `texture` = **0.1.0**（8）、`doc` = **0.1.0**（30）、`doc-legacy` = **0.1.0**（5）。
-  单库 **33 枚**住 `workspace/singles/`（不发布）；`pro-sci` / `pro-dicom` 暂无发布档认领。
-  **七枚发布 DLL 纯 Rust**；`doc-legacy` 链静态 C++（libcdr/libwpg/libzmf + librevenge + ICU）。
-  单库 `workspace/singles/core` 默认 `webp-c` 仍链 `libwebp-sys2`（C，仅 bench/A-B 用，不进发布档）。
+  **逐档版本、后缀数、发布状态一律以各档 `Cargo.toml` 与根 `decoders.json` 为准，本节不抄**
+  （抄一份就会漂；`check_history.py` / `build.ps1` 也只认那两处）。
+  发布档 = `workspace/decoders/<id>/` 下每个目录一枚 DLL；单库住 `workspace/singles/`，不发布。
+  `doc-legacy` 是唯一链静态 C++（libcdr/libwpg/libzmf + librevenge + ICU）的发布档，
+  其余发布 DLL 为纯 Rust；单库 `workspace/singles/core` 默认 `webp-c` 仍链 `libwebp-sys2`
+  （C，仅 bench/A-B 用，不进发布档）。
 - **宿主收载是区间判定**：`MIN_ABI_VERSION(=5) ≤ 解码器 abi ≤ IV_ABI_VERSION`，出界一律拒载。
 - **★ 兼容性立约（永久条款，2026-10-28 用户拍板）**：**ABI 永远兼容旧版本 DLL；
   新 ABI 不得影响旧 DLL 的运行** ⇒ 宿主升级后，用户机器上的旧 DLL **不需要重编、
@@ -304,13 +304,9 @@
 6. `build.ps1` 全绿（并排开发时自动镜像宿主解码器目录）→ 宿主冒烟
    `cargo run --release --example decoder_smoke -- <dll>` / `core_smoke` / `--probe-decode`；
    单库自己的 workspace/singles/Example 从 `workspace/singles/` 目录跑。
-7. 同一次改动内同步：`workspace/singles/<id>/README.md`（新增解码器就新写一份）、
-   `workspace/singles/README.md` 总表、`workspace/decoders/<tier>/README.md`（成员表 + 认领后缀）、
-   `workspace/decoders/<tier>/HISTORY.md`（对外可见变化一条）、`解码器开发规范.md` §八自查清单、
-   根 `README.md` 的八档表、`docs/` 对应页（架构/清单/测试）、
-   `testdata/claims.tsv`（新增认领必须登记成员与证据；没有证据就写 `unverified` + 原因）、
-   宿主 `<宿主>/docs/架构总览.md` §四解码器矩阵、
-   本文件第二节版本现状；最后 `py tools/make_index.py` 重生成清单。
+7. 同一次改动内同步的**完整对象**见 [`开发指南.md`](开发指南.md) §五「文档同步矩阵」；
+   其中三件必须同时落地：新增解码器写 `workspace/singles/<id>/README.md`，
+   档写 `README.md` + `HISTORY.md`，认领登记 `testdata/claims.tsv`；最后 `py tools/make_index.py`。
 8. **行锚怎么写才不会被搬漂**：`workspace/decoders/<id>/README.md` 里的 `:N-M` 只是给人导航的便利，**能站住的判据是名字**。
    写成 `` `fn_name`（`:120-135`）``，别裸写行号；改过某个 `src/lib.rs` 的行数，就把那一份的锚点重走一遍：
    - `python tools/check_docs.py` —— **硬门禁**（越界、整段空行、以及"文件里有裸 NUL 字节"）。

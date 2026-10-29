@@ -16,7 +16,7 @@
 依赖只有 `rupix-abi`（契约 + kit，样板已并入）（`Cargo.toml:20-20`）：无第三方解码库、
 无 `build.rs` / `csrc` / `.3rd` 依赖 / `examples` / `testdata`。`crate-type = ["cdylib"]`。
 ★ 它在 **workspace 默认 `opt-level = "z"`** 下编译，**没进例外清单**，而下面全是逐像素循环——
-这是 33 个单库里唯一一个"性能相关却没有 O3 例外"的 crate。要提记得按仓库口径重测。
+这是 全部单库里唯一一个"性能相关却没有 O3 例外"的 crate。要提记得按仓库口径重测。
 
 ## 认领：故意恒 0
 

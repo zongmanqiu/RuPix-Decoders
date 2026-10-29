@@ -1,7 +1,7 @@
 # av — HEIC / HEIF / AVIF 解码器
 
 一句话：`heic;heif;hif;avif;avifs` 的唯一认领者，双后端（heif-oxide + zenavif，都是纯 Rust）。
-它是 33 个单库里**自带第二套容器解析器**的那个，也是 AVIF 查询阶段必须真解码的那个。
+它是 全部单库里**自带第二套容器解析器**的那个，也是 AVIF 查询阶段必须真解码的那个。
 
 ## 身份（`src/lib.rs:37-46` 实读）
 

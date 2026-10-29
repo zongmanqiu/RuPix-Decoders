@@ -1,7 +1,7 @@
 # qoi — QOI 解码器（零依赖手写）
 
 一句话：`qoi` 后缀的唯一持有者，**不引任何第三方 crate**，QOI 规范逐字节手写在 `src/lib.rs` 里。
-它是 33 个单库里生产路径最干净的一个：没有 `unwrap`、没有 `expect`、没有 `panic!`。
+它是 全部单库里生产路径最干净的一个：没有 `unwrap`、没有 `expect`、没有 `panic!`。
 
 ## 身份（`src/lib.rs:23-30` 实读）
 

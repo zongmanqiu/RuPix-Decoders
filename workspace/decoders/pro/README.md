@@ -1,10 +1,10 @@
 # `pro` — 专业格式档（独立 workspace）
 
 一枚 DLL 认领 **16 个后缀**：JPEG2000 家族、JPEG XR 家族、EXR、PSD、HDR、XCF、ASE/ASEPRITE。
-纯 Rust，无 C 依赖；当前源码版本 0.4.2（发布状态见 `decoders.json`，远端仍为旧版）。
+纯 Rust，无 C 依赖；版本与发布状态以 `decoders.json` 为准。
 
 > **独立 workspace**：`workspace/decoders/pro` 有自己的 `[workspace]` / `Cargo.lock` / `.cargo/config.toml`。
-> 不能并回根 workspace——它的 `image` / `exr` / `resvg` 依赖会与 common/raw 做 feature 统一，
+> 不能并回根 workspace——它的 `image` / `exr` 依赖会与 common/raw 做 feature 统一，
 > 把 EXR/AVIF 等后端无差别编进每一枚 DLL（2026-10-25 实测 common +685 KB、raw +834 KB）。
 
 ## 成员与后缀
