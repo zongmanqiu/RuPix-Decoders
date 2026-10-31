@@ -5,17 +5,21 @@
 本仓库整体 **AGPL-3.0**。发布 DLL 的依赖必须能在这个项目里分发；当前允许的 SPDX
 家族：
 
-解码器由宿主联网下载 ZIP；ZIP 内附 DLL、同版本目录中的 `LICENSE`、`THIRD-PARTY-NOTICES.md`、
-`licenses/` 与 `SOURCE-OFFER.md`。仓库根 `LICENSE` 是 AGPL-3.0 全文。
+解码器由宿主联网下载 ZIP；ZIP 内附 DLL、同版本目录中的 `README.md`、`LICENSE`、
+`THIRD-PARTY-NOTICES.md`、`licenses/` 与 `metadata.json`。仓库根 `LICENSE` 是 AGPL-3.0 全文。
 DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `license=AGPL-3.0` / `released`；第三方解码器可改自己的作者名，许可证说明不是许可证文件。
 
-发布 ZIP 的单版本目录还含 `SOURCE-OFFER.md`：AGPL 源码位置、三年内书面提供源码的承诺、问题入口；
-`raw` 还单独列出静态链接的 `rawler 0.7.2` 上游 commit、crate 校验值与重链接说明。
-这是源码获取/重链接材料，不把第三方源码打进 ZIP，也不是法律意见。
+包内 `README.md` = 该档在仓库里的 README 原文 + 打包器追加的一节「许可与源码」：这枚 DLL
+按 AGPL-3.0 分发、第三方 crate 各自的许可在哪查、对应源码 = tag `<id>_<ver>` 下的
+`workspace/decoders/<id>/`（两个镜像各一条链接）。`raw` 那一节还多列 LGPL 的重链接材料
+（上游 commit、crate 校验值、LGPL 正文位置）——那是 LGPL 要求的，不是仪式。
+★ **以前这里是一枚单独的 `SOURCE-OFFER.md`，含"三年内书面提供源码"的要约**（2026-11-01 撤掉）：
+本仓源码公开在两个镜像上，收件人不需要向我们索取，所以那张书面要约卡整个去掉，
+只剩下"许可 + 源码在哪"这两件事实，并合进 README 一处，不再多一个文件。
 
 - `MIT` / `Apache-2.0` / `BSD-2-Clause` / `BSD-3-Clause` / `BSL-1.0` / `0BSD` / `Zlib` / `ISC` 类；
 - `CC0-1.0` / `Unlicense` / `WTFPL` / `MPL-2.0`（文件级 copyleft，动态分发可接受）；
-- `LGPL-2.1` / `LGPL-2.1-or-later`（`rawler`；固定 0.7.2，单 DLL 静态链接，发布包附 LGPL 文本与 `SOURCE-OFFER.md`）；
+- `LGPL-2.1` / `LGPL-2.1-or-later`（`rawler`；固定 0.7.2，单 DLL 静态链接，发布包附 LGPL 文本与 README 里的重链接材料）；
 - `AGPL-3.0` / `AGPL-3.0-only`（本仓自身）；
 - `LicenseRef-Imazen-Commercial`（`rav1d-safe` 家族；本项目按 AGPL 使用）；
 - `IJG` / `NCSA` / `Unicode-3.0` / `Apache-2.0 WITH LLVM-exception`（上游特有条款）。
@@ -33,10 +37,10 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 | MIT / Apache-2.0 / BSD / Zlib / ISC / Unlicense / CC0 / WTFPL | 可作为 AGPL 作品的一部分分发；保留版权与许可声明 |
 | MPL-2.0（`zenavif-parse`） | 可组合；MPL 文件本身继续受 MPL 约束，源码需可获得 |
 | `zenavif` / `rav1d-safe` 的 AGPL 分支 | 与 AGPL 方向一致；`modern` 整枚 DLL 按 AGPL 分发，源码需可获得 |
-| `rawler`（LGPL-2.1） | 固定 0.7.2，静态编进单枚 `raw` DLL；发布包附 LGPL-2.1 全文与 `SOURCE-OFFER.md`（上游 commit、crate 校验值、源码/重链接书面提供说明），不内置 rawler 源码 |
+| `rawler`（LGPL-2.1） | 固定 0.7.2，静态编进单枚 `raw` DLL；发布包附 LGPL-2.1 全文与包内 README 的「`raw` 的 LGPL 重链接材料」一节（上游 commit、crate 校验值、LGPL 正文位置），不内置 rawler 源码 |
 | GPL-2.0-only / GPL-3.0-only | 当前不在允许表；引入前必须单独评估 |
 
-`raw` 的发布包按上述固定版本 + `SOURCE-OFFER.md` 方式分发；依赖版本与源码位置由 `Cargo.lock` 锁定。
+`raw` 的发布包按上述固定版本 + README 里的重链接材料分发；依赖版本与源码位置由 `Cargo.lock` 锁定。
 
 ## 门禁
 

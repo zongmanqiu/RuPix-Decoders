@@ -6,7 +6,7 @@
 
 | DLL | 版本 | 认领后缀 | ZIP 大小 | 发行日期 | Gitee | GitHub |
 |---|---:|---:|---:|---:|---|---|
-| `common` | 0.2.4 | 24 | 0.96 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) |
+| `common` | 0.2.4 | 24 | 0.97 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) |
 | `modern` | 0.3.2 | 9 | 2.90 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) |
 | `raw` | 0.5.3 | 40 | 3.74 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) |
 | `pro` | 0.4.2 | 16 | 0.79 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) |
@@ -22,8 +22,10 @@
   也不需要重新上传**，照常加载工作；新能力只以「新可选导出 + 新结构体」加法形式出现。
 - 安装：下载 `<id>_<version>.zip`，解压后把 DLL 和 `<id>_<version>/` 一起放进 `<exe>/decoders/`；
   `decoders/` 是用户目录，宿主只加载顶层 `*.dll`，许可证目录和其它文件不参与加载。
-  ZIP 内的同版本目录含 `metadata.json`、`LICENSE`、`THIRD-PARTY-NOTICES.md`、`licenses/` 和 `SOURCE-OFFER.md`；
-  源码获取/重链接说明见 `SOURCE-OFFER.md`。
+  ZIP 内的同版本目录含 `README.md`（这一档的成员、限制与体积账，末尾一节是许可与源码位置）、
+  `LICENSE`、`THIRD-PARTY-NOTICES.md`、`licenses/` 和 `metadata.json`。
+  ★ 以前这里另有一枚 `SOURCE-OFFER.md`（含"三年内书面提供源码"的要约），2026-11-01 撤掉：
+  源码公开在两个镜像上，没有需要"另行提供"的东西；`raw` 的 LGPL 重链接材料并进了 README 那一节。
 - 下载：release 资产，每枚 ZIP 一个 `<id>_<version>` tag。机器可读清单是 [`decoders.json`](decoders.json)，
   `size`/`sha256` 描述 DLL，URL 指向 ZIP；字段、镜像与校验规则见 [`docs/catalog.md`](docs/catalog.md)。
 - 不发布：`workspace/singles/` 的单库只作 bench 对照、档的装配来源与 A/B 排查（总表见 [`workspace/singles/README.md`](workspace/singles/README.md)）。
@@ -68,7 +70,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
 
 本仓库 **AGPL-3.0**。第三方库与许可证见 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。
 
-解码器由宿主联网下载 ZIP；ZIP 内附 DLL、同版本目录中的 `LICENSE`、`THIRD-PARTY-NOTICES.md`、`licenses/` 和 `SOURCE-OFFER.md`。
+解码器由宿主联网下载 ZIP；ZIP 内附 DLL、同版本目录中的 `README.md`（末尾一节写许可与源码位置）、`LICENSE`、`THIRD-PARTY-NOTICES.md` 和 `licenses/`。
 仓库根 `LICENSE` 是 AGPL-3.0 全文，供源码使用者查阅。
 DLL 通过可选导出 `iv_metadata()` 自带 `version` / `author` / `license` / `released`（键值表，不是许可证文件）；
 第三方解码器可以把自己的 `author` 写成自己的名字。

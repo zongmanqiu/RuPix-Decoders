@@ -16,7 +16,7 @@
 | is_vector / has_alpha | `0` / `0` |
 | 产物 | `raw_0.5.3.dll` |
 | 构建 | 纯 Rust；无 `build.rs`、无 C 源、无 `.3rd` 依赖 |
-| 许可证 | `rawler 0.7.2`（LGPL-2.1）+ `flashraw 0.1.1`（MIT/Apache-2.0）静态链接；ZIP 附许可证全文与 `SOURCE-OFFER.md`（rawler 上游 commit + crate 校验值 + 源码/重链接书面 offer） |
+| 许可证 | `rawler 0.7.2`（LGPL-2.1）+ `flashraw 0.1.1`（MIT/Apache-2.0）静态链接；ZIP 附许可证全文，重链接材料（rawler 上游 commit + crate 校验值）见本 README 末尾由打包器追加的「`raw` 的 LGPL 重链接材料」一节 |
 
 后缀表由 `examples/dump_exts.rs` 对 `rawler::decoders::supported_extensions()` 校准。
 `.raw` 同时是相机 RAW 与裸像素 dump 的后缀，归属由**请求类型**决定：常规打开走魔数，

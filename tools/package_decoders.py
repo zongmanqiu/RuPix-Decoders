@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Build release ZIPs: DLL + <id>_<version>/ metadata, license, notices, source offer.
+"""Build release ZIPs: DLL + <id>_<version>/ metadata, license, notices, README.
 
 The ZIP is the download unit. `decoders.json` still describes the DLL (size/hash);
 the ZIP hash is computed after packaging and is not written inside itself.
+
+★ 包里带的是**这档自己的 `README.md`**（仓库里那份原文），末尾由本脚本追加一节
+「许可与源码」。以前这里放的是一枚手写风格的 `SOURCE-OFFER.md`，含"三年内书面提供
+源码"的要约——那是物理分发时代的写法，我们源码公开在两个镜像上，没有需要"另行提供"
+的东西，所以整段撤掉。唯一不能跟着消失的是 `raw` 的 LGPL 重链接材料（上游 commit、
+crate 校验值），它搬进了同一节。
 """
 from __future__ import annotations
 
@@ -22,7 +28,7 @@ OUT = ROOT.parent / ".temp" / "decoder-packages"
 INDEX = ROOT / "decoders.json"
 LICENSE = ROOT / "LICENSE"
 SOURCE_REPO = "https://gitee.com/qiuzongman/RuPix-Decoders"
-SOURCE_ISSUES = SOURCE_REPO + "/issues"
+MIRROR_REPO = "https://github.com/zongmanqiu/RuPix-Decoders"
 RAWLER_VERSION = "0.7.2"
 RAWLER_COMMIT = "ff7a4524cc7187554544269482e5fd5e68a6b4ab"
 RAWLER_CRATE_SHA256 = "04f4cc35c23969a4a834e0b117c7da41ace812eb9053b5effc3fc5c77d114677"
@@ -84,38 +90,46 @@ def chosen_license_ids(expr: str):
                 return [p]
     return ids
 
-def source_offer(tier: str, version: str, dll_name: str) -> str:
+def license_section(tier: str, version: str) -> str:
+    """追加在包内 `README.md` 末尾的一节：许可 + 对应源码在哪。
+
+    ★ 只写事实，不写"三年内书面提供源码"那类要约：本仓源码公开在两个镜像上，
+    收件人不需要向我们索取任何东西。`raw` 例外的一小段是 LGPL-2.1 要求的重链接材料
+    （上游 commit + crate 校验值），那是义务不是仪式，删文件时不能把它删没。
+    """
     tag = f"{tier}_{version}"
-    source = f"{SOURCE_REPO}/tree/{tag}/workspace/decoders/{tier}"
-    parts = [f"""# Source offer for `{dll_name}`
+    path = f"workspace/decoders/{tier}"
+    parts = [f"""
 
-This DLL is distributed under AGPL-3.0. The corresponding source for this
-decoder is available at:
+---
 
-- {source}
-- tag: `{tag}`
+## 许可与源码
 
-This package does not contain a copy of the source. If the link above is not
-usable, request the source at {SOURCE_ISSUES}. We will provide the complete
-corresponding source for this decoder for at least three years from the date
-you received this package, at no charge beyond the cost of delivery.
+这枚 `{tier}` 由 RuPix 以 **AGPL-3.0** 分发，全文见同目录 `LICENSE`；它静态链接的第三方
+crate 仍各自沿用自己的许可证——逐包清单在同目录 `THIRD-PARTY-NOTICES.md`，许可证正文在
+`licenses/`。
 
-This file records the offer; it is not a legal opinion.
+本包对应的完整源码就是这个仓库在 tag `{tag}` 下的 `{path}/`，**公开可取，无需索取**：
+
+- Gitee：{SOURCE_REPO}/tree/{tag}/{path}
+- GitHub：{MIRROR_REPO}/tree/{tag}/{path}
+
+依赖版本由该目录的 `Cargo.lock` 锁定，重建方式见 `docs/building.md`。
+本节说明本仓的许可口径，不是法律意见。
 """]
     if tier == "raw":
         parts.append(f"""
-## rawler
+### `raw` 的 LGPL 重链接材料
 
-`raw` statically links `rawler {RAWLER_VERSION}` (LGPL-2.1). Upstream source:
+`raw` 静态链接 `rawler {RAWLER_VERSION}`（LGPL-2.1），LGPL 要求收件人能从源码重建这枚 DLL：
 
-- https://github.com/dnglab/dnglab/tree/{RAWLER_COMMIT}/rawler
-- crate: https://crates.io/crates/rawler/{RAWLER_VERSION}
-- Cargo.lock checksum: `{RAWLER_CRATE_SHA256}`
+- 上游源码：https://github.com/dnglab/dnglab/tree/{RAWLER_COMMIT}/rawler
+- crate 包：https://crates.io/crates/rawler/{RAWLER_VERSION}
+- `Cargo.lock` 校验值：`{RAWLER_CRATE_SHA256}`
+- LGPL-2.1 正文：`licenses/LGPL-2.1.txt`（本包内）
 
-A copy of LGPL-2.1 is in `licenses/LGPL-2.1.txt`. The written offer above also
-covers the `rawler` source and the materials needed to rebuild `raw` with a
-modified `rawler`; request them at {SOURCE_ISSUES}. This package does not bundle
-`rawler` source.
+`rawler` 的源码不在本包里，按上面的地址公开可取；换库或改版本后重跑
+`cargo build --release` 即可重建这枚 DLL。
 """)
     return "\n".join(parts)
 
@@ -175,6 +189,13 @@ def main():
         dll = DIST / dll_name
         if not dll.is_file():
             raise SystemExit("missing DLL: %s (run build.ps1 first)" % dll)
+        # 包内 README = 仓库里那档的 README 原文 + 本脚本追加的「许可与源码」一节。
+        # 缺 README 直接拒打包：那等于发布物少了一份门面，静默补一份空的不如不出包。
+        tier_readme = ROOT / "workspace" / "decoders" / tier / "README.md"
+        if not tier_readme.is_file():
+            raise SystemExit(
+                "refusing to package %s: %s 不存在" % (tier, tier_readme.relative_to(ROOT))
+            )
         deps, packages = deps_for(cwd, package)
         pkg_name = f"{tier}_{ver}"
         stage = out / (pkg_name + ".stage")
@@ -224,8 +245,9 @@ own licenses. Full license texts are in `licenses/`.
 |---|---:|---|
 """ + "\n".join(rows) + "\n"
         (folder / "THIRD-PARTY-NOTICES.md").write_text(notices, encoding="utf-8", newline="\n")
-        (folder / "SOURCE-OFFER.md").write_text(
-            source_offer(tier, ver, dll_name), encoding="utf-8", newline="\n")
+        (folder / "README.md").write_text(
+            tier_readme.read_text(encoding="utf-8").rstrip() + "\n" + license_section(tier, ver),
+            encoding="utf-8", newline="\n")
         zip_path = out / (pkg_name + ".zip")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, strict_timestamps=False) as z:
             z.write(stage / dll_name, dll_name)

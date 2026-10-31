@@ -76,9 +76,9 @@
 ## 三、LGPL / AGPL 组件说明
 
 - **`rawler`（LGPL-2.1，固定 0.7.2）**：`rawler` 被静态编进 `raw` DLL，不再拆独立 DLL。
-  发布包内含 LGPL-2.1 全文、`SOURCE-OFFER.md`（上游 commit `ff7a4524…`、crate 校验值、
-  源码与重链接材料的书面提供说明）；不把 rawler 源码打进 ZIP。源码可直接取对应 crates.io 包
-  `https://crates.io/crates/rawler/0.7.2` 或上游 dnglab 对应 commit。
+  发布包内含 LGPL-2.1 全文，以及包内 `README.md` 末尾的「`raw` 的 LGPL 重链接材料」一节
+  （上游 commit `ff7a4524…`、crate 校验值、LGPL 正文位置）；不把 rawler 源码打进 ZIP。
+  源码可直接取对应 crates.io 包 `https://crates.io/crates/rawler/0.7.2` 或上游 dnglab 对应 commit。
 - **`zenavif` / `rav1d-safe`（AGPL-3.0-only OR 商业许可）**：本仓库整体 AGPL-3.0，
   按 AGPL 分支使用；不再单独提供商业许可。`modern` 档的发布受同一许可约束。
 - 所有解码库都编在各自 DLL 内；`rupix.exe` 本身只带 SVG（windui/resvg 栈，见宿主仓库
@@ -86,7 +86,7 @@
 
 ## 四、分发义务
 
-发布 release 时，release 说明必须写明 AGPL-3.0 并链接本文件；ZIP 内附 `LICENSE`、`THIRD-PARTY-NOTICES.md`、`licenses/` 与 `SOURCE-OFFER.md`。新增 / 更换解码库时：
+发布 release 时，release 说明必须写明 AGPL-3.0 并链接本文件；ZIP 内附 `README.md`（末尾「许可与源码」一节：本 DLL AGPL-3.0、第三方 crate 各自许可的查法、对应源码在哪个 tag 的哪个目录，两镜像各一条链接）、`LICENSE`、`THIRD-PARTY-NOTICES.md` 与 `licenses/`。★ 2026-11-01 起不再单独附 `SOURCE-OFFER.md`（"三年内书面提供源码"那类要约对开源项目是多余文件，`raw` 的 LGPL 重链接材料并进了 README 那一节）。新增 / 更换解码库时：
 1. 在 `workspace/singles/<id>/Cargo.toml` 与解码档 `Cargo.toml` 里实读版本与 `license`；
 2. 更新本表，禁止 `[待核]` 长期挂着；
 3. 若引入 C 库（历史如已撤销的 `jpegturbo`），同时登记其源码位置、版本与 sha256。

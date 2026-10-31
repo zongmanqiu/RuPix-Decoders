@@ -58,6 +58,6 @@
 - [ ] `released` 已填；`gitee` / `github` 已由人工上传。
 - [ ] ZIP 内 `metadata.json` 与 `decoders.json` 同一条目逐字段一致（含地址与日期）。
 - [ ] 已记录最终 ZIP 的 size / SHA-256；重新打包后数字已更新。
-- [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 LICENSE、notices、licenses 与 `SOURCE-OFFER.md`。
+- [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 `README.md`（含「许可与源码」一节）、`LICENSE`、notices、`licenses/`。
 - [ ] `workspace/decoders/<id>/HISTORY.md` 已记录本次对外变化；**没有状态/待上传/包生成/tag 行**。
 - [ ] 宿主 `docs_consistency` 与 smoke 已跑（并排开发时）。

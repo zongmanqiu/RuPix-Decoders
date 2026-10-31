@@ -30,8 +30,8 @@ rupix-rawpx = { path = "../../singles/rawpx", default-features = false }
 # 输出是 CFA 拜耳原始数据（u16），不是 sRGB——本解码器内置轻量 develop 管线：
 # 线性化(黑/白电平) → 白平衡 → 双线性去马赛克 → 色彩矩阵(cam→sRGB) → sRGB gamma。
 # LGPL-2.1：rawler 固定 0.7.2，被静态编进单枚 raw DLL（不是独立 rawler.dll）。
-# 发布 ZIP 附 LGPL-2.1 全文与 SOURCE-OFFER.md（上游 commit、crate 校验值、
-# 源码/重链接材料的书面提供说明），不内置 rawler 源码。
+# 发布 ZIP 附 LGPL-2.1 全文，重链接材料（上游 commit、crate 校验值）写在包内 README
+# 末尾由 tools/package_decoders.py 追加的那一节；不内置 rawler 源码。
 rawler = "0.7.2"
 
 # X3F fallback: rawler 0.7.2 exposes the X3F container but its compressed
