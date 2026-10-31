@@ -32,6 +32,9 @@ MIRROR_REPO = "https://github.com/zongmanqiu/RuPix-Decoders"
 RAWLER_VERSION = "0.7.2"
 RAWLER_COMMIT = "ff7a4524cc7187554544269482e5fd5e68a6b4ab"
 RAWLER_CRATE_SHA256 = "04f4cc35c23969a4a834e0b117c7da41ace812eb9053b5effc3fc5c77d114677"
+# ZIP 条目时间戳钉死 ⇒ 包字节是内容的纯函数。z.write() 取真实 mtime、writestr(str) 取当前时钟，
+# 一次零改动的重打包就会换 sha；那意味着"同一版本的包"不再由源码树唯一决定。
+ZIP_FIXED_DATE = (1980, 1, 1, 0, 0, 0)
 
 TIERS = {
     "common": ("rupix-common", ROOT / "workspace"),
@@ -159,6 +162,13 @@ def license_text(pkg_dir: Path, lid: str):
     return None
 
 
+def add_entry(z: zipfile.ZipFile, arcname: str, data: bytes):
+    info = zipfile.ZipInfo(arcname, date_time=ZIP_FIXED_DATE)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o644 << 16
+    z.writestr(info, data)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", default="", help="comma-separated decoder ids")
@@ -250,10 +260,10 @@ own licenses. Full license texts are in `licenses/`.
             encoding="utf-8", newline="\n")
         zip_path = out / (pkg_name + ".zip")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, strict_timestamps=False) as z:
-            z.write(stage / dll_name, dll_name)
+            add_entry(z, dll_name, (stage / dll_name).read_bytes())
             for p in sorted(folder.rglob("*")):
                 if p.is_file():
-                    z.write(p, p.relative_to(stage))
+                    add_entry(z, p.relative_to(stage).as_posix(), p.read_bytes())
         digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
         print(f"{zip_path}  {zip_path.stat().st_size} B  sha256={digest}  deps={len(deps)} licenses={len(ids)}")
         built += 1

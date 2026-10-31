@@ -30,6 +30,8 @@
 - **认领**：40 个后缀、成员与能力位不变。
 - **合规**：`rawler` 固定 **0.7.2**、LGPL-2.1，单 DLL 静态链接；发布 ZIP 含 LGPL-2.1 与
   `SOURCE-OFFER.md`（上游 commit、Cargo.lock 校验值、源码/重链接书面 offer），不内置 rawler 源码。
+  ★ 那是 0.5.0–0.5.2 的包形；2026-11-01 起重链接材料改写入包内 `README.md` 的「许可与源码」一节，
+  不再单附这枚文件——现行包形以 `workspace/decoders/raw/README.md` 与 `docs/releasing.md` 为准。
 
 ## 0.3.x 及更早
 
