@@ -126,3 +126,36 @@ CFA 相位用绝对坐标（或折进 48×48 表）。不要用亮度启发式�
 
 **做法**：字段/大小只信 `decoders.json`；版本只信 `Cargo.toml`；文档链接写相对路径；
 行锚只写符号名；新增文档登记到 `DOCS_MANIFEST.md`。
+
+## D14 ZIP 条目的 mtime 隐形进入包字节 → 零改动重打包也换 sha
+
+**现象**：一行代码、一个字都没改，只是把 `package_decoders.py` 再跑一遍，八枚 ZIP 的
+SHA-256 全变了（实测 `doc` 从 `c5eaf0c2…` 变成 `8cbfe5ab…`），**字节数却一模一样**。
+交付记录里的"最终 ZIP sha"于是变成"哪一刻打的包"的指纹，不是内容的指纹。
+
+**原因**：`ZipFile.write()` 取磁盘文件的真实 mtime，`writestr(str)` 取当前时钟；
+这两个字段逐字节进入每个条目的 local/central header。crate 许可证文件甚至带着上游的
+2006 年 mtime（实测条目 `(2006, 7, 24, 9, 21, 28)`）。
+
+**做法**：`ZIP_FIXED_DATE = (1980, 1, 1, 0, 0, 0)` + `add_entry()`（`ZipInfo` 显式建，
+`compress_type` 与 `external_attr` 也钉死），**不要退回 `z.write()`**。判据 = 同一份内容连打两次，
+`sha256` 与字节数逐档相同（2026-11-01 八档实测）。附带一条容易记错的层级：本仓清单的
+`size` / `sha256` 算的是**包内 DLL**、不是 ZIP，所以重打包从来不会让清单与远端资产失配
+——判据表见 [`releasing.md`](releasing.md)「改了哪一层材料」。**已上传的旧包（2026-11-01 之前）
+外层字节不可复现，不要为此重传**：内容与今天的重建逐条目相同，换 sha 只是好看。
+
+## D15 行尾探针自己造假：`grep -c $"\r"` 数的是翻译引号，不是回车
+
+**现象**：一句话报出"本仓 219 个文本文件虽然 `.gitattributes` 写了 `eol=lf`、实际存 CRLF"，
+还顺手给出修复方案（`git add --renormalize` + 提交）。用户批准后才复测：**假警报**。
+
+**原因**：Git-Bash 里 `$"…"` 是**本地化翻译引号**（Windows gettext 语法），不是 ANSI-C 转义——
+要写回车得用 `$'\r'`。于是 `grep` 拿到的是字面量、数的是"匹配某串的行数"：同一份 `README.md`
+报 32，真实 CR 数是 0。另一半原因是**工作副本与 blob 是两件事**：`text eol=lf` 下磁盘上可以是
+CRLF，blob 与 index 仍是 LF、`git status` 干净（归一化发生在 add）。
+
+**做法**：数行尾只按字节读——`git cat-file blob HEAD:<file>` 取 blob 数 `0x0D`，工作副本用
+`tr -cd '\r' | wc -c` 或 Python `b.count(b"\r")`；**永不用 `grep -c $"\r"`**。缺陷规模这类数字
+在写进结论前要用一把**独立**量具复测同一格（同一条管道里的两个计数不能互证）。
+`git add --renormalize` 在两仓都是 no-op，别为它开"修复"任务；真要让磁盘也变 LF 就重检出，
+不产生提交。

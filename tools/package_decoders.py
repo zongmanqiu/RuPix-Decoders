@@ -265,6 +265,8 @@ own licenses. Full license texts are in `licenses/`.
                 if p.is_file():
                     add_entry(z, p.relative_to(stage).as_posix(), p.read_bytes())
         digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+        # 这枚 digest 是 **ZIP 的**；`decoders.json.sha256` 是包内 DLL 的（宿主也比 DLL 那一枚）。
+        # 两者不必相等也不该相等——分层判据见 docs/releasing.md「改了哪一层材料」。
         print(f"{zip_path}  {zip_path.stat().st_size} B  sha256={digest}  deps={len(deps)} licenses={len(ids)}")
         built += 1
     if not built:

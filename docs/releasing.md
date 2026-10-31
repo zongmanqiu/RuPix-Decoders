@@ -41,6 +41,24 @@
 > 清单可以先提交、资产后上传；那段时间该列地址会 404，宿主如实报下载失败。
 > 反过来不行：`decoders.json` 不提交，宿主不知道有新版。
 
+## 改了哪一层材料 ⇒ 要不要 bump / 重传 / 改数字
+
+判据只有一句：**清单的 `size` / `sha256` 是包内那枚 DLL 的指纹，ZIP 的字节是内容的纯函数。**
+
+| 这一轮动的是 | bump 版本号 | 重传 release 资产 | `decoders.json` 的 `size`/`sha256` |
+|---|---|---|---|
+| 包外材料（release 说明文字、本仓 README 门面表的数字） | 不 | 不 | 不动 |
+| 包内人读材料（档 `README.md`、`THIRD-PARTY-NOTICES.md`、`licenses/`） | 不 | **要**——用户拿到的那几个文件变了 | **不动**：它们算的是 DLL |
+| DLL 本体（代码、依赖、认领后缀、能力位） | **要** | 要 | 要重算（`make_index.py`） |
+
+- 常见误判有两个方向："改了包里的说明文字所以必须升版本"——不必，版本号服务的是**解码行为**；
+  "改了包里的说明文字所以远端那份包不能算这一版"——对，所以重传，但 tag 与文件名照旧。
+- ★ **已知限度**：2026-11-01 之前上传的那八枚是**钉时间戳之前**打的，外层包字节永不复现
+  （内容与今天的重建逐条目相同：八枚 `Content-Length` 逐档相等、`common` 逐条目内容 sha 全 same）。
+  不为此重传——清单不校验 ZIP，换一组 sha 只是好看。从下一个版本起，重打同内容 = 同字节。
+- 对照另一仓：`RuPix-Plugin/` 的 `plugins.json` 算的是**整枚 ZIP**，所以那边**改一个字就得重传并同步清单**，
+  两仓的"失配"不是同一种失配，别互相抄做法。
+
 ## 发布目录规则
 
 - 仓库**只放源码**：`dist/` 不在仓库里；发布暂存 = `../.temp/decoder-dist`。
@@ -65,7 +83,7 @@
 - [ ] `decoders.json` 的 `size` / `sha256` / `version` / `abi` / `formats` 与 DLL 自述一致。
 - [ ] `released` 已填；`gitee` / `github` 已由人工上传。
 - [ ] ZIP 内 `metadata.json` 与 `decoders.json` 同一条目逐字段一致（含地址与日期）。
-- [ ] 已记录最终 ZIP 的 size / SHA-256；重新打包后数字已更新。
+- [ ] 已记录最终 ZIP 的 size / SHA-256；**同内容重打数字不变**（打包已确定性），数字变了就说明内容真变了。
 - [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 `README.md`（含「许可与源码」一节）、`LICENSE`、notices、`licenses/`。
 - [ ] `workspace/decoders/<id>/HISTORY.md` 已记录本次对外变化；**没有状态/待上传/包生成/tag 行**。
 - [ ] 宿主 `docs_consistency` 与 smoke 已跑（并排开发时）。
