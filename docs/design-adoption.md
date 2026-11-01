@@ -20,7 +20,7 @@
 | A11 | `raw` 拆成 `probe/frame/cache/develop/binning/tests` 模块，不拆 crate | 行为保持、单测逐步验证；避免拆 crate 带来 target/命名成本 | `workspace/decoders/raw/src/` |
 | A12 | 清单加 `sha256`，宿主下载后校验 | `size` 只能挡截断/多收；同字节数替换必须靠哈希。端到端已接通，宿主 exe +9,728 B | `tools/make_index.py`、`core::hash`、`decoders::install` |
 | A13 | ABI v5：把自述导出/结构体/样板宏统一改为 decoder 命名 | 当前只有自家解码器、无第三方 DLL，是唯一无兼容包袱的窗口；旧 v4 拒载 | `abi/src/lib.rs`、C kit、宿主 DLL 加载器 |
-| A14 | 给 `emfsdk` 打补丁（副本在 `../.3rd/emfsdk-0.2.0`），不 fork、不换库、不自己写栅格器 | 字形绘制在库内完成、没有回调，外部改不了；换库要重做 EMF/EMF+ 解析；自写栅格器是整条新战线。补丁只加缺的能力：按 `LOGFONT` 选字族 + 逐字兜底 + 字体库只索引一次 | `workspace/singles/doc-emf/Cargo.toml`、`.3rd/emfsdk-0.2.0/SOURCE.md` |
+| A14 | 给 `emfsdk` 打补丁（副本在 `../.3rd/emfsdk-0.2.0`），不 fork、不换库、不自己写栅格器 | 字形绘制在库内完成、没有回调，外部改不了；换库要重做 EMF/EMF+ 解析；自写栅格器是整条新战线。补丁只加缺的能力：按 `LOGFONT` 选字族 + 逐字兜底 + 字体库只索引一次 | `workspace/singles/doc-emf/Cargo.toml`、`patches/emfsdk-0.2.0/`、`.3rd/emfsdk-0.2.0/SOURCE.md` |
 
 ## 已拒绝
 

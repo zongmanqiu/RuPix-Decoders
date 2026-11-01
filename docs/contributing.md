@@ -89,7 +89,7 @@ cargo run --release -- --probe-decode <file>
 | 无魔数 / 裸数据 | 提供 `iv_render_raw`，宽高/布局由宿主收集；`ext = NULL` 时返回 0；参考 `workspace/singles/rawpx` |
 | 形态 A：内嵌 C / 静态库 | C 源放仓库外 `.3rd/<name>-<ver>/`；`cc` 的 `opt_level(3)` 显式设；`RUPIX_3RD_DIR` 可覆盖；目标路径不要 `canonicalize()` |
 | 形态 B：原生 C/C++ DLL | 放 `CMakeLists.txt`（`project(<id> VERSION x.y.z)`）；`build.ps1` 自动走 CMake + ctest；C 侧用 `abi/c/rupix_decoder_kit.h` |
-| 形态 C：给第三方 Rust crate 打补丁 | 副本放仓库外 `../.3rd/<name>-<ver>/`（带 `LICENSE` + `SOURCE.md`）；依赖写 path；补丁只加缺的能力，不改上游 API 形状，升级时按 `SOURCE.md` 重新叠加 |
+| 形态 C：给第三方 Rust crate 打补丁 | 副本放仓库外 `../.3rd/<name>-<ver>/`（带 `LICENSE` + `SOURCE.md`）；依赖写 path；补丁只加缺的能力，不改上游 API 形状，升级时按 `SOURCE.md` 重新叠加；**补丁本身公开登记在本仓 `patches/<crate>-<version>/`**（README + manifest + patch，`check_patches.py` 核哈希与 90 天上游核对日期） |
 | 多帧动画 | 实现 `frame_index` + `frame_count` / `frame_delay_ms`（abi v3 语义） |
 | 多页 / 子图 | 用 `page_index` + `page_count`；ICC 走 `icc_len`（v4 引入，v5 保留） |
 

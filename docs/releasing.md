@@ -47,7 +47,7 @@
 
 | 这一轮动的是 | bump 版本号 | 重传 release 资产 | `decoders.json` 的 `size`/`sha256` |
 |---|---|---|---|
-| 包外材料（release 说明文字、本仓 README 门面表的数字） | 不 | 不 | 不动 |
+| 包外材料（release 说明文字、本仓 README 门面表的数字、`patches/` 补丁登记） | 不 | 不 | 不动 |
 | 包内人读材料（档 `README.md`、`THIRD-PARTY-NOTICES.md`、`licenses/`） | 不 | **要**——用户拿到的那几个文件变了 | **不动**：它们算的是 DLL |
 | DLL 本体（代码、依赖、认领后缀、能力位） | **要** | 要 | 要重算（`make_index.py`） |
 

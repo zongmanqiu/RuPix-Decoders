@@ -29,6 +29,11 @@
    `workspace/.cargo` 钉到 `../../.temp/decoder-target`（pro 档另有 `../../../../.temp/pro-target`）；第三方 C/C++ 源、以及需要打补丁才能用的 Rust crate 副本（现行：`emfsdk-0.2.0`）都不入库，放 `../.3rd/<name>-<ver>/`（补丁与溯源登记在该目录 `SOURCE.md`）
    （溯源规则见 `.3rd/README.md`）。外部路径都有环境变量覆盖口：`CARGO_BUILD_TARGET_DIR`、
    `RUPIX_3RD_DIR`。**代价**：单独克隆本仓库不能直接构建形态 A 解码器，得连 `.3rd` 一起带上或设变量。
+   ★ **但补丁本身必须入库**：仓库外的副本是上游的内容（可重下），我们对它的改动是我们自己的代码——
+   每份补丁在 `patches/<crate>-<version>/` 留 `README.md` + `manifest.json` + `*.patch`，
+   判据是"上游原文 + 补丁 = 构建用的副本逐字节一致"。我们是跟随上游的补丁不是分叉：
+   `manifest.json` 的 `upstream_check.checked_at` 超 90 天 `tools/check_patches.py` 判红，
+   核对完就改日期（上游没变也只改日期）。重放补丁一律 `git -c core.autocrlf=false apply`（D19）。
    发布产物**不进本仓库**（2026-10-25：本仓只放源码，DLL 走 release 资产发布）：`build.ps1`
    把发布暂存写到仓库外 `../.temp/decoder-dist`（`RUPIX_DIST_DIR` 可覆盖）。**调试符号不进发布目录**：`build.ps1` 只把 `<id>.pdb` 归档到
 `../.temp/symbols/decoders/`（`<宿主>/build/dump_sym.py` 的默认查找点，一次性目录），
@@ -255,6 +260,10 @@
 - 第三方 C 源一律放**仓库外**的 `../.3rd/<name>-<ver>/`，带 `LICENSE` + `SOURCE.md`
   （版本 / sha256 / 下载源），规则见 `.3rd/README.md`；
   接入新库要回写宿主 `<宿主>/THIRD-PARTY-NOTICES.md` §2.2。
+- 第三方源**打了补丁**的，补丁必须在本仓 `patches/<crate>-<version>/` 公开登记
+  （`README.md` + `manifest.json` + `*.patch`，规则见 `patches/README.md`）：
+  `.3rd` 不入库，别人克隆本仓只能靠这份补丁重建发布物。`tools/check_patches.py`
+  在 `build.ps1` 里跑（附 `--selftest` 自证会红），核副本哈希与**上游核对日期**（90 天）。
 - **对输入字节"推进且线性"**（防挂死，正本 `解码器开发规范.md` §六 第 10 条）：长度字段驱动的
   循环读到 0 长度必须推进或报错；递归 / 交叉引用用 visited 去重（只设深度上限不够，菱形重入是
   `N^层数`）；轮数上界取自文件长度而非文件内的计数。**挂死风险源是输入字节，不是解码器谁写的。**
@@ -320,7 +329,7 @@
 | 形态 | 额外步骤 |
 |---|---|
 | **无魔数 / 裸数据**（`.raw`、`.yuv` 这类没有文件头的） | 提供 `iv_render_raw` **可选导出**，宽高 / 布局由宿主向用户收集后传入。规范 §十二，参考实现 `workspace/singles/rawpx`（现由 `raw` 档转发）。可选导出不 bump ABI 版本。 |
-| **形态 A：内嵌单头 / 静态 C 库** | ① C 源放**仓库外** `../.3rd/<name>-<ver>/`，带 `LICENSE` + `SOURCE.md`（见 `.3rd/README.md`）；② `[build-dependencies] cc`；③ `build.rs` 里 **`opt_level(3)` 必须显式设**（Rust profile 管不到 cc）；④ 目标目录用 `ancestors()` 上溯到仓库上一级（`RUPIX_3RD_DIR` 可覆盖），**禁止 `canonicalize()`**（Windows verbatim `\\?\` 路径 cl.exe 不认，K34）；⑤ Rust 侧只写 `extern "C"` 薄封装。历史首例 `stb` 已于 2026-10-25 被纯 Rust 的 `psd`+`hdr` 替掉，当前无现役样本。 |
+| **形态 A：内嵌单头 / 静态 C 库** | ① C 源放**仓库外** `../.3rd/<name>-<ver>/`，带 `LICENSE` + `SOURCE.md`（见 `.3rd/README.md`）；② 需要改第三方源码时，补丁登记进 `patches/<crate>-<version>/`（见 `patches/README.md`）；③ `[build-dependencies] cc`；④ `build.rs` 里 **`opt_level(3)` 必须显式设**（Rust profile 管不到 cc）；⑤ 目标目录用 `ancestors()` 上溯到仓库上一级（`RUPIX_3RD_DIR` 可覆盖），**禁止 `canonicalize()`**（Windows verbatim `\\?\` 路径 cl.exe 不认，K34）；⑥ Rust 侧只写 `extern "C"` 薄封装。历史首例 `stb` 已于 2026-10-25 被纯 Rust 的 `psd`+`hdr` 替掉，当前无现役样本。 |
 | **形态 B：原生 C/C++ DLL** | 目录里放 `CMakeLists.txt`（`project(<id> VERSION x.y.z)`），`build.ps1` 自动识别并走 CMake + ctest 子构建；版本从 `project()` 读。C 侧用 `abi/c/rupix_decoder_kit.h`（自带 `_Static_assert` 布局钉子，漂移直接编译失败），并跑 `abi/c/abi_probe.c` 复核（`cl /std:c11`，应打印 `info=48 req=24 out=48 abi=6`；
   探针 exe 落系统临时目录，别写进源码仓库）。 |
 | **多帧动画**（GIF 类） | 实现 `frame_index` 帧选择 + `frame_count` / `frame_delay_ms` 回填（abi v3 语义）。 |

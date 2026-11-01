@@ -10,7 +10,15 @@
   `workspace/tools/toolchain.ps1 -RequireNative` 会强制要求 vcvars64 / NASM / CMake。
 - ★ **构建 `doc` 还需要仓库外的 `../.3rd/emfsdk-0.2.0/`**（带补丁 E01 的副本，`doc-emf`
   走 path 依赖）：少了它 `cargo` 直接报找不到包；换成 crates.io 上未打补丁的 0.2.0
-  能编过，但 EMF/EMZ 里的中文会静默退化成 5×7 点阵。副本的溯源与补丁说明见其 `SOURCE.md`。
+  能编过，但 EMF/EMZ 里的中文会静默退化成 5×7 点阵。副本的溯源见其 `SOURCE.md`，
+  **补丁本身公开登记在本仓 `patches/emfsdk-0.2.0/`**——新机器按那里的 README 从上游原文重放：
+
+  ```bash
+  git -c core.autocrlf=false apply patches/emfsdk-0.2.0/E01-system-fonts-and-logfont.patch
+  ```
+
+  `core.autocrlf=false` 不能省：Windows 上它默认是 true，`git apply` 会写出 CRLF，
+  后面核 sha256 全对不上（D19）。
 
 ## 一条命令
 

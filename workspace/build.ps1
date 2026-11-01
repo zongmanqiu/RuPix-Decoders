@@ -88,12 +88,19 @@ try {
         Write-Host "[ERROR] python is not on PATH - the doc/dependency gates need it"
         exit 1
     }
-    foreach ($gate in @("..\tools\check_docs.py", "..\tools\check_history.py", "..\tools\check_abi_refs.py", "..\tools\check_abi_freeze.py", "..\tools\check_workspace_config.py", "..\tools\check_deps.py", "..\tools\check_deps_direction.py", "..\tools\check_caps.py", "..\tools\check_claims.py", "..\tools\check_secrets.py", "..\tools\check_licenses.py")) {
+    foreach ($gate in @("..\tools\check_docs.py", "..\tools\check_history.py", "..\tools\check_abi_refs.py", "..\tools\check_abi_freeze.py", "..\tools\check_workspace_config.py", "..\tools\check_deps.py", "..\tools\check_deps_direction.py", "..\tools\check_caps.py", "..\tools\check_claims.py", "..\tools\check_secrets.py", "..\tools\check_licenses.py", "..\tools\check_patches.py")) {
         $code = Invoke-Native { python $gate }
         if ($code -ne 0) {
-            Write-Host "[ERROR] $gate failed - fix the docs/history/dependency/direction/cap/claim/secret ledger, do not skip"
+            Write-Host "[ERROR] $gate failed - fix the docs/history/dependency/direction/cap/claim/secret/patch ledger, do not skip"
             exit 1
         }
+    }
+    # The patch gate has to prove it can fail before it is trusted: a gate that only ever
+    # prints OK is a gate in name only (host lesson K69).
+    $code = Invoke-Native { python ..\tools\check_patches.py --selftest }
+    if ($code -ne 0) {
+        Write-Host "[ERROR] check_patches.py --selftest failed - the patch gate itself is broken"
+        exit 1
     }
     $code = Invoke-Native { python ..\testdata\make_samples.py --check }
     if ($code -ne 0) {

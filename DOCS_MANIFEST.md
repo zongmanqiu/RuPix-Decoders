@@ -31,6 +31,8 @@
 | `testdata/README.md` | golden / 生成样本的分工、引用方式变化 | `manual` |
 | `testdata/claims.tsv` | 认领后缀增删、成员归属、证据状态变化 | `check_claims.py` |
 | `THIRD-PARTY-NOTICES.md` | 依赖/许可证/版本变化 | `manual` + `cargo metadata` |
+| `patches/README.md` | 补丁登记规则、上游跟随与核对周期、重放方式变化 | `check_patches.py` + `manual`（评审） |
+| `patches/<crate>-<version>/`（`README.md` + `manifest.json` + `*.patch`） | 新增/升级打补丁的第三方副本、补丁后哈希、上游核对日期 | `check_patches.py`（含 `--selftest`）；副本在场时逐文件核哈希 |
 | `decoders.json` | 版本、字节数、发布状态、地址变化 | `make_index.py` + `build.ps1` 新鲜度检查 |
 | `workspace/.cargo/config.toml` / `workspace/singles/.cargo/config.toml` / `workspace/decoders/pro/.cargo/config.toml` | target-dir 变化 | `build.ps1` 实跑 |
 | `build.ps1` / `tools/*` | 流水线、门禁、工具链变化 | 自跑 + 故意注入违规验证 |

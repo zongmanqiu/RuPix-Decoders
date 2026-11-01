@@ -45,6 +45,7 @@
 | 每档历史怎么写 | [`docs/history-policy.md`](docs/history-policy.md) |
 | 本仓专属坑 | [`docs/pitfalls.md`](docs/pitfalls.md) |
 | 已采纳 / 已拒绝的架构决策 | [`docs/design-adoption.md`](docs/design-adoption.md) |
+| 第三方补丁登记（上游原文 + 补丁 = 构建用的副本） | [`patches/README.md`](patches/README.md) |
 | 每档的成员、限制与历史 | [`workspace/decoders/`](workspace/decoders/README.md) |
 | 未来格式规划、目标 DLL 划分 | [`解码器能力规划.md`](解码器能力规划.md) |
 | 单库总表 | [`workspace/singles/README.md`](workspace/singles/README.md) |

@@ -63,7 +63,7 @@
 | `dxf` / `dxf_to_svg` | 0.6.2 / 1.0.0 | MIT | [实读字段] `doc-cad` 的 DXF 二次解析与 SVG 输出 |
 | `hayro` | 0.8.0 | Apache-2.0 OR MIT | [实读字段] `doc-pdf` 的纯 Rust PDF 光栅化 |
 | `stet` | 0.9.0 | Apache-2.0 OR MIT | [实读字段] `doc-print` 的纯 Rust PostScript/EPS 解释器；内置字体资源随 crate 分发 |
-| `emfsdk` | 0.2.0 | MIT OR Apache-2.0 | [实读字段] `doc-emf` 的 EMF/EMF+ 解析与光栅化；★ 用的是仓库外 `../.3rd/emfsdk-0.2.0` 的**补丁副本（E01）**——字体栈 + 逐字兜底 + 字体库只索引一次，改了哪几段与上游原文 sha256 见该目录 `SOURCE.md` |
+| `emfsdk` | 0.2.0 | MIT OR Apache-2.0 | [实读字段] `doc-emf` 的 EMF/EMF+ 解析与光栅化；★ 用的是仓库外 `../.3rd/emfsdk-0.2.0` 的**补丁副本（E01）**——字体栈 + 逐字兜底 + 字体库只索引一次；**补丁公开登记在本仓 `patches/emfsdk-0.2.0/`**（上游原文 + 该补丁可重建这份副本），细节见副本的 `SOURCE.md` |
 | `zip` / `roxmltree` | 2.6.1 / 0.20.0 | MIT / MIT OR Apache-2.0 | [实读字段] `doc-xps` 自研 OPC 容器与 FixedPage XML 解析（2026-11-01 起不再使用 `justpdf-formats`） |
 | `nom-hpgl` | 0.2.0 | Apache-2.0 | [实读字段] `doc-hpgl` 的 HP-GL 命令解析 |
 | `libcdr` | 0.1.9 | MPL-2.0 | [实读字段] `doc-legacy` 的 CMX/CCX；静态编入，源码提供义务 |

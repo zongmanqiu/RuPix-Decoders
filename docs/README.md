@@ -30,3 +30,7 @@
 | [`history-policy.md`](history-policy.md) | 八档 `HISTORY.md` 的格式、版本语义、记录边界 |
 | [`pitfalls.md`](pitfalls.md) | 本仓踩过的坑；编号 D，不与宿主 K 号混用 |
 | [`design-adoption.md`](design-adoption.md) | 已采纳/已拒绝/待评估的架构决策 |
+
+本目录之外还有两处文档：根 [`README.md`](../README.md)（门面）与
+[`patches/README.md`](../patches/README.md)（第三方补丁登记规则——仓库外副本的补丁
+必须在那里公开登记，`check_patches.py` 核哈希与上游核对日期）。

@@ -23,6 +23,8 @@
 *.hpp text eol=lf
 *.json text eol=lf
 *.txt text eol=lf
+# 补丁必须是 LF：CRLF 的补丁 git apply 出来哈希全不对（check_patches.py 直接判红）
+*.patch text eol=lf
 CMakeLists.txt text eol=lf
 LICENSE text eol=lf
 Cargo.lock text eol=lf

@@ -1,0 +1,300 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index d42a40d..1dd4275 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,6 +1,9 @@
+ //! Typed, byte-preserving EMF, EMF+, and WMF parsing and writing.
+ 
+-#![forbid(unsafe_code)]
++// ★ RuPix 补丁 E01：只为字体数据走 mmap 共享（`fontdb::make_shared_face_data`）
++//   把 `forbid` 放宽成 `deny`，那一个函数就地 `#[allow(unsafe_code)]`；
++//   其余代码仍禁 unsafe。登记见 SOURCE.md。
++#![deny(unsafe_code)]
+ 
+ extern crate self as emfsdk;
+ 
+diff --git a/src/render.rs b/src/render.rs
+index 82fef0b..e65c1f1 100644
+--- a/src/render.rs
++++ b/src/render.rs
+@@ -490,6 +490,8 @@ struct EmfPen {
+ #[derive(Clone, Debug)]
+ struct EmfFont {
+   height: i32,
++  /// `LOGFONTW::lfFaceName`；上游丢掉这个名字，中文文本因此永远拿不到中文字库。
++  family: String,
+ }
+ 
+ #[derive(Clone, Debug)]
+@@ -717,10 +719,29 @@ impl EmfPlusRenderBrush {
+   }
+ }
+ 
++// ★ RuPix 补丁 E01（2026-11-01）：字体栈 + 逐字兜底 + 系统字体只索引一次。
++//   上游只取一款 `SansSerif` 并把字库**复制进堆**，每次渲染还要重扫一遍系统字体：
++//   中文/日文/韩文这些字形不在无衬线字库里，`glyph_index` 返回 None 就把**整段**
++//   文字（连同里面的 ASCII）降级成 5×7 点阵；用 LOGFONT 指名的字族也完全没人读。
++#[derive(Clone)]
++struct FontFace {
++  family: String,
++  data: std::sync::Arc<dyn AsRef<[u8]> + Send + Sync>,
++  index: u32,
++}
++
++impl std::fmt::Debug for FontFace {
++  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++    f.debug_struct("FontFace")
++      .field("family", &self.family)
++      .field("index", &self.index)
++      .finish()
++  }
++}
++
+ #[derive(Clone, Debug, Default)]
+ struct RenderFontCache {
+-  font_data: Option<Vec<u8>>,
+-  face_index: u32,
++  faces: std::sync::Arc<Vec<FontFace>>,
+ }
+ 
+ #[derive(Clone, Debug)]
+@@ -728,22 +749,74 @@ struct RenderedGlyph {
+   contours: Vec<Vec<(f32, f32)>>,
+ }
+ 
++/// 兜底顺序：通用无衬线打头（EMF 的默认），后面按用到的脚本补常见系统字族。
++const FALLBACK_FAMILIES: &[fontdb::Family<'static>] = &[
++  fontdb::Family::SansSerif,
++  fontdb::Family::Name("Microsoft YaHei"),
++  fontdb::Family::Name("SimSun"),
++  fontdb::Family::Name("Noto Sans CJK SC"),
++  fontdb::Family::Name("PingFang SC"),
++  fontdb::Family::Name("Microsoft JhengHei"),
++  fontdb::Family::Name("Malgun Gothic"),
++  fontdb::Family::Name("Segoe UI"),
++];
++
++/// 进程内只索引一次：`load_system_fonts` 在本机 400 面要扫 260–950 ms，
++/// 而字库数据走 mmap 共享，不复制进堆（单个中日韩字库 10–20 MB）。
++static SYSTEM_FACES: std::sync::OnceLock<std::sync::Arc<Vec<FontFace>>> = std::sync::OnceLock::new();
++
++// 唯一的 unsafe：把系统字库映射成可长期持有的只读共享数据（与宿主 usvg 侧的
++// 字库读取同一种做法）。换掉的是上游"复制一份进堆、每次渲染再复制一份"。
++#[allow(unsafe_code)]
++fn system_faces() -> std::sync::Arc<Vec<FontFace>> {
++  SYSTEM_FACES
++    .get_or_init(|| {
++      let mut db = fontdb::Database::new();
++      db.load_system_fonts();
++      let mut faces = Vec::new();
++      let mut seen = Vec::new();
++      for family in FALLBACK_FAMILIES {
++        let query = fontdb::Query {
++          families: std::slice::from_ref(family),
++          ..fontdb::Query::default()
++        };
++        let Some(id) = db.query(&query) else {
++          continue;
++        };
++        if seen.contains(&id) {
++          continue;
++        }
++        seen.push(id);
++        let name = match family {
++          fontdb::Family::Name(name) => (*name).to_owned(),
++          _ => String::new(),
++        };
++        let source = db.face(id).map(|face| face.source.clone());
++        let index = db.face(id).map(|face| face.index).unwrap_or(0);
++        let data = match source {
++          Some(fontdb::Source::Binary(data)) => data,
++          // SAFETY: 只读映射；系统字库在渲染期间被替换的概率与其它解码器读字库一致。
++          _ => match unsafe { db.make_shared_face_data(id) } {
++            Some((data, _)) => data,
++            None => continue,
++          },
++        };
++        faces.push(FontFace {
++          family: name,
++          data,
++          index,
++        });
++      }
++      std::sync::Arc::new(faces)
++    })
++    .clone()
++}
++
+ impl RenderFontCache {
+   fn load() -> Self {
+-    let mut db = fontdb::Database::new();
+-    db.load_system_fonts();
+-    let query = fontdb::Query {
+-      families: &[fontdb::Family::SansSerif],
+-      ..fontdb::Query::default()
+-    };
+-    let Some(id) = db.query(&query) else {
+-      return Self::default();
+-    };
+-    db.with_face_data(id, |data, face_index| Self {
+-      font_data: Some(data.to_vec()),
+-      face_index,
+-    })
+-    .unwrap_or_default()
++    Self {
++      faces: system_faces(),
++    }
+   }
+ 
+   fn render_text(
+@@ -752,14 +825,24 @@ impl RenderFontCache {
+     x: f32,
+     baseline_y: f32,
+     height: f32,
++    family: Option<&str>,
+   ) -> Option<Vec<RenderedGlyph>> {
+-    let data = self.font_data.as_deref()?;
+-    let face = Face::parse(data, self.face_index).ok()?;
+-    let units_per_em = face.units_per_em() as f32;
+-    if units_per_em <= 0.0 {
++    if self.faces.is_empty() {
+       return None;
+     }
+-    let scale = height.max(1.0) / units_per_em;
++    // 文档点名的字族排最前（`LOGFONT` 里记着当年用的那个），其余按兜底顺序。
++    let mut order: Vec<usize> = (0..self.faces.len()).collect();
++    if let Some(wanted) = family.map(str::trim).filter(|name| !name.is_empty())
++      && let Some(pos) = self
++        .faces
++        .iter()
++        .position(|face| face.family.eq_ignore_ascii_case(wanted))
++    {
++      order.remove(pos);
++      order.insert(0, pos);
++    }
++    // 字形在哪个字库里是逐字问出来的：同一段文字可以前半用衬线、后半用中文字库。
++    let mut parsed: Vec<Option<Option<Face<'_>>>> = (0..self.faces.len()).map(|_| None).collect();
+     let mut cursor_x = x;
+     let mut glyphs = Vec::new();
+     for ch in text.chars() {
+@@ -770,26 +853,54 @@ impl RenderFontCache {
+         cursor_x += height * 0.35;
+         continue;
+       }
+-      let glyph_id = face.glyph_index(ch)?;
+-      let mut builder = GlyphOutlineCollector::default();
+-      face.outline_glyph(glyph_id, &mut builder)?;
+-      let contours = builder
+-        .contours
+-        .into_iter()
+-        .filter(|contour| contour.len() >= 3)
+-        .map(|contour| {
+-          contour
+-            .into_iter()
+-            .map(|(px, py)| (cursor_x + px * scale, baseline_y - py * scale))
+-            .collect::<Vec<_>>()
+-        })
+-        .collect::<Vec<_>>();
+-      let advance = face
+-        .glyph_hor_advance(glyph_id)
+-        .map(|advance| advance as f32 * scale)
+-        .unwrap_or(height * 0.5);
+-      glyphs.push(RenderedGlyph { contours });
+-      cursor_x += advance;
++      let mut placed = false;
++      for &slot_index in &order {
++        let slot = parsed[slot_index].get_or_insert_with(|| {
++          Face::parse(
++            self.faces[slot_index].data.as_ref().as_ref(),
++            self.faces[slot_index].index,
++          )
++          .ok()
++        });
++        let Some(face) = slot.as_ref() else {
++          continue;
++        };
++        let Some(glyph_id) = face.glyph_index(ch) else {
++          continue;
++        };
++        let units_per_em = face.units_per_em() as f32;
++        if units_per_em <= 0.0 {
++          continue;
++        }
++        let scale = height.max(1.0) / units_per_em;
++        let mut builder = GlyphOutlineCollector::default();
++        if face.outline_glyph(glyph_id, &mut builder).is_none() {
++          continue;
++        }
++        let contours = builder
++          .contours
++          .into_iter()
++          .filter(|contour| contour.len() >= 3)
++          .map(|contour| {
++            contour
++              .into_iter()
++              .map(|(px, py)| (cursor_x + px * scale, baseline_y - py * scale))
++              .collect::<Vec<_>>()
++          })
++          .collect::<Vec<_>>();
++        let advance = face
++          .glyph_hor_advance(glyph_id)
++          .map(|advance| advance as f32 * scale)
++          .unwrap_or(height * 0.5);
++        glyphs.push(RenderedGlyph { contours });
++        cursor_x += advance;
++        placed = true;
++        break;
++      }
++      // 一个都找不到才退回 5×7 点阵（调用方看到 None 就自己画）。
++      if !placed {
++        return None;
++      }
+     }
+     Some(glyphs)
+   }
+@@ -1104,11 +1215,18 @@ impl EmfVectorState {
+ 
+   fn draw_text(&mut self, x: i32, y: i32, text: &str, color: EmfColor, height: i32) {
+     let (mapped_x, mapped_y) = self.map_point(EmfPoint { x, y });
++    // 文档当前选的字体带着字族名；空名（WMF / 没选字体）就走兜底栈。
++    let family = self
++      .current_font
++      .and_then(|id| self.fonts.get(&id))
++      .map(|font| font.family.clone())
++      .filter(|family| !family.is_empty());
+     if let Some(glyphs) = self.font_cache.render_text(
+       text,
+       mapped_x,
+       mapped_y,
+       height.unsigned_abs().max(7) as f32,
++      family.as_deref(),
+     ) {
+       for glyph in glyphs {
+         self.fill_device_contours(&glyph.contours, color);
+@@ -4629,7 +4747,25 @@ fn read_logfont_object(
+   }
+   let object_id = read_u32(data, record_offset + OBJECT_ID_OFFSET).ok()?;
+   let height = read_i32(data, record_offset + LOGFONT_HEIGHT_OFFSET).ok()?;
+-  Some((object_id, EmfFont { height }))
++  let family = read_logfont_face_name(data, record_offset + LOGFONT_FACE_NAME_OFFSET)?;
++  Some((
++    object_id,
++    EmfFont {
++      height,
++      family,
++    },
++  ))
++}
++
++/// LOGFONTW 的 `lfFaceName` 是 32 个 UTF-16 码元、NUL 结尾的定长块。
++fn read_logfont_face_name(data: &[u8], offset: usize) -> Option<String> {
++  let bytes = data.get(offset..offset + LOGFONT_FACE_NAME_CHARS * 2)?;
++  let units: Vec<u16> = bytes
++    .chunks_exact(2)
++    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
++    .take_while(|unit| *unit != 0)
++    .collect();
++  Some(String::from_utf16_lossy(&units).trim().to_owned())
+ }
+ 
+ fn read_u16(data: &[u8], offset: usize) -> Result<u16, String> {
