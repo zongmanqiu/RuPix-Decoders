@@ -12,8 +12,8 @@
 | `pro` | 0.4.2 | 16 | 本地已构建；地址已写入 decoders.json | 7 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
 | `classic` | 0.1.0 | 20 | 本地已构建；地址已写入 decoders.json；纯 Rust | 9 | [README](classic/README.md) · [HISTORY](classic/HISTORY.md) |
 | `texture` | 0.1.0 | 8 | 本地已构建；地址已写入 decoders.json；纯 Rust | 8 | [README](texture/README.md) · [HISTORY](texture/HISTORY.md) |
-| `doc` | 0.1.0 | 30 | 本地已构建；地址已写入 decoders.json；常见文档/CAD | 8 | [README](doc/README.md) · [HISTORY](doc/HISTORY.md) |
-| `doc-legacy` | 0.1.0 | 5 | 本地已构建；地址已写入 decoders.json；CMX/WPG/ZMF/ZBR | 1 | [README](doc-legacy/README.md) · [HISTORY](doc-legacy/HISTORY.md) |
+| `doc` | 0.2.2 | 30 | 已发布（2026-11-01，见 decoders.json）；常见文档/CAD | 8 | [README](doc/README.md) · [HISTORY](doc/HISTORY.md) |
+| `doc-legacy` | 0.2.0 | 5 | 已发布（2026-11-01，见 decoders.json）；CMX/WPG/ZMF/ZBR | 1 | [README](doc-legacy/README.md) · [HISTORY](doc-legacy/HISTORY.md) |
 
 - 限制与已知空白见各档 `README.md`；对外变化见各档 `HISTORY.md`。
 - 路由、workspace、ABI 快照见 [`../docs/architecture.md`](../../docs/architecture.md)。

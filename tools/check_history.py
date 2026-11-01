@@ -4,6 +4,10 @@
 HISTORY.md is not a release dashboard. Upload progress, ZIP generation state,
 release tags and URLs belong to decoders.json, never to the version history.
 
+同一枚 DLL 的版本号被写了两处：`Cargo.toml` 的 `[package] version` 与 `src/lib.rs` 里
+`export_metadata!` 的 `"version" => "x.y.z"`（宿主界面显示的是**后者**，更新比对用的是
+前者）。只改一处的后果是"更新完还显示旧版本"，所以这里两处必须一致。
+
 Exit 0 clean, 1 on any violation. Prints "violations: N" like the other gates.
 """
 
@@ -23,6 +27,7 @@ HEADING = re.compile(
     re.MULTILINE,
 )
 VERSION = re.compile(r'(?m)^version\s*=\s*"([^"]+)"')
+META_VERSION = re.compile(r'"version"\s*=>\s*"([^"]+)"')
 
 # Words that describe the release process, not the shipped behavior.
 # Keep this list narrow: "包格式改为 ZIP" is a real public change and is allowed.
@@ -83,6 +88,15 @@ def check_decoder(pid: str, released: str, abi: int):
     versions = [h[0] for h in headings]
     if len(versions) != len(set(versions)):
         out.append("%s: duplicate version heading in HISTORY" % pid)
+
+    src = DECODERS / pid / "src" / "lib.rs"
+    if src.is_file():
+        meta = META_VERSION.search(src.read_text(encoding="utf-8"))
+        if meta is None:
+            out.append("%s: src/lib.rs 的 export_metadata! 没有 version 键" % pid)
+        elif meta.group(1) != version:
+            out.append("%s: metadata version %s != Cargo.toml %s"
+                       % (pid, meta.group(1), version))
 
     for pattern, label in FORBIDDEN:
         if pattern.search(text):

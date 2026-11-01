@@ -82,7 +82,7 @@ manifest 解析 target-dir、target triple 与 `[lib] name`）。
 
 - 解码器**永远不依赖宿主代码**；本仓不引 `windui` / `windows` / `rupix`。
 - `doc-legacy` 是唯一含原生 C++ 的发布档（libcdr/libwpg/libzmf + librevenge + ICU，静态链接）；
-  其余七枚发布 DLL 为纯 Rust。第三方 C/C++ 源放仓库外 `../.3rd/`，规则见 `.3rd/README.md`。
+  其余七枚发布 DLL 为纯 Rust。第三方 C/C++ 源、以及需要打补丁的 Rust crate 副本（现行 `emfsdk-0.2.0`）都放仓库外 `../.3rd/`，规则见 `.3rd/README.md`。
 - 本仓只放源码：target、发布暂存、pdb 归档、一次性脚本都在仓库外
   `.temp/`（见 [`building.md`](building.md)）。
 - 单库可以带 `examples/` 做探针；发布档不承担 bench 脚本。

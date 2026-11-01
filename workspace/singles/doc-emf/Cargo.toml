@@ -16,6 +16,9 @@ standalone = []
 [dependencies]
 rupix-abi = { workspace = true }
 rupix-pro-support = { path = "../../shared/pro-support" }
-emfsdk = { version = "0.2.0", features = ["render"] }
+# ★ 2026-11-01（E01）：`emfsdk` 0.2.0 的字体栈只有一款通用无衬线、并且忽略 LOGFONT
+#   的字族名 ⇒ 中文整段掉进 5x7 点阵。打补丁的副本在仓库外 `/.3rd/emfsdk-0.2.0`
+#   （溯源与补丁登记见其中的 SOURCE.md，规则见 `/.3rd/README.md`）。
+emfsdk = { path = "../../../../.3rd/emfsdk-0.2.0", features = ["render"] }
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 image = { version = "0.25", default-features = false, features = ["png"] }

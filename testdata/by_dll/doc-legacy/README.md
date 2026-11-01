@@ -1,6 +1,6 @@
 # doc-legacy 样本
 
-`doc-legacy_0.1.0.dll` 只接 **CMX/CCX、WPG、ZMF、ZBR**。
+`doc-legacy_0.2.0.dll` 只接 **CMX/CCX、WPG、ZMF、ZBR**。
 
 | 格式 | 后缀 | 本地真实样本 |
 |---|---|---|

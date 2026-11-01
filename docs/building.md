@@ -8,6 +8,9 @@
 - `python` 在 PATH（门禁脚本用）；`py` 启动器仅用于 `testdata/make_samples.py`（它需要 Pillow）。
 - 当前只有 `doc-legacy` 链原生 C++；其余档纯 Rust。形态 B（原生 C/C++ DLL）在场时，
   `workspace/tools/toolchain.ps1 -RequireNative` 会强制要求 vcvars64 / NASM / CMake。
+- ★ **构建 `doc` 还需要仓库外的 `../.3rd/emfsdk-0.2.0/`**（带补丁 E01 的副本，`doc-emf`
+  走 path 依赖）：少了它 `cargo` 直接报找不到包；换成 crates.io 上未打补丁的 0.2.0
+  能编过，但 EMF/EMZ 里的中文会静默退化成 5×7 点阵。副本的溯源与补丁说明见其 `SOURCE.md`。
 
 ## 一条命令
 

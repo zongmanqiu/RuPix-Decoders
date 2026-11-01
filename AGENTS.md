@@ -26,7 +26,7 @@
 2. **跨 DLL 只走 `rupix-abi`**：`#[repr(C)]` 结构 + 导出函数；禁传 `String` / `Vec` / trait 对象 /
    闭包；**宿主分配像素缓冲、解码器只写入**，绝不跨 DLL 释放。
 3. **本仓库只记自己写的代码**：编译中间产物**不落源码目录**，`.cargo/config.toml` 把
-   `workspace/.cargo` 钉到 `../../.temp/decoder-target`（pro 档另有 `../../../../.temp/pro-target`）；第三方 C/C++ 源也不入库，放 `../.3rd/<name>-<ver>/`
+   `workspace/.cargo` 钉到 `../../.temp/decoder-target`（pro 档另有 `../../../../.temp/pro-target`）；第三方 C/C++ 源、以及需要打补丁才能用的 Rust crate 副本（现行：`emfsdk-0.2.0`）都不入库，放 `../.3rd/<name>-<ver>/`（补丁与溯源登记在该目录 `SOURCE.md`）
    （溯源规则见 `.3rd/README.md`）。外部路径都有环境变量覆盖口：`CARGO_BUILD_TARGET_DIR`、
    `RUPIX_3RD_DIR`。**代价**：单独克隆本仓库不能直接构建形态 A 解码器，得连 `.3rd` 一起带上或设变量。
    发布产物**不进本仓库**（2026-10-25：本仓只放源码，DLL 走 release 资产发布）：`build.ps1`

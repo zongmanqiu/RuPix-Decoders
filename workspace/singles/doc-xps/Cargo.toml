@@ -3,7 +3,7 @@ name = "rupix-doc-xps"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0"
-description = "RuPix doc member: XPS/OXPS through pure-Rust justpdf-formats"
+description = "RuPix doc member: XPS/OXPS page rendering (OPC + FixedPage XML -> SVG)"
 
 [lib]
 name = "doc_xps"
@@ -15,5 +15,7 @@ standalone = []
 
 [dependencies]
 rupix-abi = { workspace = true }
-rupix-pro-support = { path = "../../shared/pro-support" }
-justpdf-formats = { version = "0.1.2", features = ["xps"] }
+rupix-pro-support = { path = "../../shared/pro-support", features = ["resvg"] }
+resvg = "0.49"
+roxmltree = "0.20"
+zip = { version = "2", default-features = false, features = ["deflate"] }

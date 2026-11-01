@@ -8,7 +8,10 @@ Rules:
   decoders/<tier>     -> abi/router/pro-support + singles (pro: pro-* only)
   nothing             -> a tier from another tier
 
-Exit 0 clean, 1 on any violation.
+本门禁只管**仓内**路径依赖（谁可以依赖谁）。仓库外的路径依赖是第三方源码副本
+（`../.3rd/<name>-<ver>/`，仓库规则明确不入库），它们不可能是一个档或单库，
+所以不参与方向判断——2026-11-01 收进 `emfsdk` 的 E01 补丁副本时补的这一条。
+
 """
 
 import json
@@ -91,7 +94,10 @@ def main():
                 if not dep_path:
                     continue
                 dep_name = dep.get("name")
-                dep_rel = rel(dep_path) or dep_path
+                # 仓库外的路径依赖 = 第三方源码副本（.3rd），不是本仓的层，跳过。
+                if rel(dep_path) is None:
+                    continue
+                dep_rel = rel(dep_path)
                 if dep_name in allowed:
                     continue
                 # A tier may assemble singles; pro only assembles pro-* singles.

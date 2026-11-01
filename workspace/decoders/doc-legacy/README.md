@@ -31,6 +31,12 @@ cargo build --release
 ZBR 使用文件内公开的 100×100 预览 DIB；ZBR 对象实体格式未公开，libzmf 上游也不输出。
 认领失败返回 `0`；认领后解析失败返回 `ERR_CORRUPT`。
 
+## 区域渲染（ABI v6）
+
+`iv_render_region` 由唯一成员 `legacy` 提供，能力位 `CAP_FULL | CAP_REGION`。
+metadata 的 `region_exts` 只列 `cmx;ccx;wpg;zmf`：ZBR 是预览位图，没有区域通道
+（请求会返回 `ERR_UNSUPPORTED` 让位）。转换出的 SVG 场景按文件字节指纹缓存。
+
 ## 测试
 
 真实样本在 `.temp/by_dll/doc-legacy/`（CMX/WPG/ZMF/ZBR）；可入库的安全样本见

@@ -17,9 +17,9 @@
 | `raw` | 0.5.3 | `rawler` 0.7.2、`flashraw` 0.1.1、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`flashraw` = MIT/Apache-2.0（X3F 回退）；`rawpx` 无第三方 |
 | `pro` | 0.4.2 | `hayro-jpeg2000` 0.4、`jxr` 0.2、`exr` 1.74、`image` 0.25、`zune-psd` 0.5、`xcf` 0.4、`aseprite-loader` 0.4 | 见 §二；`xcf` = Unlicense；KTX/DICOM/NIfTI 归 texture/medical |
 | `texture` | 0.1.0 | `image` 0.25（JPEG/zune-jpeg）、`image-extras`/`dds` 0.2、`ktx2` 0.5、`texture2ddecoder` 0.1、`basisu` 0.1、`vtf` 0.4（含 `texpresso`） | 见 §二；BLP1/BLP2 头/调色板/DXT 为本仓自写 |
-| `doc` | 0.1.0 | `acadrust` 0.6、`dxf`/`dxf_to_svg`、`hayro` 0.8、`stet` 0.9、`emfsdk` 0.2、`justpdf-formats` 0.1、`nom-hpgl` 0.2、`djvu-rs` 0.42、`wmf-core` 0.1、`resvg` 0.49 | 见 §二 |
-| `doc-legacy` | 0.1.0 | `libcdr` 0.1.9、`libwpg` 0.3.4、`libzmf` 0.0.2、`librevenge` 0.0.5、ICU 78、libpng、lcms2、zlib、Boost | 见 §二 |
-| `abi` / `router` | 0.5.0 / 0.1.0 | —（本仓自写） | AGPL-3.0 |
+| `doc` | 0.2.2 | `acadrust` 0.6、`dxf`/`dxf_to_svg`、`hayro` 0.8、`stet` 0.9、`emfsdk` 0.2（`../.3rd` 补丁副本 E01）、`nom-hpgl` 0.2、`djvu-rs` 0.42、`wmf-core` 0.1、`resvg` 0.49、`zip` 2.6 + `roxmltree` 0.20（XPS 容器/XML） | 见 §二 |
+| `doc-legacy` | 0.2.0 | `libcdr` 0.1.9、`libwpg` 0.3.4、`libzmf` 0.0.2、`librevenge` 0.0.5、ICU 78、libpng、lcms2、zlib、Boost | 见 §二 |
+| `abi` / `router` | 0.6.0 / 0.1.0 | —（本仓自写） | AGPL-3.0 |
 
 > 单库（`workspace/singles/*`）只用于 bench / A-B，**不发布**；它们的依赖是上面发布档的子集，
 > 不额外分发。除 `doc-legacy` 的静态 C++ 库外，发布档无 C 依赖。
@@ -63,8 +63,8 @@
 | `dxf` / `dxf_to_svg` | 0.6.2 / 1.0.0 | MIT | [实读字段] `doc-cad` 的 DXF 二次解析与 SVG 输出 |
 | `hayro` | 0.8.0 | Apache-2.0 OR MIT | [实读字段] `doc-pdf` 的纯 Rust PDF 光栅化 |
 | `stet` | 0.9.0 | Apache-2.0 OR MIT | [实读字段] `doc-print` 的纯 Rust PostScript/EPS 解释器；内置字体资源随 crate 分发 |
-| `emfsdk` | 0.2.0 | MIT OR Apache-2.0 | [实读字段] `doc-emf` 的 EMF/EMF+ 解析与光栅化 |
-| `justpdf-formats` | 0.1.2 | MIT OR Apache-2.0 | [实读字段] `doc-xps` 的 XPS 解析/渲染；仅启用 `xps` feature |
+| `emfsdk` | 0.2.0 | MIT OR Apache-2.0 | [实读字段] `doc-emf` 的 EMF/EMF+ 解析与光栅化；★ 用的是仓库外 `../.3rd/emfsdk-0.2.0` 的**补丁副本（E01）**——字体栈 + 逐字兜底 + 字体库只索引一次，改了哪几段与上游原文 sha256 见该目录 `SOURCE.md` |
+| `zip` / `roxmltree` | 2.6.1 / 0.20.0 | MIT / MIT OR Apache-2.0 | [实读字段] `doc-xps` 自研 OPC 容器与 FixedPage XML 解析（2026-11-01 起不再使用 `justpdf-formats`） |
 | `nom-hpgl` | 0.2.0 | Apache-2.0 | [实读字段] `doc-hpgl` 的 HP-GL 命令解析 |
 | `libcdr` | 0.1.9 | MPL-2.0 | [实读字段] `doc-legacy` 的 CMX/CCX；静态编入，源码提供义务 |
 | `libwpg` | 0.3.4 | MPL-2.0 OR LGPL-2.1+ | [实读字段] `doc-legacy` 的 WPG；项目按 MPL 分支使用，保留 LGPL 文本 |
@@ -90,3 +90,4 @@
 1. 在 `workspace/singles/<id>/Cargo.toml` 与解码档 `Cargo.toml` 里实读版本与 `license`；
 2. 更新本表，禁止 `[待核]` 长期挂着；
 3. 若引入 C 库（历史如已撤销的 `jpegturbo`），同时登记其源码位置、版本与 sha256。
+4. 若需要给第三方 Rust crate 打补丁：副本放仓库外 `../.3rd/<name>-<ver>/`（带 `LICENSE` + `SOURCE.md`），依赖写 path，并在 §二 对应行标出「用的是补丁副本」。

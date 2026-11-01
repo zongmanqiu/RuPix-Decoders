@@ -159,3 +159,35 @@ CRLF，blob 与 index 仍是 LF、`git status` 干净（归一化发生在 add�
 在写进结论前要用一把**独立**量具复测同一格（同一条管道里的两个计数不能互证）。
 `git add --renormalize` 在两仓都是 no-op，别为它开"修复"任务；真要让磁盘也变 LF 就重检出，
 不产生提交。
+
+## D16 `usvg::Options::default()` 的字体库是空的 → `<text>` 静默消失
+
+**现象**：导出的 SVG 字符串里明明白白有 `<text x=… font-size=…>字</text>`，屏上一个字形都没有
+（连英文也没有），而且不报错。
+
+**原因**：`Options::default()` 里装的是**空的** `fontdb::Database`；usvg 解析期查不到字体就把
+文字节点丢掉。同仓其它成员（cad / wmf / xps / doc-legacy）都装了系统字体库，只有疏忽的那一个漏了。
+
+**做法**：`OnceLock<Arc<Database>>` + `load_system_fonts()`，每次解析只克隆 `Arc`（见 `doc-cad` 的
+`font_db()`）。判据必须**落在像素上**：只断 SVG 字符串的用例在老代码上也是绿的。
+
+## D17 `LB` 以 `<ETX>` 收尾：拼回流时补 `;` 会造出空命令，后面的几何全丢
+
+**现象**：带 `;` 的标签能画出来，**标签之后**的线段消失。
+
+**原因**：`nom-hpgl` 的 `Label` 用 `take_until("<ETX>")` 把 `<ETX>` 吃掉了，顶层分隔符是
+`one_of!(";<ETX>")`；把命令 `join(";")` 拼回去时又给已带 `<ETX>` 的 `LB` 补了一个 `;`，
+下一次解析撞上空命令，`separated_list_complete` 就地停下。
+
+**做法**：逐条拼回流，只有"不以 `<ETX>` 结尾"的命令才补 `;`。与 D11/`PC` 那类"只删命令不删
+分隔符"是同一个坑的两面。
+
+## D18 版本号写在两处：`Cargo.toml` 与 `export_metadata!` 字面量
+
+**现象**：升了版本、`decoders.json` 也对，装完以后界面仍显示旧版本；同 id 两份 DLL 时仲裁也按旧值。
+
+**原因**：`[package] version`（`decoders.json`/更新比对用）与 `src/lib.rs` 的
+`rupix_abi::export_metadata! { "version" => "x.y.z" }`（宿主实际读的那个）是两份真源，
+只改一处不报错也不红。
+
+**做法**：两处同时改；`tools/check_history.py` 已比对两者（红证就是 doc 0.2.2 那次真实漏改）。

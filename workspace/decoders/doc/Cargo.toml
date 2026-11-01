@@ -1,6 +1,6 @@
 [package]
 name = "rupix-doc"
-version = "0.1.0"
+version = "0.2.2"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix document tier: PDF/PS/EPS/AI/CAD/metafiles/DjVu/HPGL/XPS"

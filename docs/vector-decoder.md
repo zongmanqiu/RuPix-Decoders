@@ -109,6 +109,13 @@ typedef struct IvRegionReq {
   `.3rd/<name>-<ver>/` 并登记补丁/许可证。
 - `pro-wmf` 是现有骨架参考：WMF → SVG → resvg，区域重渲、越界透明、字体兜底、
   进程内场景缓存；新矢量成员可以照这个形状做，但不要把 WMF 特例写进通用规则。
+- ★ **自建 SVG 场景的成员必须给 `usvg::Options` 装上系统字体库**。`Options::default()`
+  的字体库是**空的**，`<text>` 会被静默丢掉——"SVG 里有 `<text>`"不等于"屏上有字"。
+  装法见 `doc-cad` 的 `font_db()`（`OnceLock<Arc<Database>>`，进程内只扫一次），
+  判据要落在**像素**上（`doc-hpgl` 的 `label_text_reaches_the_pixels`）。
+- ★ **第三方库内绘制文字、又没有字体回调时**，只能按 `.3rd` 规则留一份带补丁的副本
+  （现行唯一一例：`emfsdk` 的 E01，按 `LOGFONT` 选字族 + 逐字兜底 + 字体库只索引一次，
+  登记见 `.3rd/emfsdk-0.2.0/SOURCE.md`）。不许把"上游不给回调"当限制写进产品行为。
 - 宿主只负责通道、区域判据、调用编排、预算和降级；**不需要也不应该改宿主**。
 - `CAP_REGION`/区域通道缺席时，宿主降级为整幅渲染；不要为了避免降级而谎报能力。
 

@@ -9,5 +9,10 @@ description = "RuPix pro 档共用的小工具（不是解码器）：尺寸闸 
 name = "pro_support"
 crate-type = ["rlib"]
 
+[features]
+# 只有走 resvg 光栅化的矢量成员才启用（位图成员零负担）。
+resvg = ["dep:resvg"]
+
 [dependencies]
 rupix-abi = { workspace = true }
+resvg = { version = "0.49", optional = true }

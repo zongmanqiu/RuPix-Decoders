@@ -22,7 +22,6 @@ use rupix_abi::*;
 #[cfg(feature = "standalone")]
 use rupix_abi::{export_decoder, guard};
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_char;
 use std::io::Read;
@@ -161,42 +160,21 @@ thread_local! {
     static OPTS: resvg::usvg::Options<'static> = svg_options();
     /// 按 SVG 字节指纹缓存已解析的场景（契约 §十六 第 4 条：同一份字节会连着
     /// 换区域请求，不许每次重新解析文档）。容量 4，够覆盖"当前图 + 前后各一张"。
-    static SCENE_CACHE: RefCell<Vec<(u64, Arc<resvg::usvg::Tree>)>> =
-        const { RefCell::new(Vec::new()) };
-}
-
-/// FNV-1a 指纹（只当缓存键用，不当安全哈希）。
-fn fingerprint(data: &[u8]) -> u64 {
-    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for &b in data {
-        h ^= b as u64;
-        h = h.wrapping_mul(0x100_0000_01b3);
-    }
-    h ^ (data.len() as u64)
+    static SCENE_CACHE: support::vector::DocCache<Arc<resvg::usvg::Tree>> =
+        const { support::vector::DocCache::new(4) };
 }
 
 /// 解析 SVG 场景（带缓存）。
 fn parse_scene(svg: &[u8]) -> Result<Arc<resvg::usvg::Tree>, (i32, &'static str)> {
-    let key = fingerprint(svg);
-    if let Some(hit) = SCENE_CACHE.with(|c| {
-        c.borrow()
-            .iter()
-            .find(|(k, _)| *k == key)
-            .map(|(_, t)| Arc::clone(t))
-    }) {
+    let key = support::vector::doc_key(svg);
+    if let Some(hit) = SCENE_CACHE.with(|c| c.get(key)) {
         return Ok(hit);
     }
     let tree = OPTS
         .with(|o| resvg::usvg::Tree::from_data(svg, o))
         .map_err(|_| (ERR_CORRUPT, "WMF 生成的 SVG 无效"))?;
     let tree = Arc::new(tree);
-    SCENE_CACHE.with(|c| {
-        let mut v = c.borrow_mut();
-        v.push((key, Arc::clone(&tree)));
-        if v.len() > 4 {
-            v.remove(0);
-        }
-    });
+    SCENE_CACHE.with(|c| c.put(key, Arc::clone(&tree)));
     Ok(tree)
 }
 
@@ -302,42 +280,8 @@ fn target_size(nw: u32, nh: u32, (tw, th): (u32, u32)) -> (u32, u32, f32) {
 
 /// 按 `(w, h)` 与变换矩阵渲染，输出**非预乘** RGBA8（宿主 ABI 口径）。
 ///
-/// `transform` 是 usvg 用户坐标 → 画布像素的变换：整图路线是纯缩放，
-/// 区域路线是"平移到那一小块 + 按密度缩放"。
-fn rasterize_into(
-    tree: &resvg::usvg::Tree,
-    w: u32,
-    h: u32,
-    transform: resvg::tiny_skia::Transform,
-    out: *mut u8,
-    out_cap: usize,
-    bytes: u64,
-) -> Result<(), (i32, &'static str)> {
-    if (out_cap as u64) < bytes {
-        return Err((ERR_BUFFER_TOO_SMALL, "内部错误（宿主给的缓冲小于申报值）"));
-    }
-    let mut pixmap =
-        resvg::tiny_skia::Pixmap::new(w, h).ok_or((ERR_TOO_LARGE, "WMF 画布分配失败"))?;
-    resvg::render(tree, transform, &mut pixmap.as_mut());
-    let src = pixmap.data();
-    // 直接解预乘写入宿主缓冲：不再先分配一枚全尺寸 RGBA Vec 再整块拷贝。
-    let dst = unsafe { std::slice::from_raw_parts_mut(out, bytes as usize) };
-    for (d, c) in dst.chunks_exact_mut(4).zip(src.chunks_exact(4)) {
-        let a = c[3] as u16;
-        if a == 0 || a == 255 {
-            d.copy_from_slice(c);
-        } else {
-            // tiny-skia 是预乘；宿主 ABI 要非预乘。
-            let un = |v: u8| ((v as u16 * 255 + a / 2) / a).min(255) as u8;
-            d[0] = un(c[0]);
-            d[1] = un(c[1]);
-            d[2] = un(c[2]);
-            d[3] = c[3];
-        }
-    }
-    Ok(())
-}
-
+/// 实现在共用件 `pro_support::vector::rasterize_tree`：整图路线是纯缩放，
+/// 区域路线是"平移到那一小块 + 按密度缩放"，两条路线共用同一段写缓冲逻辑。
 #[cfg(feature = "standalone")]
 #[no_mangle]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -429,7 +373,7 @@ pub fn render_impl(
             support::fill_info(info, w, h, bytes, 1, 0);
             return ERR_OK;
         }
-        if let Err((code, msg)) = rasterize_into(
+        if let Err((code, msg)) = support::vector::rasterize_tree(
             &tree,
             w,
             h,
@@ -448,39 +392,12 @@ pub fn render_impl(
 
 // ── 区域渲染（ABI v6，规范 §十六）─────────────────────────────────────
 
-/// 区域请求的**画布与密度**。
-///
-/// 宿主给的 `target_w/target_h` 是"区域 × 密度"算出来的（两个方向同一个密度），
-/// 所以正常情况下比例天然一致 ⇒ 直接按目标画布出图、密度取 `target_w / w`。
-/// 比例真的不一致时（第三方宿主 / 将来别的调用方）**等比缩进**并把实际画布
-/// 回填进 `actual_w/actual_h`——绝不拉伸变形（契约 §十六 硬约定第 2 条）。
-fn region_canvas(r: &IvRegionReq) -> (u32, u32, f32) {
-    let (tw, th) = (r.target_w, r.target_h);
-    if tw == 0 || th == 0 {
-        // 1:1：画布就是区域本身。
-        let cw = r.w.round().max(1.0) as u32;
-        let ch = r.h.round().max(1.0) as u32;
-        return (cw, ch, 1.0);
-    }
-    let dx = tw as f32 / r.w;
-    let dy = th as f32 / r.h;
-    if (dx - dy).abs() <= 1e-3 * dx.max(dy) {
-        (tw, th, dx)
-    } else {
-        let d = dx.min(dy);
-        (
-            (r.w * d).round().max(1.0) as u32,
-            (r.h * d).round().max(1.0) as u32,
-            d,
-        )
-    }
-}
-
 /// 区域渲染的核心：**SVG 字节 + 区域请求 → 画布**。
 ///
 /// 拆出这一层是为了能**不用 WMF 文件**就测区域语义（测试里直接喂一段合成
 /// SVG）：契约的关键几条——画布尺寸、锐利边缘（重画而非插值）、越界透明——
-/// 全在这一层可断。
+/// 全在这一层可断。画布/密度/变换与写缓冲在共用件
+/// `pro_support::vector`（与其它矢量成员同一份实现）。
 ///
 /// `out == NULL` 是查询阶段（只算尺寸，不写像素）；否则渲染并写进宿主给的缓冲。
 fn region_render_svg(
@@ -490,26 +407,7 @@ fn region_render_svg(
     out_cap: usize,
 ) -> Result<(u32, u32, u64), (i32, &'static str)> {
     let tree = parse_scene(svg)?;
-    if !(req.w > 0.0 && req.h > 0.0) {
-        return Err((ERR_CORRUPT, "区域请求的宽或高不为正"));
-    }
-    let (cw, ch, density) = region_canvas(req);
-    let (_, _, bytes) = support::check_dims(cw, ch, req.budget_bytes)?;
-    if out.is_null() {
-        // 查询阶段：只报尺寸，不写像素（契约的两阶段形状）。
-        return Ok((cw, ch, bytes));
-    }
-    // 变换 = 缩放(density) + 平移(-x,-y)：把文档坐标系的区域左上角挪到画布原点。
-    let transform = resvg::tiny_skia::Transform::from_row(
-        density,
-        0.0,
-        0.0,
-        density,
-        -req.x * density,
-        -req.y * density,
-    );
-    rasterize_into(&tree, cw, ch, transform, out, out_cap, bytes)?;
-    Ok((cw, ch, bytes))
+    support::vector::render_region(&tree, req, out, out_cap)
 }
 
 /// `iv_render_region` 的业务实现（规范 §十六）。

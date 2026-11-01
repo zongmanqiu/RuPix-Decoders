@@ -12,8 +12,8 @@
 | `pro` | 0.4.2 | 16 | 0.79 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) |
 | `classic` | 0.1.0 | 20 | 0.39 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) |
 | `texture` | 0.1.0 | 8 | 1.12 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) |
-| `doc` | 0.1.0 | 30 | 12.86 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc_0.1.0/doc_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc_0.1.0/doc_0.1.0.zip) |
-| `doc-legacy` | 0.1.0 | 5 | 16.06 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc-legacy_0.1.0/doc-legacy_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc-legacy_0.1.0/doc-legacy_0.1.0.zip) |
+| `doc` | 0.2.2 | 30 | 12.85 MB | 2026-11-01 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc_0.2.2/doc_0.2.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc_0.2.2/doc_0.2.2.zip) |
+| `doc-legacy` | 0.2.0 | 5 | 16.06 MB | 2026-11-01 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc-legacy_0.2.0/doc-legacy_0.2.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc-legacy_0.2.0/doc-legacy_0.2.0.zip) |
 
 - 表中 ZIP 大小为约值（1 MB = 1024×1024 B，四舍五入两位）；精确字节以实际资产为准，
   发行日期 = `decoders.json.released`，版本与发布状态以 `decoders.json` 为准。

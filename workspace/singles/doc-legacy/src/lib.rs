@@ -147,12 +147,37 @@ fn target_size(nw: u32, nh: u32, (tw, th): (u32, u32)) -> (u32, u32, f32) {
     )
 }
 
+thread_local! {
+    /// 按文件字节指纹缓存已解析的场景（契约 §十六 第 4 条）。
+    #[allow(clippy::missing_const_for_thread_local)] // 与 doc-cad 同一写法，GNU 目标上的 lint 误报
+    static SCENES: support::vector::DocCache<std::rc::Rc<resvg::usvg::Tree>> =
+        const { support::vector::DocCache::new(3) };
+}
+
+/// C++ shim → SVG → usvg 场景（带缓存）。
+///
+/// ZBR 不在这条路上：它是 100×100 的预览位图（没有矢量内容），区域渲染对它
+/// 没有意义，调用方在 `export_region_impl` 里直接让位。
+fn legacy_tree(
+    data: &[u8],
+    ext: &str,
+) -> Result<std::rc::Rc<resvg::usvg::Tree>, (i32, &'static str)> {
+    let key = support::vector::doc_key(data);
+    if let Some(hit) = SCENES.with(|c| c.get(key)) {
+        return Ok(hit);
+    }
+    let svg = legacy_svg(data, ext)?;
+    let tree = resvg::usvg::Tree::from_data(&svg, &svg_options())
+        .map_err(|_| (ERR_CORRUPT, "legacy 场景不是有效 SVG"))?;
+    let tree = std::rc::Rc::new(tree);
+    SCENES.with(|c| c.put(key, std::rc::Rc::clone(&tree)));
+    Ok(tree)
+}
+
 fn rasterize(
-    svg: &[u8],
+    tree: &resvg::usvg::Tree,
     req: *const IvRenderReq,
 ) -> Result<(Vec<u8>, u32, u32), (i32, &'static str)> {
-    let tree = resvg::usvg::Tree::from_data(svg, &svg_options())
-        .map_err(|_| (ERR_CORRUPT, "legacy 场景不是有效 SVG"))?;
     let size = tree.size();
     let Some((nw, nh)) = positive_size(size.width(), size.height()) else {
         return Err((ERR_CORRUPT, "legacy 画布尺寸为 0"));
@@ -167,7 +192,7 @@ fn rasterize(
     let mut pixmap =
         resvg::tiny_skia::Pixmap::new(w, h).ok_or((ERR_TOO_LARGE, "legacy 画布分配失败"))?;
     resvg::render(
-        &tree,
+        tree,
         resvg::tiny_skia::Transform::from_scale(scale, scale),
         &mut pixmap.as_mut(),
     );
@@ -246,14 +271,14 @@ pub fn render_impl(
             }
             return support::write_rgba(out, out_cap, &rgba, &[], info, w, h, 1);
         }
-        let svg = match legacy_svg(slice, ext.as_deref().unwrap_or_default()) {
-            Ok(v) => v,
+        let tree = match legacy_tree(slice, ext.as_deref().unwrap_or_default()) {
+            Ok(t) => t,
             Err((code, msg)) => {
                 set_last_error(msg);
                 return code;
             }
         };
-        let (rgba, w, h) = match rasterize(&svg, req) {
+        let (rgba, w, h) = match rasterize(&tree, req) {
             Ok(v) => v,
             Err((code, msg)) => {
                 set_last_error(msg);
@@ -265,6 +290,58 @@ pub fn render_impl(
             return ERR_OK;
         }
         support::write_rgba(out, out_cap, &rgba, &[], info, w, h, 1)
+    })
+}
+
+/// `iv_render_region` 的业务实现（规范 §十六）。
+///
+/// ZBR 是 100×100 预览位图（没有矢量内容），区域通道对它没有意义：返回
+/// `ERR_UNSUPPORTED` 让位，宿主侧 `region_exts` 也不会把它算进区域集。
+#[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
+pub fn export_region_impl(
+    data: *const u8,
+    len: usize,
+    req: *const IvRegionReq,
+    out: *mut u8,
+    out_cap: usize,
+    info: *mut IvRenderOut,
+    ext: *const c_char,
+) -> i32 {
+    guard(|| {
+        if data.is_null() || len == 0 || info.is_null() || req.is_null() {
+            set_last_error("内部错误（空数据或空请求指针）");
+            return ERR_UNRECOGNIZED;
+        }
+        let ext = ext_str(ext);
+        if !named_ext(ext.as_deref()) {
+            set_last_error("不是 CMX/WPG/ZMF/ZBR 后缀");
+            return ERR_UNRECOGNIZED;
+        }
+        let Some(ext) = ext else {
+            return ERR_UNRECOGNIZED;
+        };
+        if ext == "zbr" {
+            set_last_error("ZBR 预览位图没有区域渲染通道");
+            return ERR_UNSUPPORTED;
+        }
+        let slice = unsafe { std::slice::from_raw_parts(data, len) };
+        let tree = match legacy_tree(slice, &ext) {
+            Ok(t) => t,
+            Err((code, msg)) => {
+                set_last_error(msg);
+                return code;
+            }
+        };
+        let r = unsafe { *req };
+        let (cw, ch, bytes) = match support::vector::render_region(&tree, &r, out, out_cap) {
+            Ok(v) => v,
+            Err((code, msg)) => {
+                set_last_error(msg);
+                return code;
+            }
+        };
+        support::fill_info(info, cw, ch, bytes, 1, 0);
+        ERR_OK
     })
 }
 

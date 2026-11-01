@@ -42,6 +42,21 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 
 `raw` 的发布包按上述固定版本 + README 里的重链接材料分发；依赖版本与源码位置由 `Cargo.lock` 锁定。
 
+## 带补丁的第三方副本
+
+少数第三方库的缺陷长在库内（绘制在库里完成、外部没有回调），只能按仓库规则在
+**仓库外** `../.3rd/<name>-<ver>/` 留一份带补丁的副本，补丁逐条登记在该目录的
+`SOURCE.md`（改了哪几段、为什么、上游原文的 sha256 用来重做 diff）：
+
+| 副本 | 许可 | 用在哪 | 补丁 |
+|---|---|---|---|
+| `emfsdk-0.2.0/` | MIT OR Apache-2.0 | `decoders/doc` 的 `emf`/`emz` 成员 | E01 字体栈 + 逐字兜底 + 字体库只索引一次 |
+
+这些副本随 DLL 分发（crate 名与许可表达式由 `cargo metadata` 读出来，自动进
+`THIRD-PARTY-NOTICES.md` 与 `licenses/`）；许可原文放在副本目录里，`tools/package_decoders.py`
+打包时按名字取。补丁只加"缺的能力"，不改上游 API 形状，升级时按 `SOURCE.md` 的
+步骤重新叠加。
+
 ## 门禁
 
 ```powershell

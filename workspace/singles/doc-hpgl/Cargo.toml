@@ -15,7 +15,8 @@ standalone = []
 
 [dependencies]
 rupix-abi = { workspace = true }
-rupix-pro-support = { path = "../../shared/pro-support" }
+rupix-pro-support = { path = "../../shared/pro-support", features = ["resvg"] }
+encoding_rs = "0.8"
 nom-hpgl = "0.2.0"
 nom = "3.2.1"
 resvg = "0.49"

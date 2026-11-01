@@ -6,7 +6,7 @@
 //! owns the ABI exports and routing.
 
 use rupix_abi::*;
-use rupix_merge_router::Member;
+use rupix_merge_router::{Member, RegionMember};
 
 export_decoder! {
     id: "doc-legacy",
@@ -17,19 +17,26 @@ export_decoder! {
     has_alpha: 1,
 }
 
-rupix_abi::export_caps!(rupix_abi::CAP_FULL);
+rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_REGION);
 rupix_abi::export_metadata! {
-    "version" => "0.1.0",
+    "version" => "0.2.0",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-29",
+    "released" => "2026-11-01",
     "vector_exts" => "cmx;ccx;wpg;zmf;zbr",
+    // ZBR 是 100×100 预览位图（没有矢量内容），没有区域通道。
+    "region_exts" => "cmx;ccx;wpg;zmf",
 }
 
 static MEMBERS: &[Member] = &[Member {
     id: "legacy",
     probe: doc_legacy_impl::probe_impl,
     render: doc_legacy_impl::render_impl,
+}];
+
+static REGION_MEMBERS: &[RegionMember] = &[RegionMember {
+    id: "legacy",
+    region: doc_legacy_impl::export_region_impl,
 }];
 
 #[no_mangle]
@@ -51,6 +58,20 @@ pub extern "C" fn iv_render(
     guard(|| rupix_merge_router::render(MEMBERS, data, len, req, out, out_cap, info, ext))
 }
 
+fn region_impl(
+    data: *const u8,
+    len: usize,
+    req: *const IvRegionReq,
+    out: *mut u8,
+    out_cap: usize,
+    info: *mut IvRenderOut,
+    ext: *const std::ffi::c_char,
+) -> i32 {
+    rupix_merge_router::render_region(REGION_MEMBERS, data, len, req, out, out_cap, info, ext)
+}
+
+rupix_abi::export_region!(region_impl);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,5 +79,30 @@ mod tests {
     #[test]
     fn rejects_unknown_extension() {
         assert_eq!(iv_probe(b"not an image".as_ptr(), 12, c"pdf".as_ptr()), 0);
+    }
+
+    /// ZBR 不进区域通道：请求如实让位（宿主按 `region_exts` 也不会发）。
+    #[test]
+    fn region_channel_rejects_zbr_preview() {
+        let mut info = IvRenderOut::default();
+        let req = IvRegionReq {
+            x: 0.0,
+            y: 0.0,
+            w: 10.0,
+            h: 10.0,
+            target_w: 10,
+            target_h: 10,
+            ..Default::default()
+        };
+        let code = iv_render_region(
+            b"\x9A\x02".as_ptr(),
+            2,
+            &req,
+            std::ptr::null_mut(),
+            0,
+            &mut info,
+            c"zbr".as_ptr(),
+        );
+        assert_ne!(code, ERR_OK);
     }
 }

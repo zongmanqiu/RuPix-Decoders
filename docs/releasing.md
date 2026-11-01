@@ -4,7 +4,7 @@
 
 | 事实 | 真源 |
 |---|---|
-| DLL 版本 | `workspace/decoders/<id>/Cargo.toml` 的 `[package] version` |
+| DLL 版本 | `workspace/decoders/<id>/Cargo.toml` 的 `[package] version`（同一值也写在 `src/lib.rs` 的 `export_metadata!`，宿主读后者；见 `开发指南.md` §二） |
 | ABI 版本 | `abi/src/lib.rs` 的 `IV_ABI_VERSION`（当前 6） |
 | 发布状态 | `decoders.json` 的 `released` / `gitee` / `github` |
 | 对外变化 | `workspace/decoders/<id>/HISTORY.md` |

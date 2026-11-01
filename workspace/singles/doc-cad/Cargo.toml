@@ -15,7 +15,7 @@ standalone = []
 
 [dependencies]
 rupix-abi = { workspace = true }
-rupix-pro-support = { path = "../../shared/pro-support" }
+rupix-pro-support = { path = "../../shared/pro-support", features = ["resvg"] }
 # Pure-Rust path: DWG/DXF parsing and DWG -> DXF conversion. Disabling
 # `parallel` keeps the decoder's single-thread contract (no Rayon pool).
 acadrust = { version = "0.6.8", default-features = false }

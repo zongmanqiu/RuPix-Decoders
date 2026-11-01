@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-doc-legacy-tier"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rupix-abi",
  "rupix-doc-legacy",
@@ -424,6 +424,7 @@ dependencies = [
 name = "rupix-pro-support"
 version = "0.1.0"
 dependencies = [
+ "resvg",
  "rupix-abi",
 ]
 
