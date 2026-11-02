@@ -259,12 +259,12 @@
   例外清单见 `workspace/singles/Cargo.toml`；发布 workspace 默认全局 `opt-level = 3`（`doc` 除外，用 `s`）。
   形态 A 的 C 侧由 `build.rs` 的 `cc .opt_level(3)` 单独管（Rust profile 管不到 cc）。
 - 第三方 C 源一律放**仓库外**的 `../.3rd/<name>-<ver>/`，带 `LICENSE` + `SOURCE.md`
-  （版本 / sha256 / 下载源），规则见 `.3rd/README.md`；
+  （版本 / 下载源），规则见 `.3rd/README.md`；
   接入新库要回写宿主 `<宿主>/THIRD-PARTY-NOTICES.md` §2.2。
 - 第三方源**打了补丁**的，补丁必须在本仓 `patches/<crate>-<version>/` 公开登记
   （`README.md` + `manifest.json` + `*.patch`，规则见 `patches/README.md`）：
   `.3rd` 不入库，别人克隆本仓只能靠这份补丁重建发布物。`tools/check_patches.py`
-  在 `build.ps1` 里跑（附 `--selftest` 自证会红），核副本哈希与**上游核对日期**（90 天）。
+  在 `build.ps1` 里跑（附 `--selftest` 自证会红），核补丁结构与**上游核对日期**（90 天）。
 - **对输入字节"推进且线性"**（防挂死，正本 `解码器开发规范.md` §六 第 10 条）：长度字段驱动的
   循环读到 0 长度必须推进或报错；递归 / 交叉引用用 visited 去重（只设深度上限不够，菱形重入是
   `N^层数`）；轮数上界取自文件长度而非文件内的计数。**挂死风险源是输入字节，不是解码器谁写的。**

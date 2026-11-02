@@ -3,13 +3,21 @@
 
 我们对外发布的源码要让别人能重建发布物，而 `doc` 依赖的 `emfsdk` 是**打过补丁的仓库外副本**。
 `patches/<crate>-<version>/` 就是那份补丁的公开登记（规则见 `patches/README.md`）。
-本门禁核四件事，全部可离线核：
+本门禁核四件事，全部可离线核，**不含任何哈希**：
 
 1. 登记齐全：`manifest.json` + `README.md` + 至少一份 `*.patch`。
-2. 补丁干净：LF 行尾（CRLF 会让 `git apply` 出来的文件哈希全不对——本机实测差 583 字节）。
-3. 补丁自洽：`manifest.json` 里记的「补丁后 blob」== 补丁 `index old..new` 的 new。
-4. 副本对得上：本机 `../.3rd/<crate>-<version>/` 在场时，逐文件核 sha256 与 git blob；
-   不在场只打印 SKIP（新克隆本来就没有 `.3rd`，那不是本仓的错）。
+2. 补丁干净：LF 行尾（CRLF 会让 `git apply` 写出 CRLF 副本）。
+3. 补丁与登记对齐：补丁里 `diff --git` 触及的路径集合 == `manifest.json` 的 `files`。
+4. 副本在场：`../.3rd/<crate>-<version>/` 存在时，补丁触及的每个文件都得在
+   （**只查存在，不比内容**）。
+
+★ 为什么没有哈希（2026-11-02 用户口径）
+
+这些都是官方维护的产物：补丁由本仓作者写、副本由本仓作者放到 `.3rd`、release 也只有作者
+能发，指纹要挡的"第三方篡改"根本不存在。而它的成本是实打实的——MSVC 每次链接换 PDB GUID、
+`rustfmt` 一次重排就换字节，于是"登记一串十六进制"变成每次动代码都要重算、算错就误报门禁红。
+**识别一份补丁只认 `crate + version + 补丁编号 + 触及路径`**，那四样才是人真正关心的身份。
+撤销的登记字段：`crate_sha256` / `upstream_sha256` / `patched_sha256` / `patched_blob`。
 
 ★ 还有一条时效：`upstream_check.checked_at` 超过 `interval_days` 就判红。上游发了新版我们
 不知道这件事**不会自己显形**，只能靠日期逼一次人工核对；核对完改日期（上游没变也只改日期）。
@@ -19,59 +27,42 @@ Usage: python tools/check_patches.py [--online] [--selftest]
 Exit 0 clean, 1 on any violation. Prints "patch registries: N, violations: M".
 """
 
-import hashlib
 import json
 import re
+import shutil
 import sys
 import tempfile
-import shutil
 from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PATCHES = ROOT / "patches"
-THIRD = ROOT.parent / ".3rd"
 
-HEX64 = re.compile(r"^[0-9a-f]{64}$")
 DIFF_GIT = re.compile(r"^diff --git a/(\S+) b/(\S+)$")
-INDEX_LINE = re.compile(r"^index ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40}) 100644$")
 
-REQUIRED_TOP = ("crate", "version", "upstream", "crate_sha256", "vendor_dir", "used_by",
+REQUIRED_TOP = ("crate", "version", "upstream", "vendor_dir", "used_by",
                 "patches", "upstream_check")
 REQUIRED_PATCH = ("id", "file", "date", "summary", "files")
-REQUIRED_FILE = ("path", "upstream_sha256", "patched_sha256", "patched_blob")
 REQUIRED_CHECK = ("checked_at", "upstream_latest_known", "interval_days", "how")
 
 
-def blob_sha1(data: bytes) -> str:
-    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
-
-
-def sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def parse_patch(text: str):
-    """[(path, old_blob, new_blob)] in patch order; both blobs are None when absent."""
+def parse_patch_paths(text: str):
+    """补丁触及的路径，按出现顺序去重。"""
     out = []
-    cur = None
     for line in text.splitlines():
         m = DIFF_GIT.match(line)
         if m:
-            cur = {"path": m.group(2), "old": None, "new": None}
-            out.append(cur)
-            continue
-        m = INDEX_LINE.match(line)
-        if m and cur is not None:
-            cur["old"], cur["new"] = m.group(1), m.group(2)
-    return [(f["path"], f["old"], f["new"]) for f in out]
+            p = m.group(2)
+            if p not in out:
+                out.append(p)
+    return out
 
 
 def iso_date(value, label, out):
     try:
         return date.fromisoformat(value)
     except (TypeError, ValueError):
-        out.append("%s: %s 不是 YYYY-MM-DD: %r" % (label, "date", value))
+        out.append("%s: date 不是 YYYY-MM-DD: %r" % (label, value))
         return None
 
 
@@ -95,8 +86,6 @@ def check_registry(root: Path, reg: Path, today: date):
 
     if not (reg / "README.md").is_file():
         out.append("%s: README.md missing（人读的「为什么改 / 怎么重放 / 上游怎么核对」）" % label)
-    if not HEX64.match(str(data["crate_sha256"])):
-        out.append("%s: crate_sha256 不是 64 位小写十六进制" % label)
 
     patches = data["patches"]
     if not isinstance(patches, list) or not patches:
@@ -124,36 +113,22 @@ def check_registry(root: Path, reg: Path, today: date):
             continue
         raw = patch_file.read_bytes()
         if b"\r\n" in raw:
-            out.append("%s/%s: 补丁里有 CRLF（git apply 会写出 CRLF，哈希全对不上）"
-                       % (label, pid))
+            out.append("%s/%s: 补丁里有 CRLF（git apply 会写出 CRLF 副本）" % (label, pid))
         text = raw.decode("utf-8", "replace")
-        parsed = parse_patch(text)
-        if not parsed:
+        touched = parse_patch_paths(text)
+        if not touched:
             out.append("%s/%s: 补丁里没有 'diff --git a/… b/…' 段" % (label, pid))
             continue
 
-        recorded = {f.get("path"): f for f in entry["files"] if isinstance(f, dict)}
-        for path, _old, new in parsed:
-            rec = recorded.get(path)
-            if rec is None:
+        declared = entry["files"]
+        if not isinstance(declared, list) or not all(isinstance(x, str) for x in declared):
+            out.append("%s/%s: files 必须是路径字符串数组" % (label, pid))
+            continue
+        for path in touched:
+            if path not in declared:
                 out.append("%s/%s: manifest 没登记补丁触及的 %s" % (label, pid, path))
-                continue
-            missing = [k for k in REQUIRED_FILE if k not in rec]
-            if missing:
-                out.append("%s/%s/%s: 文件条目缺 %s" % (label, pid, path, ", ".join(missing)))
-                continue
-            for key in ("upstream_sha256", "patched_sha256"):
-                if not HEX64.match(str(rec[key])):
-                    out.append("%s/%s/%s: %s 不是 64 位十六进制" % (label, pid, path, key))
-            if new is None:
-                out.append("%s/%s/%s: 补丁缺少 'index old..new' 行，无法自洽核对"
-                           % (label, pid, path))
-            elif not str(rec["patched_blob"]).startswith(new) and not new.startswith(
-                    str(rec["patched_blob"])):
-                out.append("%s/%s/%s: manifest 的 patched_blob %s != 补丁 new %s"
-                           % (label, pid, path, rec["patched_blob"], new))
-        for path in recorded:
-            if path not in [p for p, _o, _n in parsed]:
+        for path in declared:
+            if path not in touched:
                 out.append("%s/%s: manifest 登记了补丁没触及的 %s" % (label, pid, path))
 
     check = data["upstream_check"]
@@ -180,21 +155,15 @@ def check_registry(root: Path, reg: Path, today: date):
     vendor = (root / str(data["vendor_dir"])).resolve()
     if vendor.is_dir():
         for entry in patches:
-            for rec in entry.get("files", []) if isinstance(entry, dict) else []:
-                if not isinstance(rec, dict) or "path" not in rec:
+            if not isinstance(entry, dict):
+                continue
+            for path in entry.get("files", []) if isinstance(entry.get("files"), list) else []:
+                if not isinstance(path, str):
                     continue
-                target = vendor / str(rec["path"])
-                if not target.is_file():
-                    out.append("%s: 副本缺文件 %s" % (label, rec["path"]))
-                    continue
-                raw = target.read_bytes()
-                if "patched_sha256" in rec and sha256(raw) != rec["patched_sha256"]:
-                    out.append("%s/%s: 副本 sha256 与登记不符（副本被手改过，或补丁没重放到这项）"
-                               % (label, rec["path"]))
-                if "patched_blob" in rec and blob_sha1(raw) != rec["patched_blob"]:
-                    out.append("%s/%s: 副本 git blob 与登记不符" % (label, rec["path"]))
+                if not (vendor / path).is_file():
+                    out.append("%s: 副本缺文件 %s" % (label, path))
     else:
-        notes.append("%s: SKIP 副本 %s 不在场，只做了登记与补丁自洽核对" % (label, vendor))
+        notes.append("%s: SKIP 副本 %s 不在场，只做了登记与补丁结构核对" % (label, vendor))
     return out, notes
 
 
@@ -231,32 +200,35 @@ def run(root: Path, today: date, online: bool):
     return regs, violations, notes
 
 
+DEMO_PATCH = (
+    "diff --git a/src/x.rs b/src/x.rs\n"
+    "--- a/src/x.rs\n"
+    "+++ b/src/x.rs\n"
+    "@@ -1 +1 @@\n"
+    "-fn main() {}\n"
+    "+fn main() { let _ = 1; }\n"
+)
+
+
 def selftest():
     """Prove the gate can fail: each mutation must be reported, the good case must not."""
     tmp = Path(tempfile.mkdtemp(prefix="patch-gate-"))
     try:
         reg = tmp / "patches" / "demo-1.0"
         vendor = tmp / ".3rd" / "demo-1.0"
-        (reg).mkdir(parents=True)
+        reg.mkdir(parents=True)
         (vendor / "src").mkdir(parents=True)
-        good = b"fn main() {}\n"
-        (vendor / "src" / "x.rs").write_bytes(good)
-        patch = ("diff --git a/src/x.rs b/src/x.rs\n"
-                 "index 0000000..%s 100644\n"
-                 "--- a/src/x.rs\n+++ b/src/x.rs\n@@ -1 +1 @@\n-fn main() {}\n+fn main() {}\n"
-                 % blob_sha1(good)[:7])
-        (reg / "E01.patch").write_bytes(patch.encode())
+        (vendor / "src" / "x.rs").write_bytes(b"fn main() { let _ = 1; }\n")
+        (reg / "E01.patch").write_bytes(DEMO_PATCH.encode())
         (reg / "README.md").write_text("demo\n", encoding="utf-8")
         manifest = {
             "crate": "demo", "version": "1.0",
             "upstream": "https://example.invalid/demo",
-            "crate_sha256": "0" * 64,
             "vendor_dir": ".3rd/demo-1.0",
             "used_by": "selftest",
             "patches": [{
-                "id": "E01", "file": "E01.patch", "date": "2026-01-01", "summary": "selftest",
-                "files": [{"path": "src/x.rs", "upstream_sha256": "0" * 64,
-                           "patched_sha256": sha256(good), "patched_blob": blob_sha1(good)}],
+                "id": "E01", "file": "E01.patch", "date": "2026-01-01",
+                "summary": "selftest", "files": ["src/x.rs"],
             }],
             "upstream_check": {"checked_at": "2026-01-01",
                                "upstream_latest_known": "1.0", "interval_days": 90,
@@ -280,13 +252,14 @@ def selftest():
                 f.write_bytes(raw)
 
         probe("good registry passes", lambda: None, False)
-        probe("copy hand-edited", lambda: (vendor / "src" / "x.rs").write_bytes(b"tampered\n"), True)
-        probe("patch has CRLF", lambda: (reg / "E01.patch").write_bytes(patch.replace("\n", "\r\n").encode()), True)
+        probe("copy file missing", lambda: (vendor / "src" / "x.rs").unlink(), True)
+        probe("patch has CRLF",
+              lambda: (reg / "E01.patch").write_bytes(DEMO_PATCH.replace("\n", "\r\n").encode()), True)
         probe("README removed", lambda: (reg / "README.md").unlink(), True)
         probe("stale upstream check",
               lambda: _set_check(reg, {"checked_at": "2025-01-01"}), True)
-        probe("bad blob in manifest",
-              lambda: _set_blob(reg, "0" * 40), True)
+        probe("manifest names a path the patch never touches",
+              lambda: _set_files(reg, ["src/x.rs", "src/y.rs"]), True)
 
         failed = [name for name, ok, _v in cases if not ok]
         for name, ok, violations in cases:
@@ -305,10 +278,10 @@ def _set_check(reg: Path, patch: dict):
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
-def _set_blob(reg: Path, blob: str):
+def _set_files(reg: Path, files):
     path = reg / "manifest.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    data["patches"][0]["files"][0]["patched_blob"] = blob
+    data["patches"][0]["files"] = files
     path.write_text(json.dumps(data), encoding="utf-8")
 
 

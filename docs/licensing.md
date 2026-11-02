@@ -46,7 +46,7 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 
 少数第三方库的缺陷长在库内（绘制在库里完成、外部没有回调），只能按仓库规则在
 **仓库外** `../.3rd/<name>-<ver>/` 留一份带补丁的副本，补丁逐条登记在该目录的
-`SOURCE.md`（改了哪几段、为什么、上游原文的 sha256 用来重做 diff）：
+`SOURCE.md`（改了哪几段、为什么、上游原文的版本用来重做 diff）：
 
 | 副本 | 许可 | 用在哪 | 补丁 |
 |---|---|---|---|
@@ -56,8 +56,8 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 （`README.md` + `manifest.json` + `*.patch`）：别人拿上游原文 + 这份补丁就能重建发布物，
 这是"源码可用"承诺的一部分，不是可选文档。我们是**跟随上游的补丁，不是分叉**——
 基线永远取上游同一版本，上游一变就重放补丁。
-`tools/check_patches.py` 核三件可离线核的事：补丁 LF 行尾、`manifest.json` 记的补丁后哈希
-与实际 `.3rd` 副本逐文件一致、以及**上游核对日期没超过 90 天**（过期即红，逼一次人工核对）。
+`tools/check_patches.py` 核三件可离线核的事：补丁 LF 行尾、补丁触及的路径与
+`manifest.json` 的 `files` 一一对应、以及**上游核对日期没超过 90 天**（过期即红，逼一次人工核对）。
 
 这些副本随 DLL 分发（crate 名与许可表达式由 `cargo metadata` 读出来，自动进
 `THIRD-PARTY-NOTICES.md` 与 `licenses/`）；许可原文放在副本目录里，`tools/package_decoders.py`

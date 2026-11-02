@@ -202,10 +202,10 @@ CRLF，blob 与 index 仍是 LF、`git status` 干净（归一化发生在 add�
 两者的区别是：副本是上游的**内容**（1.2 MB，可重下），补丁是我们的**改动**（10 KB，只此一份）。
 
 **做法**：每份补丁在 `patches/<crate>-<version>/` 留三件——`README.md`（为什么改 / 怎么重放 /
-上游怎么核对）、`manifest.json`（基线哈希 + 补丁后哈希 + 核对日期）、`*.patch`（对上游原文）。
+上游怎么核对）、`manifest.json`（补丁清单 + 触及路径 + 核对日期）、`*.patch`（对上游原文）。
 判据是"上游原文 + 补丁 = 构建用的副本，逐字节一致"，`tools/check_patches.py` 核可离线核的部分；
 上游核对日期超 90 天直接判红，因为"上游发了新版我们不知道"不会自己显形。
 
 **附带一坑**：Windows 上 `core.autocrlf=true` 是常态，`git apply` 会把补丁里的 LF 写成 CRLF，
-打完的文件比原文多出每行一个字节（本机实测 `lib.rs` 差 583 字节），sha256 全对不上。
+打完的文件比原文多出每行一个字节（本机实测 `lib.rs` 差 583 字节），副本的行尾就和上游那份不一致。
 重放补丁一律 `git -c core.autocrlf=false apply`，本仓 `.gitattributes` 也把 `*.patch` 钉成 LF。

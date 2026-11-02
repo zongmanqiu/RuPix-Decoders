@@ -18,7 +18,7 @@
   ```
 
   `core.autocrlf=false` 不能省：Windows 上它默认是 true，`git apply` 会写出 CRLF，
-  后面核 sha256 全对不上（D19）。
+  副本的行尾就和上游那份不一致（D19）。
 
 ## 一条命令
 

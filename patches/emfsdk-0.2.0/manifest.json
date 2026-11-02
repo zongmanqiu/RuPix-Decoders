@@ -3,7 +3,6 @@
   "version": "0.2.0",
   "upstream": "https://github.com/KaiserY/emfsdk",
   "crates_io": "emfsdk",
-  "crate_sha256": "662afd8231566c47cb0ba3b38f5c4131a07ea68521e70917eeaee7d43db45f45",
   "vendor_dir": "../.3rd/emfsdk-0.2.0",
   "used_by": "workspace/singles/doc-emf（doc 档的 EMF/EMZ 成员）",
   "patches": [
@@ -13,18 +12,8 @@
       "date": "2026-11-01",
       "summary": "字体栈改系统字族 + 读 LOGFONT 字族名 + 逐字兜底，中文不再整段退回 5x7 点阵",
       "files": [
-        {
-          "path": "src/lib.rs",
-          "upstream_sha256": "a4cb2a871db54dc23d358da8fa19ab100613ee115945dc96f31d05de5df72e8f",
-          "patched_sha256": "2627754e4074f4182245d98bda0ee10b225eeacf528e845bcd347ed247fdf560",
-          "patched_blob": "1dd42752bed85b12f2adecf8835bf371a029ec65"
-        },
-        {
-          "path": "src/render.rs",
-          "upstream_sha256": "001c6b58dfd2a7e2a68a3bae2dc1ec2edbf8c9854433461eb97f613998e9d3af",
-          "patched_sha256": "88229161069ee3d34ef76cedb2e0ec3411e9d0d63e57f79c63d253cb5fa7610c",
-          "patched_blob": "e65c1f13b10caa67ee047443159ec48d4546a2f0"
-        }
+        "src/lib.rs",
+        "src/render.rs"
       ]
     }
   ],

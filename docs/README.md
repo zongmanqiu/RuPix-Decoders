@@ -33,4 +33,4 @@
 
 本目录之外还有两处文档：根 [`README.md`](../README.md)（门面）与
 [`patches/README.md`](../patches/README.md)（第三方补丁登记规则——仓库外副本的补丁
-必须在那里公开登记，`check_patches.py` 核哈希与上游核对日期）。
+必须在那里公开登记，`check_patches.py` 核补丁结构与上游核对日期）。
