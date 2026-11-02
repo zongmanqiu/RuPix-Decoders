@@ -6,10 +6,10 @@
 
 | DLL | 版本 | 认领后缀 | ZIP 大小 | 发行日期 | Gitee | GitHub |
 |---|---:|---:|---:|---:|---|---|
-| `common` | 0.2.4 | 24 | 0.97 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.4/common_0.2.4.zip) |
-| `modern` | 0.3.2 | 9 | 2.90 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.2/modern_0.3.2.zip) |
+| `common` | 0.2.6 | 24 | 0.96 MB | 2026-11-02 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.6/common_0.2.6.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.6/common_0.2.6.zip) |
+| `modern` | 0.3.3 | 9 | 2.93 MB | 2026-11-02 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.3/modern_0.3.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.3/modern_0.3.3.zip) |
 | `raw` | 0.5.3 | 40 | 3.74 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip) |
-| `pro` | 0.4.2 | 16 | 0.79 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.2/pro_0.4.2.zip) |
+| `pro` | 0.4.3 | 16 | 0.77 MB | 2026-11-02 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.3/pro_0.4.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.3/pro_0.4.3.zip) |
 | `classic` | 0.1.0 | 20 | 0.39 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/classic_0.1.0/classic_0.1.0.zip) |
 | `texture` | 0.1.0 | 8 | 1.12 MB | 2026-10-29 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/texture_0.1.0/texture_0.1.0.zip) |
 | `doc` | 0.2.2 | 30 | 12.85 MB | 2026-11-01 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/doc_0.2.2/doc_0.2.2.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/doc_0.2.2/doc_0.2.2.zip) |
