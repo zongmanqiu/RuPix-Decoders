@@ -65,8 +65,8 @@ DLL 文件名与自述（两处一起 bump），装完宿主还要读 `iv_decode
 
 ## 两个 raw 镜像
 
-- Gitee：`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoder/raw/master/decoders.json`
-- GitHub：`https://raw.githubusercontent.com/zongmanqiu/RuPix-Decoder/refs/heads/master/decoders.json`
+- Gitee：`https://raw.giteeusercontent.com/qiuzongman/RuPix-Decoders/raw/master/decoders.json`
+- GitHub：`https://raw.githubusercontent.com/zongmanqiu/RuPix-Decoders/refs/heads/master/decoders.json`
 
 宿主「解码器 / 可下载」卡读其中一份，按当前来源取 `gitee` 或 `github` 列。
 两个 owner 不是同一个用户名（Gitee `qiuzongman` / GitHub `zongmanqiu`），
