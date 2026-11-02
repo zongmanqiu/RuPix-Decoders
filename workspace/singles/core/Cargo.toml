@@ -1,6 +1,6 @@
 [package]
 name = "rupix-core"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 解码器：常用位图兜底（APNG/WebP/BMP/ICO/TGA/DDS/PNM；JPEG/PNG/TIFF/GIF 已由冠军解码器认领）"
@@ -55,7 +55,7 @@ gif = "0.14"
 
 # ── WebP 专用解码：libwebp（C 库，编译进 DLL，无运行时依赖）──
 # P2 实测 image-webp 90.6ms → libwebp 50.3ms（-44%），看图器"打开速度最快"红线优先。
-libwebp-sys2 = { version = "0.1", features = ["1_1"], optional = true }
+libwebp-sys2 = { version = "0.1", features = ["1_1", "demux"], optional = true }
 
 # ── 纯 Rust WebP 后端（`webp-rust` feature）：合并库用，见 [features] ──
 image-webp = { version = "0.2", optional = true }

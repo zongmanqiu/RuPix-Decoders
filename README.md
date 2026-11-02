@@ -27,7 +27,8 @@
   ★ 以前这里另有一枚 `SOURCE-OFFER.md`（含"三年内书面提供源码"的要约），2026-11-01 撤掉：
   源码公开在两个镜像上，没有需要"另行提供"的东西；`raw` 的 LGPL 重链接材料并进了 README 那一节。
 - 下载：release 资产，每枚 ZIP 一个 `<id>_<version>` tag。机器可读清单是 [`decoders.json`](decoders.json)，
-  `size`/`sha256` 描述 DLL，URL 指向 ZIP；字段、镜像与校验规则见 [`docs/catalog.md`](docs/catalog.md)。
+  身份只认 `id` + `version`（`size` 只作显示，清单里没有哈希），URL 指向 ZIP；字段、镜像与
+  身份规则见 [`docs/catalog.md`](docs/catalog.md)。
 - 不发布：`workspace/singles/` 的单库只作 bench 对照、档的装配来源与 A/B 排查（总表见 [`workspace/singles/README.md`](workspace/singles/README.md)）。
 
 ## 文档地图

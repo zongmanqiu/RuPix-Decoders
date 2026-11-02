@@ -36,8 +36,19 @@
 
 ## 多帧 / 多页
 
-无。`fill_info` 硬写 `frame_count = 1`、`page_count = 1`、`frame_delay_ms = 0`；
-`req` 里的 frame/page 索引读都不读（`lib.rs:176-192`）。
+MPO（多图 JPEG）**按 `page_index` 取子图**（0.1.1 起，由 `common` 0.2.6 发布）：
+`mpo_layout`（`lib.rs:272` 起）沿 JPEG 段链走一遍，数出几份完整 JPEG 并记下各自的
+`(start, len)`；查询回填真实 `page_count`，渲染按 `page_index` 切出那一份再交给解码库。
+越界页报 `ERR_CORRUPT`（不冒充首页）。
+
+单张 JPEG 就是 `page_count = 1` 的一条切片，取 page 0 得回原切片——与旧版逐字节相同。
+
+两条特意没走的路：**不读 MPF（APP2）里的 MPEntry 偏移**（实测 Pillow 生成的 MPO，
+APP2 长度字段少报 26 字节、MPF 的 TIFF 头字节序位全 0）；**不裸扫 FFD8**
+（EXIF 缩略图本身就是内嵌的完整 JPEG，裸扫会让每张带缩略图的照片凭空多出一页）。
+段链走法让 APP1 按长度整段跳过，页数恒为 1。
+
+`frame_index` 仍不读（JPEG/MPO 没有动画帧概念）。
 
 ## 元数据 / 色彩
 

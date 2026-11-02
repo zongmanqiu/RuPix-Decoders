@@ -125,7 +125,23 @@ pub fn render_impl(
             set_last_error("内部错误（宿主传入空输出指针）");
             return ERR_BUFFER_TOO_SMALL;
         }
-        let input = unsafe { std::slice::from_raw_parts(data, len) };
+        let full = unsafe { std::slice::from_raw_parts(data, len) };
+
+        // ── MPO：把文件按段链切成若干份独立 JPEG，取请求的那一页 ──
+        //    单张 JPEG 切出来就是 (0, len) 一条，取 page 0 得回原切片，
+        //    与今天逐字节相同（不额外拷贝）。
+        let layout = mpo_layout(full);
+        let page_count = layout.page_count();
+        let page_index = if req.is_null() {
+            0
+        } else {
+            unsafe { (*req).page_index }
+        };
+        let Some(input) = layout.page(full, page_index) else {
+            // 越界页码如实报错，不悄悄退回第 0 页（那会让用户以为翻到了下一页）
+            set_last_error("页码越界：请求的页不存在");
+            return ERR_CORRUPT;
+        };
 
         // ── 阶段 1：只读头拿尺寸（zune 的 decode_headers 不做 IDCT）。──────
         let (w, h) = match header_dimensions(input) {
@@ -170,7 +186,15 @@ pub fn render_impl(
         let icc_len = icc.len() as u64;
 
         if out.is_null() {
-            fill_info(info, dw, dh, bytes_needed, orientation, icc_len as u32);
+            fill_info(
+                info,
+                dw,
+                dh,
+                bytes_needed,
+                orientation,
+                icc_len as u32,
+                page_count,
+            );
             return ERR_OK;
         }
 
@@ -187,7 +211,15 @@ pub fn render_impl(
                 return code;
             }
             copy_icc(out, bytes_needed, &icc);
-            fill_info(info, dw, dh, bytes_needed, orientation, icc_len as u32);
+            fill_info(
+                info,
+                dw,
+                dh,
+                bytes_needed,
+                orientation,
+                icc_len as u32,
+                page_count,
+            );
             return ERR_OK;
         }
 
@@ -207,7 +239,15 @@ pub fn render_impl(
             std::ptr::copy_nonoverlapping(rgba.as_ptr(), out, bytes_needed as usize);
         }
         copy_icc(out, bytes_needed, &icc);
-        fill_info(info, dw, dh, bytes_needed, orientation, icc_len as u32);
+        fill_info(
+            info,
+            dw,
+            dh,
+            bytes_needed,
+            orientation,
+            icc_len as u32,
+            page_count,
+        );
         ERR_OK
     })
 }
@@ -220,6 +260,168 @@ fn copy_icc(out: *mut u8, bytes_needed: u64, icc: &[u8]) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// MPO（多图 JPEG）子图切分
+// ---------------------------------------------------------------------------
+
+/// MPO 文件里的子图边界：`(起, 止)`，每段都是一份**独立的完整 JPEG**（SOI…EOI）。
+///
+/// 单张 JPEG 就是一条 `(0, len)`，与历史行为逐字节相同。
+#[derive(Debug, Default)]
+struct MpoLayout {
+    bounds: Vec<(usize, usize)>,
+}
+
+impl MpoLayout {
+    fn page_count(&self) -> u32 {
+        self.bounds.len().max(1) as u32
+    }
+
+    /// 取第 `index` 页的字节切片；越界返回 `None`（由调用方如实报错）。
+    fn page<'a>(&self, input: &'a [u8], index: u32) -> Option<&'a [u8]> {
+        self.bounds.get(index as usize).map(|&(s, e)| &input[s..e])
+    }
+}
+
+/// 按**段链**走一遍文件，切出所有子图。
+///
+/// ★ 为什么不"扫所有 FFD8"：EXIF 缩略图本身就是一份内嵌的完整 JPEG（FFD8…FFD9），
+///   裸扫会把**每一张带缩略图的普通照片**都认成两页。走段链时 APP1 有长度字段，
+///   整段被跳过，缩略图里的 FFD8 根本不会被看到。
+/// ★ 为什么不读 MPF（APP2）里的 MPEntry 偏移：Pillow 等实现写出的偏移字段不可信，
+///   本仓实测的那份 `anim_2f.mpo` APP2 长度字段少报 26 字节、TIFF 头字节序位全 0；
+///   按段链实走一遍既不需要它、也不会被它带错。
+fn mpo_layout(input: &[u8]) -> MpoLayout {
+    let mut bounds: Vec<(usize, usize)> = Vec::new();
+    if input.len() < 4 || input[0] != 0xFF || input[1] != 0xD8 {
+        return MpoLayout { bounds };
+    }
+
+    let mut pos = 0usize; // 当前子图的 SOI 位置
+    'images: loop {
+        if pos + 1 >= input.len() || input[pos] != 0xFF || input[pos + 1] != 0xD8 {
+            break;
+        }
+        let start = pos;
+        let mut i = pos + 2;
+        loop {
+            // 找下一个 marker：跳过熵数据里的普通字节
+            while i < input.len() && input[i] != 0xFF {
+                i += 1;
+            }
+            if i + 1 >= input.len() {
+                bounds.push((start, input.len())); // 截断：按到文件尾收尾
+                break 'images;
+            }
+            let mut m = i + 1;
+            while m < input.len() && input[m] == 0xFF {
+                m += 1; // 填充字节
+            }
+            if m >= input.len() {
+                bounds.push((start, input.len()));
+                break 'images;
+            }
+            match input[m] {
+                // FF00 = 熵数据里的字节填充（正常只出现在 SOS 之后）
+                0x00 => i = m + 1,
+                0xD9 => {
+                    // EOI：这一段到此为止。★ 后面**不一定**紧跟下一张的 SOI——MPO 的
+                    // MPF 索引段（APP2）就夹在第 1 张的 EOI 与第 2 张的 SOI 之间
+                    // （实测样本：EOI@1992、APP2@1992、下一张 SOI@2040），
+                    // 所以这里要往前找，而不是只看紧邻的两个字节。
+                    let end = m + 1;
+                    bounds.push((start, end));
+                    match next_soi(input, end) {
+                        Some(next) => {
+                            pos = next;
+                            continue 'images;
+                        }
+                        None => break 'images,
+                    }
+                }
+                0xD8 => {
+                    // 段链里冒出新 SOI（畸形或未按规范拼接）：就此切断，按下一张算
+                    bounds.push((start, i));
+                    pos = i;
+                    continue 'images;
+                }
+                // 独立 marker（TEM / RSTn）：没有长度字段
+                0x01 | 0xD0..=0xD7 => i = m + 1,
+                0xDA => {
+                    // SOS：段头之后是熵数据。**只有 EOI 才是本张的终点**——渐进式 JPEG
+                    // 有多个 SOS（每个扫描分量一段），中间照样夹着 DHT/SOS 段，把下一个
+                    // marker 当终点会把渐进式文件拦腰截断（实测：报 ERR_CORRUPT）。
+                    if m + 3 >= input.len() {
+                        bounds.push((start, input.len()));
+                        break 'images;
+                    }
+                    let seglen = ((input[m + 1] as usize) << 8) | input[m + 2] as usize;
+                    if seglen < 2 {
+                        bounds.push((start, input.len()));
+                        break 'images;
+                    }
+                    // 扫过熵数据（FF00 字节填充与 RSTn 是合法内容），停在下一个真 marker 上
+                    let mut k = m + 1 + seglen;
+                    loop {
+                        while k + 1 < input.len() && input[k] != 0xFF {
+                            k += 1;
+                        }
+                        if k + 1 >= input.len() {
+                            bounds.push((start, input.len()));
+                            break 'images;
+                        }
+                        let n = input[k + 1];
+                        if n == 0x00 || (0xD0..=0xD7).contains(&n) || n == 0xFF {
+                            k += 1;
+                            continue;
+                        }
+                        break;
+                    }
+                    i = k; // 交给外层循环处理这个 marker（EOI 收尾 / DHT·SOS 继续）
+                }
+                _ => {
+                    // 普通带长度字段的段（APPn / DQT / DHT / SOF…）
+                    if m + 2 >= input.len() {
+                        bounds.push((start, input.len()));
+                        break 'images;
+                    }
+                    let seglen = ((input[m + 1] as usize) << 8) | input[m + 2] as usize;
+                    if seglen < 2 {
+                        bounds.push((start, input.len()));
+                        break 'images;
+                    }
+                    i = m + 1 + seglen;
+                }
+            }
+        }
+    }
+
+    if bounds.is_empty() {
+        // 一段都没切出来（畸形头）：整份文件当第一页，交给 zune 去如实报错
+        bounds.push((0, input.len()));
+    }
+    MpoLayout { bounds }
+}
+
+/// 从 `from` 起找下一个**像样的** SOI；找不到返回 `None`。
+///
+/// 「像样」= `FF D8` 之后紧跟一个 marker（`FF xx`，xx 既不是 00 也不是 D8）。
+/// 少这一道校验的话，MPF 载荷里巧合出现的两个字节就会被当成新一页——凭空多出
+/// 一页空白，而用户只会看到"翻页翻出一张黑图"。
+fn next_soi(input: &[u8], from: usize) -> Option<usize> {
+    let mut p = from;
+    while p + 3 < input.len() {
+        if input[p] == 0xFF && input[p + 1] == 0xD8 && input[p + 2] == 0xFF {
+            let m = input[p + 3];
+            if m != 0x00 && m != 0xD8 {
+                return Some(p);
+            }
+        }
+        p += 1;
+    }
+    None
+}
+
 #[inline]
 fn fill_info(
     info: *mut IvRenderOut,
@@ -228,6 +430,7 @@ fn fill_info(
     bytes_needed: u64,
     orientation: i32,
     icc_len: u32,
+    page_count: u32,
 ) {
     let oi = unsafe { &mut *info };
     oi.actual_w = w;
@@ -243,7 +446,7 @@ fn fill_info(
     oi.already_oriented = 0;
     oi.frame_count = 1;
     oi.frame_delay_ms = 0;
-    oi.page_count = 1;
+    oi.page_count = page_count;
     oi.icc_len = icc_len;
 }
 
@@ -1113,5 +1316,129 @@ mod tests {
             ERR_OK
         );
         assert_eq!(info.icc_len, 0);
+    }
+
+    // ── MPO（多图 JPEG）────────────────────────────────────────────
+
+    /// 真实 MPO 样本：两个视角，各 96×96（Pillow 生成，MPF 段长度字段是坏的）。
+    const MPO2: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../testdata/golden/mpo_2p_96x96.mpo"
+    ));
+
+    /// 查询 → 按申报尺寸渲染，返回 (info, 像素)。
+    fn render_page(data: &[u8], page_index: u32) -> (i32, IvRenderOut, Vec<u8>) {
+        let r = IvRenderReq {
+            page_index,
+            ..req()
+        };
+        let mut info = IvRenderOut::default();
+        let q = iv_render(
+            data.as_ptr(),
+            data.len(),
+            &r,
+            std::ptr::null_mut(),
+            0,
+            &mut info,
+            std::ptr::null(),
+        );
+        if q != ERR_OK {
+            return (q, info, Vec::new());
+        }
+        let mut buf = vec![0u8; info.bytes_needed as usize];
+        let code = iv_render(
+            data.as_ptr(),
+            data.len(),
+            &r,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut info,
+            std::ptr::null(),
+        );
+        (code, info, buf)
+    }
+
+    /// MPO：报出真实页数，每页各自能解、像素不同，越界如实报错。
+    ///
+    /// 这条用例的样本特意用 Pillow 生成——它的 APP2 长度字段少报 26 字节、MPF 的
+    /// TIFF 头字节序位全是 0。按 MPF 里的字段解会得到垃圾，按段链实走一遍才稳。
+    #[test]
+    fn mpo_reports_page_count_and_selects_each_view() {
+        let (q, info, _) = render_page(MPO2, 0);
+        assert_eq!(q, ERR_OK, "第 0 页查询应成功");
+        assert_eq!(info.page_count, 2, "MPO 必须报出两页");
+        assert_eq!((info.actual_w, info.actual_h), (96, 96));
+
+        let (c0, i0, p0) = render_page(MPO2, 0);
+        assert_eq!(c0, ERR_OK, "第 0 页渲染应成功");
+        assert_eq!(i0.page_count, 2, "渲染也要报总页数");
+        assert_eq!(p0.len(), 96 * 96 * 4);
+
+        let (c1, i1, p1) = render_page(MPO2, 1);
+        assert_eq!(c1, ERR_OK, "第 1 页渲染应成功");
+        assert_eq!(i1.page_count, 2);
+        assert_eq!(p1.len(), 96 * 96 * 4);
+        assert_eq!((i1.actual_w, i1.actual_h), (96, 96));
+        assert!(
+            p1.chunks_exact(4).all(|p| p[3] == 255),
+            "alpha 必须由库填满"
+        );
+
+        // 两个视角的内容必须真的不同——否则"翻页成功但画面没变"会伪装成正常。
+        assert_ne!(p0, p1, "两个视角的像素不该完全相同");
+
+        // 越界：不悄悄退回第 0 页，如实报错。
+        let (bad, _, _) = render_page(MPO2, 5);
+        assert_eq!(bad, ERR_CORRUPT, "越界页码应如实报错");
+    }
+
+    /// 反面样本：EXIF 缩略图本身就是一份内嵌的完整 JPEG（FFD8…FFD9）。
+    ///
+    /// 裸扫 FFD8 的实现会把它认成第二页——每一张带缩略图的相机照片都会凭空多出
+    /// 一页"翻过去是缩略图"。走段链时 APP1 有长度字段，整段被跳过，页数恒为 1。
+    #[test]
+    fn exif_thumbnail_is_not_a_second_page() {
+        let mut body = b"Exif\0\0".to_vec();
+        body.extend_from_slice(GOLDEN); // 整个 JPEG 塞进 APP1 payload
+        let mut data = GOLDEN[..2].to_vec();
+        data.extend_from_slice(&[0xFF, 0xE1]);
+        data.extend_from_slice(&((body.len() + 2) as u16).to_be_bytes());
+        data.extend_from_slice(&body);
+        data.extend_from_slice(&GOLDEN[2..]);
+
+        let mut info = IvRenderOut::default();
+        assert_eq!(
+            iv_render(
+                data.as_ptr(),
+                data.len(),
+                &req(),
+                std::ptr::null_mut(),
+                0,
+                &mut info,
+                std::ptr::null()
+            ),
+            ERR_OK
+        );
+        assert_eq!(info.page_count, 1, "APP1 里内嵌的缩略图不是一页");
+    }
+
+    /// 单张普通 JPEG 走同一条路：页数 1、尺寸不变，行为与加 MPO 之前逐字节相同。
+    #[test]
+    fn plain_jpeg_stays_single_page() {
+        let mut info = IvRenderOut::default();
+        assert_eq!(
+            iv_render(
+                GOLDEN.as_ptr(),
+                GOLDEN.len(),
+                &req(),
+                std::ptr::null_mut(),
+                0,
+                &mut info,
+                std::ptr::null()
+            ),
+            ERR_OK
+        );
+        assert_eq!(info.page_count, 1);
+        assert_eq!((info.actual_w, info.actual_h), (16, 12));
     }
 }

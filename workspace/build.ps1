@@ -425,7 +425,9 @@ function Publish-One([string]$id, [string]$dir, [string]$targetDir) {
             # exactly how dump_sym.py maps "which build crashed" back to one file - so a
             # crash in an OLD decoder version resolves instead of falling back to newest.
             $verPdb = Join-Path $symDecoders ("{0}_{1}.pdb" -f $id, $ver)
-            if (Test-Path $verPdb) { Remove-Item $verPdb -Force }
+            # A refused delete (external safe-delete guard, AV lock) must not abort a
+            # build whose DLLs are already published - same rule as the prune pass below.
+            if (Test-Path $verPdb) { try { Remove-Item $verPdb -Force -ErrorAction Stop } catch { } }
             try {
                 New-Item -ItemType HardLink -Path $verPdb -Target $cur | Out-Null
             } catch {
@@ -434,7 +436,7 @@ function Publish-One([string]$id, [string]$dir, [string]$targetDir) {
             # Keep the last 3 versions per id: old-enough archives are nobody's problem.
             Get-ChildItem $symDecoders -Filter "$id`_*.pdb" -File |
                 Sort-Object LastWriteTime -Descending | Select-Object -Skip 3 |
-                ForEach-Object { Remove-Item $_.FullName -Force }
+                ForEach-Object { try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }
             $script:symArchived++
         } else {
             Write-Host ("  symbols: {0} built without debug info - a crash inside it stays at module+offset" -f $id)
@@ -506,15 +508,15 @@ Write-Host ("done: {0} decoder(s) published to {1} (abi v{2})" -f $published, $d
 
 # --- catalogue freshness: does decoders.json still describe the DLLs just built? ---
 # decoders.json is a FLAT ARRAY, one object per DLL (2026-10-26 slimming: no schema /
-# decoders / file; sha256 stays because it rejects same-size mirror swaps - see
-# tools/make_index.py).
+# decoders / file; no sha256 either since 2026-11-02 - the host identifies a decoder by
+# id + version and checks no hash, see tools/make_index.py).
 # Two different things get checked, because they mean different things:
 #   * STRUCTURE (a DLL the catalogue does not list, or lists but is not here) is a
 #     real gap - the host would 404 or offer a decoder that is gone.
 #   * BYTES (size differs) is expected after any relink: the cdylib embeds a
-#     fresh CodeView GUID, so a DLL can change without a source edit. Publishing
-#     a stale size fails SAFE on the host (refused install), so this one is a
-#     one-liner: regenerate before you upload, do not panic.
+#     fresh CodeView GUID, so a DLL can change without a source edit. Size is
+#     display-only on the host, so a stale number costs nothing but a wrong
+#     "1.2 MB" in the list - still worth regenerating, not worth panicking.
 # Neither is fatal, because the catalogue cannot be regenerated until the release
 # tag is known.
 $indexPath = Join-Path $root "..\decoders.json"
@@ -546,10 +548,6 @@ if (Test-Path $indexPath) {
                 $drift += [string]$e.id
                 continue
             }
-            if ($e.sha256) {
-                $got = (Get-FileHash -Path $dll -Algorithm SHA256).Hash.ToLower()
-                if ($got -ne ([string]$e.sha256).ToLower()) { $drift += ("{0}(sha)" -f $e.id) }
-            }
         }
         foreach ($f in (Get-ChildItem $dst -Filter "*.dll" -File)) {
             if (-not $listed[$f.Name]) { $gaps += ("{0} is built but not in the catalogue" -f $f.Name) }
@@ -563,8 +561,8 @@ if (Test-Path $indexPath) {
         foreach ($g in $gaps) { Write-Host ("  {0}" -f $g) }
         Write-Host ("  fix: py ..\tools\make_index.py")
     } elseif ($drift.Count -gt 0) {
-        Write-Host ("catalogue : {0} of {1} size/sha differ (relinked: {2}) - rerun make_index.py before" -f $drift.Count, $catCount, ($drift -join ", "))
-        Write-Host "            uploading, or the host refuses the download on a size/sha mismatch"
+        Write-Host ("catalogue : {0} of {1} size differ (relinked: {2}) - rerun make_index.py" -f $drift.Count, $catCount, ($drift -join ", "))
+        Write-Host "            before uploading; the list would show a stale size (display only, install still works)"
     } else {
         Write-Host ("catalogue : decoders.json matches the {0} built DLL(s)" -f $catCount)
     }

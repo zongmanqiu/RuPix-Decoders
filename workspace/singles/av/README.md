@@ -79,8 +79,13 @@ HEIF = `heic, heix, hevc, hevx, heim, heis, hevm, hevs, mif1, msf1, mif2`。
 
 ## 多帧 / 多页
 
-`frame_index` **从不读**，两个后端都只出第一帧。`fill_info_oriented`（`:229-257`）里
-`frame_count` / `frame_delay_ms` **根本没赋值**（见"坑"第 1 条），`page_count = 1`。
+**AVIF / AVIFS 动图逐帧服务**（0.3.1 起，由 `modern` 0.3.3 发布）：`decode_avif` 先试
+`zenavif::decode_animation()`——它一次性解出**全部帧**并带每帧时长（静态文件返回
+`Unsupported`，回落到 `zenavif::decode`）。帧缓存在 `AvFrame` 的 `frames` 里，
+渲染阶段按 `frame_index % N` 取帧（零重复解码），每帧报自己的时长（`0` 钳到 `≥10ms`）。
+查询阶段报 `frame_count = frames.len()`，`page_count = 1`（AVIF 没有多页概念）。
+
+HEIF 仍是单帧（HEIF 规范里没有动画帧语义），`frame_count = 1`。
 
 ## 元数据 / 色彩
 
@@ -99,8 +104,9 @@ HEIF = `heic, heix, hevc, hevx, heim, heis, hevm, hevs, mif1, msf1, mif2`。
 
 ## ★ 维护者必须知道的 4 个坑
 
-1. `fill_info_oriented`（`:229-257`）不写 `frame_count` / `frame_delay_ms`，第二次调用时它们
-   **保留宿主缓冲里的旧值**；测试之所以过是因为传了 `IvRenderOut::default()`。
+1. `fill_info_oriented` 现在**显式接收** `frame_count` / `frame_delay_ms` 并逐字段写（0.3.1 起）。
+   以前它不写这两个字段，第二次调用会保留宿主缓冲里的旧值（测试传 `IvRenderOut::default()`
+   才没暴露）。新增调用点必须两个值都传——传 0 会让宿主判静态、永不推进。
 2. AVIF 静图解码的 `Err(_)` 被丢弃（`:591-592`）；若动画回退也失败，`iv_last_error` 说的是动画的错，
    不是原始错误。
 3. ~~HEIF **每次渲染都重解**（`decode_cached` 只缓存 AVIF）~~ ✅ **已修（m77，2026-10-21）**，

@@ -17,7 +17,7 @@
 | `pro-psd` | psd | `zune-psd`（头）+ 自解像素；8/16-bit RGB/RGBA/灰度 |
 | `pro-hdr` | hdr | `image` 的 `hdr` feature（Radiance RGBE → 线性 f32 → u8） |
 | `pro-xcf` | xcf | `xcf`（取面积最大图层） |
-| `pro-ase` | ase aseprite | `aseprite-loader`（第 0 帧可见层） |
+| `pro-ase` | ase aseprite | `aseprite-loader`（逐帧渲染，可见图层合成） |
 
 ## 已移出 `pro`
 
@@ -36,7 +36,8 @@
 
 - `pict/pct`：`pict` crate 需要 nightly（`allocator_api`），本仓稳定工具链不引。
 - `swf`：`swf` crate 只解析不渲染，没有纯 Rust 光栅器。
-- PSD 只取合成预览/像素，不展开完整图层树；XCF 不合成图层偏移/蒙版；Aseprite 只取第 0 帧。
+- PSD 只取合成预览/像素，不展开完整图层树；XCF 不合成图层偏移/蒙版。
+- Aseprite 支持逐帧浏览（`frame_index`），但合成口径固定为**可见图层**，不展开图层树。
 
 ## 测试
 

@@ -58,8 +58,9 @@ TIFF 1.24×），所以 **`jpg/jpeg/jfif/png/gif/tif/tiff` 被刻意从扩展名
    WebP 用 `WebPGetInfo`（`:412-422`）；其余 `ImageReader::with_guessed_format().into_dimensions()`。
    然后 64 MP 上限（`:65, 196-199`）、`budget_bytes`（`:202-210`）、`out == NULL` 只回 info（`:231-234`）、
    `out_cap` 检查（`:228-231`）。
-2. 第 2 阶段路由（`:244-296`）：WebP → `WebPDecodeRGBA` + `WebPFree`（`:425-441`），
-   **动图 WebP 明确不支持，只出首帧**（`:236-239`）；GIF/APNG → 会话 `serve(frame_index)`；
+2. 第 2 阶段路由（`:244-296`）：WebP → 先试 `webp_anim_serve(frame_index)`
+   （动画逐帧服务，报真 count + 每帧时长），非动画回退 `decode_webp`（`WebPDecodeRGBA`
+   + `WebPFree` / image-webp）；GIF/APNG → 会话 `serve(frame_index)`；
    TGA → `ImageReader::with_format`（`:501-506`）；其余 → `decode_rgba`（guess + decode + `into_rgba8`，
    `:509-515`）。解完长度必须等于头部的 `bytes_needed`，否则
    `ERR_CORRUPT "解出的尺寸与文件头不符"`（`:293-296`）。
@@ -67,7 +68,11 @@ TIFF 1.24×），所以 **`jpg/jpeg/jfif/png/gif/tif/tiff` 被刻意从扩展名
 
 ## 多帧会话（本解码器最重的部分）
 
-`gif_anim` / `apng_anim` 两个近似重复的模块（`:552-795`、`:802-1044`）：
+`gif_anim` / `apng_anim` 两个近似重复的模块（`:552-795`、`:802-1044`），外加 WebP 动画的
+`webp_anim_serve`（`:848-874`，**一次性解全部帧**进 `webp_anim_*` 会话池，按 `frame_index`
+取帧，不像 GIF/APNG 那样串行推进）：
+* WebP 会话池同为 **2 槽 LRU**，键 = 内容指纹；两套后端（libwebp / image-webp）各自实现
+  `webp_anim_query` / `webp_anim_decode`，对外只暴露 `webp_anim_serve` 一个入口。
 * **2 槽 LRU 会话池**，键 = `(len, head32, tail32)` 指纹（`:586-594`）——不是指针键。
 * 串行帧游标推进；请求回退时**重建 + 快进**（`:697-703`），因为 GIF/APNG 的帧间有依赖。
 * ★ **快进跳过的帧进 `FrameRing`（`:502-546`）**（填环在 `:734-749`）：环按帧号索引、

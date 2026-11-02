@@ -208,6 +208,7 @@ pub fn render_impl(
                 bytes_needed,
                 orientation,
                 icc_len as u32,
+                shape.page_count,
             );
             return ERR_OK;
         }
@@ -230,11 +231,12 @@ pub fn render_impl(
                 bytes_needed,
                 orientation,
                 icc_len as u32,
+                shape.page_count,
             );
             return ERR_OK;
         }
 
-        let rgba = match decode_rgba(input, &shape) {
+        let rgba = match decode_rgba(input, &shape, page) {
             Ok(v) => v,
             Err((code, msg)) => {
                 set_last_error(&msg);
@@ -256,6 +258,7 @@ pub fn render_impl(
             bytes_needed,
             orientation,
             icc_len as u32,
+            shape.page_count,
         );
         ERR_OK
     })
@@ -588,6 +591,7 @@ fn fill_info(
     bytes_needed: u64,
     orientation: i32,
     icc_len: u32,
+    page_count: u32,
 ) {
     let oi = unsafe { &mut *info };
     oi.actual_w = w;
@@ -603,8 +607,7 @@ fn fill_info(
     oi.already_oriented = 0;
     oi.frame_count = 1;
     oi.frame_delay_ms = 0;
-    // 只出首页：本解码器不实现多页导航（宿主今天也一律发 page_index=0）。
-    oi.page_count = 1;
+    oi.page_count = page_count;
     oi.icc_len = icc_len;
 }
 
@@ -624,6 +627,8 @@ struct Shape {
     strips: Option<Strips>,
     /// IFD0 的 `IccProfile`(34675)：原样透传给宿主做色彩管理（超限整份丢弃）。
     icc: Vec<u8>,
+    /// 总页数（多页 IFD 链）。单页文件 = 1。
+    page_count: u32,
 }
 
 /// 未压缩条带的行寻址表：`行 r 的起始字节 = offsets[r / rows] + (r % rows) * row_bytes`。
@@ -716,12 +721,20 @@ fn dec_err(e: TiffError) -> (i32, String) {
 /// 只读 IFD：拿尺寸、确认可接的布局与连续采样。`decode_headers` 级开销，微秒。
 fn read_shape(data: &[u8], page: u32) -> Result<Shape, (i32, String)> {
     let mut dec = tiff::decoder::Decoder::new(std::io::Cursor::new(data)).map_err(dec_err)?;
-    if page != 0 {
+    // 先数总页数（走一遍 IFD 链，库会缓存偏移，seek 回来是 O(1)）。
+    // ★ count_pages 走完后解码器停在**最后一页**，所以下面必须无条件 seek 回目标页
+    //   （page==0 也一样），否则第 0 页会读到末页的内容。
+    let page_count = count_pages(&mut dec);
+    if page >= page_count {
+        // ★ 必须用 ERR_CORRUPT 而不是 ERR_UNSUPPORTED：后者在宿主眼里是"这活不归我，
+        //   换下一家"，会让 common 回退到 core 的 image 路线**静默出首页** ——
+        //   用户请求第 3 页却看到第 0 页，比报错更糟（同 doc-pdf 的越界口径）。
         return Err((
-            ERR_UNSUPPORTED,
-            format!("本解码器只解第一页，不支持请求第 {page} 页"),
+            ERR_CORRUPT,
+            format!("页码越界：请求第 {page} 页，但文件只有 {page_count} 页"),
         ));
     }
+    dec.seek_to_image(page as usize).map_err(dec_err)?;
     let (w, h) = dec.dimensions().map_err(dec_err)?;
     if w == 0 || h == 0 {
         return Err((ERR_CORRUPT, "文件头声明的宽或高为 0".into()));
@@ -755,7 +768,22 @@ fn read_shape(data: &[u8], page: u32) -> Result<Shape, (i32, String)> {
         layout,
         strips,
         icc,
+        page_count,
     })
+}
+
+/// 沿 IFD 链走一遍，数出总页数。库的 `more_images()` / `next_image()` 会缓存
+/// 每个 IFD 的偏移，所以之后 `seek_to_image(n)` 是 O(1)。
+fn count_pages(dec: &mut tiff::decoder::Decoder<std::io::Cursor<&[u8]>>) -> u32 {
+    let mut count = 1u32;
+    while dec.more_images() {
+        // 走不下去就停（畸形链尾），已数到的页数照报。
+        if dec.next_image().is_err() {
+            break;
+        }
+        count += 1;
+    }
+    count
 }
 
 /// 这文件的字节能不能按行直接寻址（m36 快路径的前提）。逐条把关，任何一条不过就
@@ -867,8 +895,12 @@ fn strip_table<R: std::io::Read + std::io::Seek>(
 }
 
 /// 解码成 RGBA8（行主序，长度 `w*h*4`）。
-fn decode_rgba(data: &[u8], shape: &Shape) -> Result<Vec<u8>, (i32, String)> {
+/// `page` 为当前请求的页号（0-based），先 seek 再读。
+fn decode_rgba(data: &[u8], shape: &Shape, page: u32) -> Result<Vec<u8>, (i32, String)> {
     let mut dec = tiff::decoder::Decoder::new(std::io::Cursor::new(data)).map_err(dec_err)?;
+    if page != 0 {
+        dec.seek_to_image(page as usize).map_err(dec_err)?;
+    }
     // 先取原始样本，再一次成型。库里已解出压缩（LZW / Deflate / PackBits…）。
     let (w, h) = dec.dimensions().map_err(dec_err)?;
     if (w, h) != (shape.w, shape.h) {
@@ -1001,6 +1033,11 @@ mod tests {
     const CMYK: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../testdata/golden/cmyk_8x8.tif"
+    ));
+    /// 3 页 4×3 RGB（每页纯红/绿/蓝，Pillow 生成）：多页导航的实测样本。
+    const MULTIPAGE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../testdata/golden/multipage_4x3_3p.tif"
     ));
 
     fn req() -> IvRenderReq {
@@ -1213,7 +1250,7 @@ mod tests {
                 .unwrap_or_else(|| panic!("{ch} 通道应可行寻址"));
             // 库路径（整解 + 转换）与直写路径必须逐字节相同——两条腿的映射表不一致
             // 就会在"档位图 ↔ 原图档"之间变色，那只有肉眼看得到。
-            let lib = decode_rgba(&f, &shape).expect("库路径");
+            let lib = decode_rgba(&f, &shape, 0).expect("库路径");
             let mut fast = vec![0u8; lib.len()];
             let p = Plan {
                 w: shape.w,
@@ -1384,6 +1421,7 @@ mod tests {
                 offsets: vec![140],
             }),
             icc: Vec::new(),
+            page_count: 1,
         };
         for (bw, bh, want) in [
             (240u32, 180u32, true),
@@ -1494,6 +1532,7 @@ mod tests {
                         rows: h as u64,
                         offsets: vec![0],
                     }),
+                    page_count: 1,
                 };
                 let npixels = w as u64 * h as u64;
                 let p = plan(&shape, &scaled, npixels);
@@ -1557,7 +1596,7 @@ mod tests {
         let wzero = raw_tiff(1, 40, 24, 24, 0);
         let s = read_shape(&wzero, 0).expect("WhiteIsZero 灰度仍可接");
         assert!(s.strips.is_none(), "反相布局不得走直写，否则会少一次反相");
-        let lib = decode_rgba(&wzero, &s).expect("库路径反相");
+        let lib = decode_rgba(&wzero, &s, 0).expect("库路径反相");
         let mut buf = vec![0u8; lib.len()];
         let mut info = IvRenderOut::default();
         let r = iv_render(
@@ -1632,7 +1671,7 @@ mod tests {
                 .strips
                 .as_ref()
                 .unwrap_or_else(|| panic!("{rows} 行/条带"));
-            let lib = decode_rgba(&f, &shape).expect("库路径");
+            let lib = decode_rgba(&f, &shape, 0).expect("库路径");
             let mut fast = vec![0u8; lib.len()];
             let p = Plan {
                 w: 40,
@@ -1974,7 +2013,8 @@ mod tests {
     }
 
     #[test]
-    fn second_page_reports_unsupported_instead_of_serving_page_zero() {
+    fn out_of_range_page_is_corrupt_not_unsupported() {
+        // 单页文件被请求第 1 页：如实报越界，绝不冒充首页出画。
         let mut info = IvRenderOut::default();
         let r = IvRenderReq {
             page_index: 1,
@@ -1989,7 +2029,58 @@ mod tests {
             &mut info,
             std::ptr::null(),
         );
-        assert_eq!(c, ERR_UNSUPPORTED, "首页解码器不得冒充第 1 页");
+        assert_eq!(
+            c, ERR_CORRUPT,
+            "单页文件不得冒充第 1 页（且不得让位给别的解码器）"
+        );
+    }
+
+    /// 多页 TIFF：查询报真实 `page_count`，逐页渲染像素随页变，越界如实报错。
+    #[test]
+    fn multipage_tiff_serves_each_page_and_reports_real_count() {
+        let expect = [[255u8, 0, 0], [0, 255, 0], [0, 0, 255]];
+
+        // 查询阶段（page 0）：尺寸 4×3，page_count 必须是 3。
+        let (c, info) = query(MULTIPAGE, &req());
+        assert_eq!(c, ERR_OK);
+        assert_eq!((info.actual_w, info.actual_h), (4, 3));
+        assert_eq!(info.page_count, 3, "多页文件必须报出真实页数");
+
+        // 逐页渲染：第 i 页首像素 = 红/绿/蓝。
+        for i in 0..3u32 {
+            let r = IvRenderReq {
+                page_index: i,
+                ..req()
+            };
+            let (qc, info) = query(MULTIPAGE, &r);
+            assert_eq!(qc, ERR_OK, "第 {i} 页查询失败");
+            assert_eq!(info.page_count, 3, "第 {i} 页也该报出总页数");
+            let mut buf = vec![0u8; info.bytes_needed as usize];
+            let mut info2 = IvRenderOut::default();
+            let rc = iv_render(
+                MULTIPAGE.as_ptr(),
+                MULTIPAGE.len(),
+                &r,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut info2,
+                std::ptr::null(),
+            );
+            assert_eq!(rc, ERR_OK, "第 {i} 页渲染失败");
+            assert_eq!(&buf[0..3], &expect[i as usize][..], "第 {i} 页像素不符");
+            assert_eq!(info2.page_count, 3, "第 {i} 页渲染也要报出总页数");
+        }
+
+        // 越界页：如实报不支持，不冒充第 0 页。
+        let r = IvRenderReq {
+            page_index: 3,
+            ..req()
+        };
+        let (oc, _) = query(MULTIPAGE, &r);
+        assert_eq!(
+            oc, ERR_CORRUPT,
+            "3 页文件请求第 3 页应报越界，且不触发回退链"
+        );
     }
 
     #[test]

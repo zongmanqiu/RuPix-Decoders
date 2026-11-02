@@ -182,12 +182,13 @@
 - 无清单文件随 DLL 走：宿主扫全部 `*.dll` 读 `iv_decoder_info()` 自述。唯一的清单是
   `decoders.json`（宿主「可下载」卡读的那份，由 `tools/make_index.py` **从发布目录里的 DLL 自述**
   生成，id/abi 与文件名不符即硬报错、不落盘；同 id 出现两份构建也硬报错）。
-  **顶层就是一个数组，一项一枚 DLL**，十三个字段：`id` / `name`（自述里的解码器名，不是 DLL
-  文件名）/ `version` / `abi` / `size` / `sha256` / `released` / `desc` / `formats`（分号分隔、不带点，
+  **顶层就是一个数组，一项一枚 DLL**，十二个字段：`id` / `name`（自述里的解码器名，不是 DLL
+  文件名）/ `version` / `abi` / `size` / `released` / `desc` / `formats`（分号分隔、不带点，
   与 ABI `extensions` 同形）/ `author`（来自 DLL `iv_metadata()`）/ `license`（同上）/ `gitee` / `github`。2026-10-26 精简掉的东西——`schema` /
   `updated` / `decoders` 包裹层、`file`（能从 id+version 算）、`homepage` /
-  `minHost` / `tag` / `notes`。`sha256` 与 `size` 并用：size 挡截断/多收，sha256 挡
-  同字节数替换；宿主下载后两者都核对。
+  `minHost` / `tag` / `notes`。**`sha256` 于 2026-11-02 删掉**（用户口径：官方产物不需要
+  指纹，识别一枚只认 `id` + `version`；宿主两侧同步无哈希校验，见 `docs/catalog.md`
+  「清单里没有哈希」）。`size` 保留但只作显示，不参与判定。
   下载地址是 **ZIP release 资产**（`.../releases/download/<tag>/<id>_<version>.zip`），tag = `<id>_<version>`
   （每枚一个 release）。`gitee` / `released` 由人填、生成器**原样保留**；`github` 默认由
   `gitee` 推导（`derive_github_url`：**主机名与 owner 一起换**——Gitee `qiuzongman` /

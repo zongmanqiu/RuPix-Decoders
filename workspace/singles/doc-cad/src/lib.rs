@@ -283,9 +283,14 @@ fn texts_svg(entities: &[dxf::entities::Entity]) -> String {
             e.common.color_name.trim()
         };
         // 组码 40 是**字高**（大写字母净高），SVG 的 font-size 是 em ⇒ 除 0.72。
-        let size = ((t.text_height.abs() * t.relative_x_scale_factor.abs()) / 0.72)
-            .max(0.5)
-            .min(1400.0);
+        // NaN 单独落到下界：`clamp` 会把 NaN 原样传出去，而 `max().min()` 丢掉 NaN 后
+        // 得到的是 0.5——畸形 DXF 的两种结果必须与旧口径逐字节相同。
+        let raw = (t.text_height.abs() * t.relative_x_scale_factor.abs()) / 0.72;
+        let size = if raw.is_nan() {
+            0.5
+        } else {
+            raw.clamp(0.5, 1400.0)
+        };
         let (x, y) = (t.location.x, t.location.y);
         let transform = if t.rotation.abs() > 1e-6 {
             format!(r#" transform="rotate({} {} {})""#, -t.rotation, x, y)

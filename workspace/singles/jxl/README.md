@@ -75,10 +75,13 @@ rayon = `MIT OR Apache-2.0`（原 [待核] 三条全部转 [实测]；rayon 仍�
 
 ## 多帧 / 多页
 
-`frame_index`、`page_index` **从不读**，`render_frame(0)` 写死，`fill_info` 硬报
-`frame_count = 1`、`frame_delay_ms = 0`（`:194-195`）。
-后果值得记住：**动图 JXL 会静悄悄显示第 0 帧当静图，且从不返回 UNSUPPORTED** —— 没有让位链
-（对比 `gif` 是明确拒绝）。
+**动图逐帧服务**（0.3.1 起）。查询阶段用 `num_loaded_keyframes()` 数帧、
+`FrameHeader.duration`（tick）按 `tps_denominator * 1000 / tps_numerator` 换算毫秒，
+渲染阶段按 `frame_index` 调 `render_frame(i)`（越界取模回绕）并报该帧时长。
+帧数上限 512：超限当静态图只出首帧，避免一次解几百帧吃满内存。
+`page_index` 仍不读（JXL 没有多页概念），`page_count = 1`。
+
+静态 JXL 行为不变（`frame_count = 1`、`frame_delay_ms = 0`）。
 
 ## 元数据 / 色彩
 

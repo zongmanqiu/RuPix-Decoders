@@ -1,6 +1,6 @@
 [package]
 name = "rupix-common"
-version = "0.2.4"
+version = "0.2.6"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 合并解码器：默认位图合集（JPEG/PNG/GIF/TIFF/ICNS/WebP/BMP/ICO/TGA）"

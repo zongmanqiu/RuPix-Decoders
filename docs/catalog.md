@@ -13,7 +13,6 @@
     "version": "<version>",
     "abi": 6,
     "size": 1234567,
-    "sha256": "e3b0…",
     "released": "YYYY-MM-DD",
     "desc": "常见位图合集：…",
     "formats": "jpg;jpeg;…",
@@ -25,7 +24,7 @@
 ]
 ```
 
-## 十三个字段
+## 十二个字段
 
 | 字段 | 例 | 说明 |
 |---|---|---|
@@ -33,8 +32,7 @@
 | `name` | `Common Raster Set` | DLL 自述名称，不是 DLL 文件名 |
 | `version` | `<version>` | DLL 版本；来自 `workspace/decoders/<id>/Cargo.toml` |
 | `abi` | `6` | ABI 大版本；宿主按区间决定收不收 |
-| `size` | `1234567` | 字节数（示例）；下载后先按它挡截断/多收 |
-| `sha256` | `e3b0…` | DLL 的 SHA-256；与实收字节逐项核对，挡同字节数替换 |
+| `size` | `1234567` | 字节数；**只用于列表显示**，宿主不拿它做任何判定 |
 | `released` | `YYYY-MM-DD` | 发布时间；未发布为空串 |
 | `desc` | `常见位图合集：…` | 一句话说明，来自 DLL 自述 |
 | `formats` | `jpg;jpeg;…` | 认领的扩展名，分号分隔、不带点，与 ABI `extensions` 同形 |
@@ -42,6 +40,28 @@
 | `license` | `AGPL-3.0` | 许可证标识；来自 DLL 可选导出 `iv_metadata()` 的 `license` 键 |
 | `gitee` | `https://…/<id>_<version>.zip` | Gitee 主源（ZIP）；未发布为空串 |
 | `github` | `https://…/<id>_<version>.zip` | GitHub 镜像（ZIP）；默认由 `gitee` 推导，可显式覆盖 |
+
+## 清单里没有哈希（2026-11-02）
+
+以前这里有个 `sha256`，2026-11-02 起删掉了（用户口径：**官方产物不需要指纹**）。
+
+理由两条，一条是"它挡的东西不存在"，一条是"它自己的维护成本很实在"：
+
+1. 这些 DLL 全部由本仓 `build.ps1` 产出，release 资产只有作者能发。清单里那串十六进制
+   防的是"第三方替换 / 镜像篡改"，而这条链路上没有第三方写入的入口，它只是在给自己的
+   产物抄一份副本。
+2. MSVC 每次链接都生成新的 PDB GUID，**同源码重编出来的 DLL 字节必变**（尺寸常常一模一样）。
+   于是每次发布都得重算清单、重传资产，"编 → 改清单 → 又编一次"任何一次顺序搞错，清单就
+   与已上传资产脱节，宿主那边报"大小不符"。假警报远比它挡住的真问题多。
+
+身份判据收敛到 **`id` + `version`**：`version` 由 `Cargo.toml` 的 `[package] version` 盖进
+DLL 文件名与自述（两处一起 bump），装完宿主还要读 `iv_decoder_info().id` 核对。装错一枚、
+或装上一枚"其实不是我们发的"，这三处就够拦。
+
+`size` 保留但只作显示（列表那列"1.2 MB"），不参与任何判定——同样因为重编会让它漂。
+
+★ 宿主侧是同一条约定：`src/decoders/remote.rs` 与 `src/extensions/mod.rs` 里也没有哈希校验。
+**改清单结构必须两边一起改**，否则读侧会静默丢掉整项。
 
 ## 两个 raw 镜像
 
@@ -54,14 +74,12 @@
 
 ## 谁生成、谁维护
 
-- `tools/make_index.py` 从 `../.temp/decoder-dist` 的 DLL 自述生成结构字段；`size`/`sha256` 是 DLL，下载 URL 指向 ZIP：
-  `id` / `name` / `version` / `abi` / `size` / `sha256` / `desc` / `formats` / `author` / `license`。
+- `tools/make_index.py` 从 `../.temp/decoder-dist` 的 DLL 自述生成结构字段；`size` 是 DLL 的，下载 URL 指向 ZIP：
+  `id` / `name` / `version` / `abi` / `size` / `desc` / `formats` / `author` / `license`。
 - `gitee` 与 `released` 由人维护，生成器原样保留；缺 `gitee` 的项在收尾列成
   `MISSING gitee`，`released` 随之为空。
 - `github` 默认由 `gitee` 推导；特殊地址用 `--set-github-url` 覆盖。
 - 文件名不入库：由 `id` + `version` 算出 `<id>_<version>.dll`。
-- `size` 与 `sha256` 并用：size 挡截断/多收，sha256 挡同字节数替换；宿主下载后两者都核对。
-  `file` 仍不存：文件名由 `id` + `version` 算出。
 
 ## 生成与核对
 

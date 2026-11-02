@@ -38,7 +38,7 @@ xcf;ase;aseprite;psd;hdr",
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.4.2",
+    "version" => "0.4.3",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
     "released" => "2026-10-29",

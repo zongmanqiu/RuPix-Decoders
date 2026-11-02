@@ -282,7 +282,26 @@ pub fn render_impl(
         // 查询阶段：out 为空指针，只回报尺寸/格式，不解码。
         // （GIF 已在上方提前返回；count 未知时填 0，宿主以渲染阶段回填为准。）
         if out.is_null() {
-            fill_info(info, w, h, bytes_needed, 1, 0, orientation, icc_len as u32);
+            // WebP 动画：轻量查询帧数（只读头不解码）。
+            let (fc, fd) = if is_webp(input) {
+                match webp_anim_query(input) {
+                    Ok((Some(count), _)) => (count, 0),
+                    Ok((None, _)) => (1, 0),
+                    Err(_) => (1, 0),
+                }
+            } else {
+                (1, 0)
+            };
+            fill_info(
+                info,
+                w,
+                h,
+                bytes_needed,
+                fc,
+                fd,
+                orientation,
+                icc_len as u32,
+            );
             return ERR_OK;
         }
 
@@ -295,9 +314,22 @@ pub fn render_impl(
         //
         // `image` 没有内建的 DCT 缩放解码，一律解原生尺寸，由宿主按 target_w/h 缩放。
         let (rgba, frame_count, delay_ms) = if is_webp(input) {
-            // WebP 专用路线：libwebp 直接解到 RGBA8。动图取首帧（本版明确不做动图 WebP）。
-            match decode_webp(input) {
-                Ok(v) => (v, 1, 0),
+            // WebP：先试动画解码（动图报真 count + delay）；静态 WebP 回退到快路径。
+            match webp_anim_serve(input, frame_index) {
+                Ok((w2, h2, v, delay, count)) => {
+                    debug_assert!((w2, h2) == (w, h), "WebP 帧尺寸与画布不符");
+                    (v, count, delay)
+                }
+                Err(ERR_UNSUPPORTED) => {
+                    // 不是动画——走静态快路径。
+                    match decode_webp(input) {
+                        Ok(v) => (v, 1, 0),
+                        Err(code) => {
+                            set_last_error("WebP 数据损坏");
+                            return code;
+                        }
+                    }
+                }
                 Err(code) => {
                     set_last_error("WebP 数据损坏");
                     return code;
@@ -636,6 +668,250 @@ fn cur_dimensions(data: &[u8]) -> Result<(u32, u32), ImageError> {
 /// 解码为 RGBA8（非预乘，行主序）。16-bit / 灰度 / 调色板统一转成 8-bit RGBA。
 fn decode_rgba(data: &[u8]) -> Result<Vec<u8>, ImageError> {
     Ok(reader(data)?.decode()?.into_rgba8().into_raw())
+}
+
+// ---------------------------------------------------------------------------
+// 动画 WebP：libwebp / image-webp 逐帧解码（query 报真 count + delay）
+// ---------------------------------------------------------------------------
+
+/// WebP 动画解码会话：一次性解码全部帧，按 `frame_index` 取用。
+///
+/// libwebp 的 `WebPAnimDecoder` 与 image-webp 的 `WebPDecoder` 都提供
+/// 逐帧 API，这里统一封装成 `(frames, canvas)`。两后端互斥（见 Cargo.toml
+/// 的 `webp-c` / `webp-rust` features），各自实现 `webp_anim_decode` 函数。
+///
+/// 全部帧缓存在会话里，渲染阶段按 `frame_index % N` 取帧，零重复解码。
+struct WebpAnimSession {
+    canvas: (u32, u32),
+    /// 每帧 `(RGBA 像素, duration_ms)`。duration 按 ms 存，≥10 防忙转。
+    frames: Vec<(Vec<u8>, u32)>,
+    /// 输入字节指纹（长度 + 首尾各 32 字节），用于会话池匹配。
+    fp: (u64, [u8; 32], [u8; 32]),
+}
+
+impl WebpAnimSession {
+    /// 取第 `idx` 帧（越界自动回绕）。返回 `(RGBA, duration_ms)`。
+    fn frame(&self, idx: u32) -> &(Vec<u8>, u32) {
+        let n = self.frames.len();
+        let i = if n == 0 { 0 } else { (idx as usize) % n };
+        &self.frames[i]
+    }
+}
+
+/// 计算输入字节指纹（与 gif_anim 同款：长度 + 首尾各 32 字节）。
+fn webp_anim_fingerprint(data: &[u8]) -> (u64, [u8; 32], [u8; 32]) {
+    let n = data.len();
+    let mut head = [0u8; 32];
+    let mut tail = [0u8; 32];
+    let n32 = n.min(32);
+    head[..n32].copy_from_slice(&data[..n32]);
+    let t = &data[n.saturating_sub(32)..];
+    tail[..t.len()].copy_from_slice(t);
+    (n as u64, head, tail)
+}
+
+// 会话池（与 gif_anim/apng_anim 同款）：解码线程是唯一使用方，用 Mutex 兜底。
+static WEBP_ANIM_SESSIONS: std::sync::Mutex<Vec<WebpAnimSession>> =
+    std::sync::Mutex::new(Vec::new());
+
+fn webp_anim_sessions() -> std::sync::MutexGuard<'static, Vec<WebpAnimSession>> {
+    WEBP_ANIM_SESSIONS.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// WebP 动画解码会话（libwebp 后端）。一次性解码全部帧，缓存在会话池里。
+#[cfg(feature = "webp-c")]
+fn webp_anim_decode(data: &[u8]) -> Result<WebpAnimSession, i32> {
+    use libwebp_sys::{WebPAnimDecoderOptions, WebPAnimInfo};
+    let mut opts: WebPAnimDecoderOptions = unsafe { std::mem::zeroed() };
+    unsafe { libwebp_sys::WebPAnimDecoderOptionsInit(&mut opts) };
+    opts.color_mode = libwebp_sys::MODE_RGBA;
+    opts.use_threads = 0;
+
+    let dec = unsafe {
+        libwebp_sys::WebPAnimDecoderNew(
+            &libwebp_sys::WebPData {
+                bytes: data.as_ptr(),
+                size: data.len(),
+            },
+            &opts,
+        )
+    };
+    if dec.is_null() {
+        return Err(ERR_CORRUPT);
+    }
+
+    let mut info: WebPAnimInfo = unsafe { std::mem::zeroed() };
+    if unsafe { libwebp_sys::WebPAnimDecoderGetInfo(dec, &mut info) } == 0 {
+        unsafe { libwebp_sys::WebPAnimDecoderDelete(dec) };
+        return Err(ERR_CORRUPT);
+    }
+
+    let canvas = (info.canvas_width, info.canvas_height);
+    let n = info.frame_count as usize;
+    if n == 0 || canvas.0 == 0 || canvas.1 == 0 {
+        unsafe { libwebp_sys::WebPAnimDecoderDelete(dec) };
+        return Err(ERR_CORRUPT);
+    }
+
+    let mut frames: Vec<(Vec<u8>, u32)> = Vec::with_capacity(n);
+    let mut prev_ts: i32 = 0;
+    for _ in 0..n {
+        let mut buf: *mut u8 = std::ptr::null_mut();
+        let mut timestamp: i32 = 0;
+        let ok = unsafe { libwebp_sys::WebPAnimDecoderGetNext(dec, &mut buf, &mut timestamp) };
+        if ok == 0 || buf.is_null() {
+            break;
+        }
+        let n_bytes = (canvas.0 as usize) * (canvas.1 as usize) * 4;
+        // buf 指向 libwebp 内部缓冲，Delete 后失效，必须 clone。
+        let rgba = unsafe { std::slice::from_raw_parts(buf, n_bytes) }.to_vec();
+        // timestamp 是累计毫秒数；duration = 相邻 timestamp 差值。
+        let dur_ms = if timestamp > prev_ts {
+            (timestamp - prev_ts) as u32
+        } else {
+            0
+        };
+        prev_ts = timestamp;
+        frames.push((rgba, dur_ms));
+    }
+
+    unsafe { libwebp_sys::WebPAnimDecoderDelete(dec) };
+
+    if frames.is_empty() {
+        return Err(ERR_CORRUPT);
+    }
+
+    Ok(WebpAnimSession {
+        canvas,
+        frames,
+        fp: webp_anim_fingerprint(data),
+    })
+}
+
+/// WebP 动画解码会话（image-webp 后端）。一次性解码全部帧。
+///
+/// image-webp 对 RGB 帧的 `output_buffer_size()` 返回 `w*h*3`，但宿主
+/// ABI 一律收 RGBA。`has_alpha()==false` 时逐帧把 RGB 扩成 RGBA。
+#[cfg(all(not(feature = "webp-c"), feature = "webp-rust"))]
+fn webp_anim_decode(data: &[u8]) -> Result<WebpAnimSession, i32> {
+    let mut dec =
+        image_webp::WebPDecoder::new(Cursor::new(data.to_vec())).map_err(|_| ERR_CORRUPT)?;
+    if !dec.is_animated() {
+        return Err(ERR_UNSUPPORTED);
+    }
+    let (w, h) = dec.dimensions();
+    if w == 0 || h == 0 {
+        return Err(ERR_CORRUPT);
+    }
+    let canvas = (w, h);
+    let n = dec.num_frames();
+    let has_alpha = dec.has_alpha();
+    let mut frames: Vec<(Vec<u8>, u32)> = Vec::with_capacity(n as usize);
+    for _ in 0..n {
+        let mut buf = vec![0u8; dec.output_buffer_size().unwrap_or(0)];
+        match dec.read_frame(&mut buf) {
+            Ok(dur_ms) => {
+                let rgba = if has_alpha {
+                    buf
+                } else {
+                    // RGB → RGBA：每 3 字节插一个 255 的 alpha。
+                    let mut out = vec![0u8; buf.len() / 3 * 4];
+                    let mut j = 0;
+                    let mut i = 0;
+                    while i + 3 <= buf.len() {
+                        out[j] = buf[i];
+                        out[j + 1] = buf[i + 1];
+                        out[j + 2] = buf[i + 2];
+                        out[j + 3] = 255;
+                        i += 3;
+                        j += 4;
+                    }
+                    out
+                };
+                frames.push((rgba, dur_ms));
+            }
+            Err(_) => break,
+        }
+    }
+    if frames.is_empty() {
+        return Err(ERR_CORRUPT);
+    }
+    Ok(WebpAnimSession {
+        canvas,
+        frames,
+        fp: webp_anim_fingerprint(data),
+    })
+}
+
+/// 查询/渲染阶段共用的 WebP 动画会话查找（按输入字节指纹匹配）。
+/// 返回 `(canvas_w, canvas_h, rgba, duration_ms, frame_count)`。
+fn webp_anim_serve(data: &[u8], frame_index: u32) -> Result<(u32, u32, Vec<u8>, u32, u32), i32> {
+    let fp = webp_anim_fingerprint(data);
+    let mut pool = webp_anim_sessions();
+
+    // 查找匹配会话。
+    if let Some(pos) = pool.iter().position(|s| s.fp == fp) {
+        // LRU 触摸：挪到队首。
+        let s = pool.remove(pos);
+        pool.insert(0, s);
+    } else {
+        let session = webp_anim_decode(data)?;
+        if pool.len() >= 2 {
+            pool.pop();
+        }
+        pool.insert(0, session);
+    }
+
+    let s = &pool[0];
+    let (rgba, dur) = s.frame(frame_index);
+    Ok((
+        s.canvas.0,
+        s.canvas.1,
+        rgba.clone(),
+        *dur,
+        s.frames.len() as u32,
+    ))
+}
+
+/// WebP 动画轻量查询（libwebp 后端）：只读头不解码，返回 `(Some(count), delay_ms)` 或 `(None, 0)`。
+#[cfg(feature = "webp-c")]
+fn webp_anim_query(data: &[u8]) -> Result<(Option<u32>, u32), i32> {
+    use libwebp_sys::{WebPAnimDecoderOptions, WebPAnimInfo};
+    let mut opts: WebPAnimDecoderOptions = unsafe { std::mem::zeroed() };
+    unsafe { libwebp_sys::WebPAnimDecoderOptionsInit(&mut opts) };
+    opts.color_mode = libwebp_sys::MODE_RGBA;
+    opts.use_threads = 0;
+
+    let dec = unsafe {
+        libwebp_sys::WebPAnimDecoderNew(
+            &libwebp_sys::WebPData {
+                bytes: data.as_ptr(),
+                size: data.len(),
+            },
+            &opts,
+        )
+    };
+    if dec.is_null() {
+        return Ok((None, 0));
+    }
+
+    let mut info: WebPAnimInfo = unsafe { std::mem::zeroed() };
+    let ok = unsafe { libwebp_sys::WebPAnimDecoderGetInfo(dec, &mut info) };
+    let has_anim = ok != 0 && info.frame_count > 0;
+    unsafe { libwebp_sys::WebPAnimDecoderDelete(dec) };
+    Ok((has_anim.then_some(info.frame_count), 0))
+}
+
+/// WebP 动画轻量查询（image-webp 后端）。
+#[cfg(all(not(feature = "webp-c"), feature = "webp-rust"))]
+fn webp_anim_query(data: &[u8]) -> Result<(Option<u32>, u32), i32> {
+    let dec = image_webp::WebPDecoder::new(Cursor::new(data)).map_err(|_| ERR_CORRUPT)?;
+    if dec.is_animated() {
+        let n = dec.num_frames();
+        Ok((Some(n), 0))
+    } else {
+        Ok((None, 0))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2553,6 +2829,103 @@ mod tests {
             ERR_OK
         );
         assert_eq!(info.icc_len, 0);
+    }
+
+    /// 动图逐帧服务：查询报真帧数 + 逐帧像素随帧变 + 越界回绕 + 单帧静态图不误判为动画。
+    #[test]
+    fn webp_frames_play_and_wrap() {
+        // 3 帧 4x3 动画：第 i 帧整帧纯色 = 红/绿/蓝，duration=100ms（Pillow 无损编码）。
+        let bytes = include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../testdata/golden/anim_4x3_3f.webp"
+        ));
+
+        let req = IvRenderReq {
+            target_w: 0,
+            target_h: 0,
+            budget_bytes: 0,
+            flags: 0,
+            frame_index: 0,
+            page_index: 0,
+        };
+        let mut info = IvRenderOut::default();
+
+        // 查询：尺寸正确；count 由 WebPAnimDecoderGetInfo 在第一帧之前就给出。
+        let q = iv_render(
+            bytes.as_ptr(),
+            bytes.len(),
+            &req,
+            std::ptr::null_mut(),
+            0,
+            &mut info,
+            std::ptr::null(),
+        );
+        assert_eq!(q, ERR_OK);
+        assert_eq!((info.actual_w, info.actual_h), (4, 3));
+        assert_eq!(info.frame_count, 3, "查询阶段就该知道总共 3 帧");
+
+        // 逐帧渲染：像素随帧变；每一帧的 count 都是 3，宿主不会写出 `帧 1/?`。
+        let expect = [[255u8, 0, 0], [0, 255, 0], [0, 0, 255]];
+        for i in 0..3u32 {
+            let req = IvRenderReq {
+                frame_index: i,
+                ..req
+            };
+            let mut info = IvRenderOut::default();
+            let q = iv_render(
+                bytes.as_ptr(),
+                bytes.len(),
+                &req,
+                std::ptr::null_mut(),
+                0,
+                &mut info,
+                std::ptr::null(),
+            );
+            assert_eq!(q, ERR_OK, "WebP 帧 {i} 查询失败");
+            let mut buf = vec![0u8; info.bytes_needed as usize];
+            let r = iv_render(
+                bytes.as_ptr(),
+                bytes.len(),
+                &req,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut info,
+                std::ptr::null(),
+            );
+            assert_eq!(r, ERR_OK, "WebP 帧 {i} 渲染失败");
+            assert_eq!(&buf[0..3], &expect[i as usize][..], "WebP 帧 {i} 像素不符");
+            assert!(info.frame_delay_ms >= 10, "WebP 帧 {i} delay 应钳到 ≥10ms");
+            assert_eq!(info.frame_count, 3, "WebP 帧 {i} 也该报得出总帧数");
+        }
+
+        // 帧 3：已知 3 帧 → 取模回绕到帧 0。
+        let req = IvRenderReq {
+            frame_index: 3,
+            ..req
+        };
+        let mut info = IvRenderOut::default();
+        iv_render(
+            bytes.as_ptr(),
+            bytes.len(),
+            &req,
+            std::ptr::null_mut(),
+            0,
+            &mut info,
+            std::ptr::null(),
+        );
+        let mut buf = vec![0u8; info.bytes_needed as usize];
+        let r = iv_render(
+            bytes.as_ptr(),
+            bytes.len(),
+            &req,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut info,
+            std::ptr::null(),
+        );
+        assert_eq!(r, ERR_OK);
+        assert_eq!(info.frame_count, 3, "WebP 回绕后仍要报出总帧数");
+        assert_eq!(&buf[0..3], &[255, 0, 0], "WebP 帧 3 应回绕到帧 0");
     }
 
     fn ico_frame(kind: u16, payload: &[u8]) -> Vec<u8> {

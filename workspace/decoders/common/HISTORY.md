@@ -2,6 +2,27 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.2.6 — 2026-11-02 — abi 6
+
+- **MPO 多图**：从"只出首图"改为**按 `page_index` 取子图**。查询报真实 `page_count`
+  （按段链实走一遍数出几份完整 JPEG），渲染按 `page_index` 切出对应那一份再交给解码库。
+  `page_index` 越界如实报 `ERR_CORRUPT`（不冒充首页）。
+  为什么不读 MPF（APP2）里的 MPEntry 偏移：实测那份 Pillow 生成的 MPO，APP2 长度字段
+  少报 26 字节、MPF 的 TIFF 头字节序位全是 0，按字段解会拿到垃圾偏移。
+  为什么不"扫所有 FFD8"：EXIF 缩略图本身就是一份内嵌的完整 JPEG，裸扫会让**每张带缩略图
+  的普通照片**都凭空多出一页。走段链时 APP1 有长度字段、整段跳过，页数恒为 1。
+- 未变：后缀集合、能力位、ABI。JPEG/TIFF/GIF/PNG 的单张行为与 0.2.5 逐字节相同。
+
+## 0.2.5 — 2026-11-02 — abi 6
+
+- **动图**：WebP 从"只出首帧"改为**逐帧服务**。查询阶段经 `WebPAnimDecoderGetInfo`
+  （libwebp）/ `num_frames`（image-webp）报真实帧数，渲染阶段按 `frame_index` 取帧，
+  每帧报自己的时长（libwebp 的累计 timestamp 已换算成相邻差值）。静态 WebP 行为不变。
+- **多页**：TIFF 从"只解首页"改为**按 `page_index` 导航**。查询报真实 `page_count`，
+  逐页渲染各页像素；`page_index` 越界如实报 `ERR_CORRUPT`（不冒充首页）。
+- 未变：后缀集合、能力位、ABI。`JPS/MPO` 仍只出首图——它们是立体对/多图容器，
+  不是动画（见 0.2.2）。
+
 ## 0.2.4 — 2026-10-29 — abi 6
 
 - 收口为 24 个默认后缀：移出 `pnm/ppm/pgm/pbm/pam`、`qoi`、`ff`、`dds`。

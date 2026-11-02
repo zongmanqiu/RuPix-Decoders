@@ -32,13 +32,15 @@
 `iv_render`（`:124-262`）先重查魔数（不符 → `ERR_UNRECOGNIZED "TIFF 魔数不对（应为 II/MM + 42）"`），
 再读 `req.page_index`，然后**先定档再解码**（`plan`，见下一节）：
 
-1. `read_shape`（`:717-759`）：`tiff::Decoder::new(Cursor)`；**`page != 0` 直接
-   `ERR_UNSUPPORTED "本解码器只解第一页，不支持请求第 N 页"`**；`dimensions()` 为 0 → CORRUPT；
+1. `read_shape`（`:717-780`）：`tiff::Decoder::new(Cursor)`；先 `count_pages` 沿 IFD 链数出
+   总页数（库会缓存偏移），`page >= page_count` → `ERR_UNSUPPORTED "请求第 N 页，但文件只有 M 页"`；
+   再 `seek_to_image(page)` 定位目标页（**`count_pages` 走完后 decoder 停在末页，所以必须无条件
+   seek，`page == 0` 也一样**）；`dimensions()` 为 0 → CORRUPT；
    `colortype()` 过 `layout_of` 白名单；再读 tag 284 `PlanarConfiguration`，`!= 1` → UNSUPPORTED
    （缺 tag 当 1 处理）。顺带算出**行寻址表**（下一节）。
-2. `decode_rgba`（`:867-889`）：**重开一次 decoder**，再读尺寸与色彩类型，两趟结果不一致
-   → `ERR_CORRUPT`；`read_image()` 拿到 `DecodingResult::U8` → `to_rgba8`，`U16` → `to_rgba8_16`，
-   其他（有符号 / 浮点）→ UNSUPPORTED。
+2. `decode_rgba`（`:891-915`）：**重开一次 decoder**，`seek_to_image(page)` 后再读尺寸与色彩类型，
+   两趟结果不一致 → `ERR_CORRUPT`；`read_image()` 拿到 `DecodingResult::U8` → `to_rgba8`，
+   `U16` → `to_rgba8_16`，其他（有符号 / 浮点）→ UNSUPPORTED。
 3. 通道展开的**唯一一张表**是 `put_px8`（`:894-916`）：RGBA 同布局；1 通道 → 灰复制 + α=255；
    2 通道 → 灰 + α=src[1]；3 通道 → +α=255；4 通道 → 原样。**16 bit 取高字节**（`v >> 8`，
    `to_rgba8_16` `:932`）。直写腿与库腿共用它——两张表就会在"档位图 ↔ 原图档"之间变色。
@@ -94,10 +96,17 @@ RowsPerStrip=0、条带数 > `MAX_STRIPS`（`:655`，上界取自声明尺寸而
 
 ## 多帧 / 多页
 
-**单页解码器**：`frame_count = 1`、`page_count = 1`、`frame_delay_ms = 0` 硬写（`fill_info`
-`:584-609` 注释，`:606`："只出首页……宿主今天也一律发 `page_index = 0`"）。第二页测试明确断言返回
-UNSUPPORTED 而**不是**偷偷再解一遍首页（`tests::second_page_reports_unsupported_instead_of_serving_page_zero`）。
-没有页数发现。
+**多页 TIFF 按 `page_index` 导航**（0.1.1 起，由 `common` 0.2.6 发布）：`read_shape` 先
+`count_pages` 沿 IFD 链数出总页数（库会缓存每页偏移，`seek_to_image` 是 O(1)），再
+`seek_to_image(page)` 定位目标页——**`count_pages` 走完后 decoder 停在末页，所以必须无条件
+seek，`page == 0` 也一样**。查询回填真实 `page_count`，渲染逐页出像素。
+
+越界页报 **`ERR_CORRUPT`**，不是 `ERR_UNSUPPORTED`——后者在宿主眼里是"这活不归我，换下一家"，
+会触发 common 回退到 core 的 `image` 路线**静默出首页**（用户请求第 3 页却看到第 0 页，
+比报错更糟）。用例 `out_of_range_page_is_corrupt_not_unsupported` 钉住这一条；
+`multipage_tiff_serves_each_page_and_reports_real_count` 验逐页像素与真实页数。
+
+`frame_count = 1`、`frame_delay_ms = 0`（TIFF 没有动画帧语义）。
 
 ## 元数据 / 色彩
 
@@ -106,8 +115,9 @@ UNSUPPORTED 而**不是**偷偷再解一遍首页（`tests::second_page_reports_
 （`:264-270`）。**方向读**（m48）：整个 TIFF 文件就是一枚 EXIF 块
 （II/MM + 42 + IFD0），`iv_render` `:195` 交给 kit 的 `exif_orientation`，`fill_info`
 `:599-603` 把 274 的值照实报进 `orientation` + `already_oriented = 0`，转正由宿主做。
-本解码器只解首页（第二页在 `read_shape` 就 `ERR_UNSUPPORTED`），所以"IFD0 的方向"与"这张页的方向"
-是同一件事。旧口径写死的 `1/1`（还把它论证成"避免宿主二次旋转"）已作废。
+本解码器按 `page_index` 解任意一页，方向取自 IFD0（`count_pages` 会走完整条 IFD 链，
+但 `exif_orientation` 读的是文件头 IFD0 的 274 标签——多页 TIFF 各页方向按 IFD0 统一处理）。
+旧口径写死的 `1/1`（还把它论证成"避免宿主二次旋转"）已作废。
 
 ## 错误码口径
 

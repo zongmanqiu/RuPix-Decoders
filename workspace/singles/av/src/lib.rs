@@ -5,7 +5,7 @@
 //!   iPhone 照片的 grid 拼图、8/10-bit、Display P3、`irot`/`imir`/`clap` 方向
 //!   全部在解码器内处理完，输出即显示就绪的 sRGB（`already_oriented = 1`）。
 //! - **AVIF** → [`zenavif`]：rav1d-safe 纯 Rust AV1 解码。8/10/12-bit、全部
-//!   色度抽样、alpha、动图（取首帧）。
+//!   色度抽样、alpha、动图（逐帧服务）。
 //!
 //! # 为什么 sniff 看 `ftyp` brand
 //!
@@ -22,7 +22,7 @@
 //!   覆盖的是单独 `irot`（0/90/180/270 CCW）与单独 `imir`；两者**同时**在场时应用
 //!   顺序由 `ipma` 关联次序决定（ISO 23008-12 §6.5.1），本解码器不解析 ipma，
 //!   此时保守报方向 1（躺平）而不是猜一个错的。
-//! - 动图取首帧（与宿主"看图器只显一帧"的模型一致）。
+//! - 动图逐帧服务（`frame_index` 选帧，报真 `frame_count`/`frame_delay_ms`）。
 
 #![allow(non_snake_case)]
 #![allow(linker_messages)]
@@ -145,6 +145,11 @@ pub fn render_impl(
         } else {
             unsafe { (*req).budget_bytes }
         };
+        let frame_index: u32 = if req.is_null() {
+            0
+        } else {
+            unsafe { (*req).frame_index }
+        };
 
         // AVIF 的 ispe 会撒谎：grid 拼图的最终尺寸未必能从 ipco 精确还原
         // （color_grid_alpha_nogrid 样本 ispe 报 80×80，zenavif 实际拼出
@@ -160,8 +165,8 @@ pub fn render_impl(
                     Ok(d) => d,
                     Err(code) => return code,
                 };
-                let bytes_needed = d.0.len() as u64;
-                if d.1 as u64 * d.2 as u64 > MAX_PIXELS {
+                let bytes_needed = d.frames[0].0.len() as u64;
+                if d.w as u64 * d.h as u64 > MAX_PIXELS {
                     set_last_error("图片超过 6400 万像素的解码器上限");
                     return ERR_TOO_LARGE;
                 }
@@ -169,7 +174,17 @@ pub fn render_impl(
                     set_last_error("图片太大，超出宿主给的内存预算");
                     return ERR_TOO_LARGE;
                 }
-                fill_info_oriented(info, d.1, d.2, bytes_needed, d.3, d.4);
+                let (fc, fd) = anim_frame_info(&d.frames);
+                fill_info_oriented(
+                    info,
+                    d.w,
+                    d.h,
+                    bytes_needed,
+                    d.orientation,
+                    d.already_oriented,
+                    fc,
+                    fd,
+                );
                 return ERR_OK;
             }
             // HEIF + ispe 可信：微秒级查询，不碰 mdat。
@@ -194,8 +209,11 @@ pub fn render_impl(
             Ok(d) => d,
             Err(code) => return code,
         };
-        let (rgba, dw, dh, orientation, already_oriented) = (&d.0, d.1, d.2, d.3, d.4);
+
+        // 按 frame_index 选帧（越界自动回绕）。
+        let (rgba, frame_delay) = d.frame(frame_index);
         let bytes_needed = rgba.len() as u64;
+
         // budget 渲染阶段同样拦（查询被跳过时的兜底）。
         if budget != 0 && bytes_needed > budget as u64 {
             set_last_error("图片太大，超出宿主给的内存预算");
@@ -203,7 +221,12 @@ pub fn render_impl(
         }
         // HEIF 的容器 ispe 与解码不符 = 文件损坏；ispe 是旋转前尺寸，宽高互换
         // 后一致也算（heif-oxide 应用 irot）。AVIF 的 ispe 本就不可信。
-        if kind == Kind::Heif && w != 0 && h != 0 && (dw != w || dh != h) && (dw != h || dh != w) {
+        if kind == Kind::Heif
+            && w != 0
+            && h != 0
+            && (d.w != w || d.h != h)
+            && (d.w != h || d.h != w)
+        {
             set_last_error("解出的尺寸与容器 ispe 声明不符");
             return ERR_CORRUPT;
         }
@@ -214,19 +237,41 @@ pub fn render_impl(
         unsafe {
             std::ptr::copy_nonoverlapping(rgba.as_ptr(), out, bytes_needed as usize);
         }
-        fill_info_oriented(info, dw, dh, bytes_needed, orientation, already_oriented);
+        let (fc, _) = anim_frame_info(&d.frames);
+        fill_info_oriented(
+            info,
+            d.w,
+            d.h,
+            bytes_needed,
+            d.orientation,
+            d.already_oriented,
+            fc,
+            *frame_delay,
+        );
         ERR_OK
     })
 }
+
+/// 从帧列表推导 `(frame_count, frame_delay_ms)`。
+/// 单帧静态 = (1, 0)；动画 = (N, 首帧延时 ms，≥10 防忙转)。
+fn anim_frame_info(frames: &[(Vec<u8>, u32)]) -> (u32, u32) {
+    if frames.len() <= 1 {
+        (1, 0)
+    } else {
+        (frames.len() as u32, frames[0].1.max(10))
+    }
+}
+
 /// HEIF 查询阶段回填：`heif-oxide` 在解码器内就把 irot/imir/clap 应用完了，
 /// 输出即显示就绪，所以这里报 `orientation=1 / already_oriented=1`（宿主不再转）。
 /// AVIF 不走这条路（`query_needs_decode` 恒真），它的方向由 `decode_avif` 现读现报。
 #[inline]
 fn fill_info(info: *mut IvRenderOut, w: u32, h: u32, bytes_needed: u64) {
-    fill_info_oriented(info, w, h, bytes_needed, 1, 1);
+    fill_info_oriented(info, w, h, bytes_needed, 1, 1, 1, 0);
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)] // C ABI 的查询/渲染两阶段要一次填满 info，不再打包
 fn fill_info_oriented(
     info: *mut IvRenderOut,
     w: u32,
@@ -234,6 +279,8 @@ fn fill_info_oriented(
     bytes_needed: u64,
     orientation: i32,
     already_oriented: i32,
+    frame_count: u32,
+    frame_delay_ms: u32,
 ) {
     let oi = unsafe { &mut *info };
     oi.actual_w = w;
@@ -243,11 +290,10 @@ fn fill_info_oriented(
     oi.bit_depth = BIT_DEPTH_8;
     oi.orientation = orientation;
     oi.already_oriented = already_oriented;
-    // Static still: report it explicitly. The host reuses IvRenderOut across
-    // requests, so leaving these untouched can leak a previous file's frame count.
-    oi.frame_count = 1;
-    oi.frame_delay_ms = 0;
-    // v4：单页；ICC 不透传。frame/delay 缺省 0 = 静态（heic 动图后续再接）。
+    // 静态 HEIF 报 1/0；动画报真帧数 + 帧延时。
+    oi.frame_count = frame_count;
+    oi.frame_delay_ms = frame_delay_ms;
+    // v4：单页；ICC 不透传。
     oi.page_count = 1;
     oi.icc_len = 0;
 }
@@ -515,7 +561,27 @@ fn container_transform(data: &[u8]) -> Option<(i32, bool)> {
     Some((orientation, swap))
 }
 
-type DecodedRgba = (Vec<u8>, u32, u32, i32, i32); // (rgba, w, h, orientation, already_oriented)
+/// 解码产物：静态单帧 或 动画多帧（全部帧已解出，按 `frame_index` 取用）。
+///
+/// AVIF 的 `decode_animation` 一次性解全部帧（不像 GIF 的串行迭代器），
+/// 所以全部帧缓存在 `frames` 里，渲染阶段按 `frame_index % N` 取帧，零重复解码。
+struct DecodedRgba {
+    w: u32,
+    h: u32,
+    orientation: i32,
+    already_oriented: i32,
+    /// 全部帧 `(RGBA 像素, 该帧延时 ms)`。静态时恰好 1 帧（延时 0）。
+    frames: Vec<(Vec<u8>, u32)>,
+}
+
+impl DecodedRgba {
+    /// 取第 `idx` 帧（越界自动回绕）。返回 `(RGBA, 该帧延时 ms)`。
+    fn frame(&self, idx: u32) -> &(Vec<u8>, u32) {
+        let n = self.frames.len();
+        let i = if n == 0 { 0 } else { (idx as usize) % n };
+        &self.frames[i]
+    }
+}
 
 // ---------------------------------------------------------------------------
 // 阶段 2：真解码
@@ -577,7 +643,13 @@ fn decode_heif(data: &[u8]) -> Result<DecodedRgba, i32> {
     match heif_oxide::decode_bytes(data) {
         Ok(img) => {
             let rgba = img.to_rgba8();
-            Ok((rgba, img.width, img.height, 1, 1))
+            Ok(DecodedRgba {
+                w: img.width,
+                h: img.height,
+                orientation: 1,
+                already_oriented: 1,
+                frames: vec![(rgba, 0)],
+            })
         }
         Err(e) => {
             let s = e.to_string();
@@ -595,35 +667,59 @@ fn decode_heif(data: &[u8]) -> Result<DecodedRgba, i32> {
     }
 }
 
-/// AVIF：zenavif 解码（动图取首帧；方向元数据转成 EXIF orientation 回报宿主）。
+/// AVIF：zenavif 解码。先试 `decode_animation()`（动图返回全部帧，静态返回 `Unsupported`），
+/// 静态再退回 `decode()`。方向元数据转成 EXIF orientation 回报宿主。
 fn decode_avif(data: &[u8]) -> Result<DecodedRgba, i32> {
-    // 静图优先；动图（Error::Unsupported）退到 decode_animation 取首帧。
-    let buf = match zenavif::decode(data) {
-        Ok(b) => b,
-        Err(_) => {
-            let anim = zenavif::decode_animation(data).map_err(|e| {
-                set_last_error(&format!("zenavif 库报错 \"{e}\""));
-                map_zenavif_err(&e.to_string())
-            })?;
-            anim.frames
-                .into_iter()
-                .next()
-                .map(|f| f.pixels)
-                .ok_or_else(|| {
-                    set_last_error("动图没有任何帧");
-                    ERR_CORRUPT
-                })?
-        }
-    };
-
-    let (w, h) = (buf.width(), buf.height());
-    let rgba = pixel_buffer_to_rgba8(&buf)?;
     // zenavif 不应用 irot/imir。方向从容器现读（常数级开销，不碰 mdat），
     // 按 EXIF 语义**如实**回报并声明 already_oriented=0，让宿主
     // core::geometry.rs::oriented 补转——像素与 actual_w/h 都是**未转**的存储态，
     // 宿主按 5..=8 自行换边，两边对得上。
     let orientation = container_transform(data).map(|(o, _)| o).unwrap_or(1);
-    Ok((rgba, w, h, orientation, 0))
+
+    let (w, h, frames) = match zenavif::decode_animation(data) {
+        Ok(anim) => {
+            let n = anim.frames.len();
+            if n == 0 {
+                set_last_error("动图没有任何帧");
+                return Err(ERR_CORRUPT);
+            }
+            // 所有帧的尺寸必须一致（AVIF 动画的固有约束）。
+            let (w, h) = (
+                anim.frames[0].pixels.width(),
+                anim.frames[0].pixels.height(),
+            );
+            let mut frames = Vec::with_capacity(n);
+            for f in &anim.frames {
+                let rgba = pixel_buffer_to_rgba8(&f.pixels)?;
+                let (fw, fh) = (f.pixels.width(), f.pixels.height());
+                if (fw, fh) != (w, h) {
+                    set_last_error("动图各帧尺寸不一致");
+                    return Err(ERR_CORRUPT);
+                }
+                frames.push((rgba, f.duration_ms));
+            }
+            (w, h, frames)
+        }
+        Err(_) => {
+            // 不是动画（或解码失败）。先试 decode()——静态 AVIF 走快路径；
+            // decode() 也失败的才是真错误。
+            let buf = zenavif::decode(data).map_err(|e| {
+                set_last_error(&format!("zenavif 库报错 \"{e}\""));
+                map_zenavif_err(&e.to_string())
+            })?;
+            let (w, h) = (buf.width(), buf.height());
+            let rgba = pixel_buffer_to_rgba8(&buf)?;
+            (w, h, vec![(rgba, 0u32)])
+        }
+    };
+
+    Ok(DecodedRgba {
+        w,
+        h,
+        orientation,
+        already_oriented: 0,
+        frames,
+    })
 }
 
 /// zenavif 的 PixelBuffer → RGBA8（非预乘）。
@@ -1224,7 +1320,13 @@ mod tests {
     fn heif_render_hits_the_shared_cache() {
         const PX: u32 = 3;
         let bytes: Vec<u8> = b"these bytes are not a real HEIC but that is the point".to_vec();
-        let primed = Rc::new((vec![7u8; (PX * PX * 4) as usize], PX, PX, 1, 1));
+        let primed = Rc::new(DecodedRgba {
+            w: PX,
+            h: PX,
+            orientation: 1,
+            already_oriented: 1,
+            frames: vec![(vec![7u8; (PX * PX * 4) as usize], 0)],
+        });
         let keep = Rc::clone(&primed);
         let key = (bytes.len(), fingerprint(&bytes));
         DECODE_CACHE.with(|c| *c.borrow_mut() = Some((key.0, key.1, primed)));
@@ -1234,8 +1336,8 @@ mod tests {
             Rc::ptr_eq(&got, &keep),
             "第二次渲染必须复用同一份解码结果，不是重解一遍"
         );
-        assert_eq!((got.1, got.2), (PX, PX));
-        assert_eq!(got.0[0], 7, "拿到的必须是缓存里那份像素");
+        assert_eq!((got.w, got.h), (PX, PX));
+        assert_eq!(got.frames[0].0[0], 7, "拿到的必须是缓存里那份像素");
     }
 
     /// 同长度、不同内容**不许**命中（指纹承重）。上一枚测试填了键，这里换成改过一
@@ -1249,8 +1351,19 @@ mod tests {
         assert_eq!(other.len(), bytes.len(), "必须同长度才测得到指纹");
 
         let key = (bytes.len(), fingerprint(&bytes));
-        DECODE_CACHE
-            .with(|c| *c.borrow_mut() = Some((key.0, key.1, Rc::new((Vec::new(), 1, 1, 1, 1)))));
+        DECODE_CACHE.with(|c| {
+            *c.borrow_mut() = Some((
+                key.0,
+                key.1,
+                Rc::new(DecodedRgba {
+                    w: 1,
+                    h: 1,
+                    orientation: 1,
+                    already_oriented: 1,
+                    frames: vec![(Vec::new(), 0)],
+                }),
+            ))
+        });
         // 走真解：这段字节不是 HEIC，必须报错，而不是回缓存里那张 1×1。
         assert!(
             decode_cached(Kind::Heif, &other).is_err(),

@@ -1,6 +1,6 @@
 [package]
 name = "rupix-pro"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 专业档：JPEG2000 / JPEG XR / EXR / PSD / HDR / 设计源文件"

@@ -117,13 +117,18 @@ pub fn render_impl(
         } else {
             (unsafe { (*req).budget_bytes }) as u64
         };
+        let frame_index = if req.is_null() {
+            0
+        } else {
+            unsafe { (*req).frame_index }
+        };
 
         let fp = fingerprint(input);
 
         if out.is_null() {
             // ── 查询阶段：JXL 应用完 orientation 的真实尺寸只有解过才知道，所以这里
             //    必然解码一次；结果**留在缓存**里，紧随其后的渲染与同一张图的每次换档都复用。
-            let (w, h, bytes_needed) = match cached_entry(fp, input) {
+            let (w, h, bytes_needed, fc, fd) = match cached_entry(fp, input) {
                 Ok(v) => v,
                 Err(e) => {
                     set_last_error(e.msg());
@@ -134,14 +139,14 @@ pub fn render_impl(
                 set_last_error("图片太大，超出宿主给的内存预算");
                 return ERR_TOO_LARGE;
             }
-            fill_info(info, w, h, bytes_needed);
+            fill_info(info, w, h, bytes_needed, fc, fd);
             return ERR_OK;
         }
 
         // ── 渲染阶段：只**借用**缓存，不许 take 掉。旧写法把查询阶段那份一口拿走，
         //    于是同一张图的第二次渲染（换档、按 `1` 上原图档）只能重解一整遍——
         //    3840×2160 实测第二次请求 892.8 ms（生产 exe + stall_probe，2026-10-21 m77）。
-        let (w, h, bytes_needed) = match cached_entry(fp, input) {
+        let (w, h, bytes_needed, fc, _) = match cached_entry(fp, input) {
             Ok(v) => v,
             Err(e) => {
                 set_last_error(e.msg());
@@ -156,52 +161,65 @@ pub fn render_impl(
             set_last_error("内部错误（宿主给的缓冲小于申报值）");
             return ERR_BUFFER_TOO_SMALL;
         }
-        let filled = CACHE.with(|c| {
+        let delay = CACHE.with(|c| {
             let b = c.borrow();
             match b.as_ref().filter(|x| x.fp == fp) {
                 Some(e) => {
+                    let (rgba, delay) = e.decoded.frame(frame_index);
                     unsafe {
-                        std::ptr::copy_nonoverlapping(e.rgba.as_ptr(), out, bytes_needed as usize);
+                        std::ptr::copy_nonoverlapping(rgba.as_ptr(), out, bytes_needed as usize);
                     }
-                    true
+                    Some(*delay)
                 }
-                None => false,
+                None => None,
             }
         });
-        if !filled {
+        let Some(delay) = delay else {
             set_last_error("内部错误（刚写好的解码缓存不在原地）");
             return ERR_CORRUPT;
-        }
-        fill_info(info, w, h, bytes_needed);
+        };
+        fill_info(info, w, h, bytes_needed, fc, delay);
         ERR_OK
     })
 }
 /// 缓存里有没有这一张（按输入指纹）；没有就解一遍并**留下**，供同一张图的下一次请求命中。
-/// 返回 `(宽, 高, 需要的字节数)`——像素一律从缓存里取，不再另搬一份。
-fn cached_entry(fp: u64, input: &[u8]) -> Result<(u32, u32, u64), JxlErr> {
+/// 返回 `(宽, 高, 单帧字节数, 帧数, 首帧时长)`——像素一律从缓存里取，不再另搬一份。
+fn cached_entry(fp: u64, input: &[u8]) -> Result<(u32, u32, u64, u32, u32), JxlErr> {
     if let Some(hit) = CACHE.with(|c| {
-        c.borrow()
-            .as_ref()
-            .filter(|x| x.fp == fp)
-            .map(|x| (x.w, x.h, x.rgba.len() as u64))
+        c.borrow().as_ref().filter(|x| x.fp == fp).map(|x| {
+            let d = &x.decoded;
+            (
+                d.width,
+                d.height,
+                d.bytes(),
+                d.frames.len() as u32,
+                d.frames.first().map(|f| f.1).unwrap_or(0),
+            )
+        })
     }) {
         return Ok(hit);
     }
     let d = decode(input)?;
-    let v = (d.width, d.height, d.rgba.len() as u64);
-    CACHE.with(|c| {
-        *c.borrow_mut() = Some(Cached {
-            fp,
-            w: d.width,
-            h: d.height,
-            rgba: d.rgba,
-        })
-    });
+    let v = (
+        d.width,
+        d.height,
+        d.bytes(),
+        d.frames.len() as u32,
+        d.frames.first().map(|f| f.1).unwrap_or(0),
+    );
+    CACHE.with(|c| *c.borrow_mut() = Some(Cached { fp, decoded: d }));
     Ok(v)
 }
 
 #[inline]
-fn fill_info(info: *mut IvRenderOut, w: u32, h: u32, bytes_needed: u64) {
+fn fill_info(
+    info: *mut IvRenderOut,
+    w: u32,
+    h: u32,
+    bytes_needed: u64,
+    frame_count: u32,
+    frame_delay_ms: u32,
+) {
     let oi = unsafe { &mut *info };
     oi.actual_w = w;
     oi.actual_h = h;
@@ -210,8 +228,8 @@ fn fill_info(info: *mut IvRenderOut, w: u32, h: u32, bytes_needed: u64) {
     oi.bit_depth = BIT_DEPTH_8;
     oi.orientation = 1; // 已在解码时应用（见模块头）
     oi.already_oriented = 1;
-    oi.frame_count = 1;
-    oi.frame_delay_ms = 0; // 宿主不得再转一次
+    oi.frame_count = frame_count;
+    oi.frame_delay_ms = frame_delay_ms;
     oi.page_count = 1; // v4：单页；ICC 不透传（jxl-oxide 的 ICC 出口后续再接）。
     oi.icc_len = 0;
 }
@@ -224,9 +242,7 @@ struct Cached {
     /// 输入指纹：整遍内容算出来的键（见 `fingerprint`）。宿主在同一块 mmap 上换一张
     /// 恰好同长度的图是完全可能的，按地址或按"前 4 KiB + 长度"命中就是静默给用户看另一张图。
     fp: u64,
-    w: u32,
-    h: u32,
-    rgba: Vec<u8>,
+    decoded: Decoded,
 }
 
 thread_local! {
@@ -268,8 +284,28 @@ fn looks_like_jxl(bytes: &[u8]) -> bool {
 struct Decoded {
     width: u32,
     height: u32,
-    rgba: Vec<u8>,
+    /// 逐帧 `(RGBA, duration_ms)`。单帧 JXL 就是 `len() == 1`。
+    /// JXL 动画的每一帧都是一个可独立渲染的 keyframe（`render_frame(i)`）。
+    frames: Vec<(Vec<u8>, u32)>,
 }
+
+impl Decoded {
+    /// 取第 `idx` 帧（越界取模回绕）。空列表不该出现（decode 会先拒绝）。
+    fn frame(&self, idx: u32) -> &(Vec<u8>, u32) {
+        let n = self.frames.len();
+        let i = if n == 0 { 0 } else { (idx as usize) % n };
+        &self.frames[i]
+    }
+
+    /// 单帧字节数（`w*h*4`）。
+    fn bytes(&self) -> u64 {
+        self.frames.first().map(|f| f.0.len() as u64).unwrap_or(0)
+    }
+}
+
+/// 帧数上限。JXL 动画极罕见；超过这个数就当静态图出首帧，
+/// 避免一次把几百帧全解进内存（每帧最多 64 MP × 4B）。
+const MAX_ANIM_FRAMES: usize = 512;
 
 #[derive(Clone, Copy, Debug)]
 enum JxlErr {
@@ -313,7 +349,10 @@ impl JxlErr {
     }
 }
 
-/// 解码首帧为 RGBA8（非预乘），行主序，长度 `w*h*4`。orientation 已应用。
+/// 解码为 RGBA8（非预乘），行主序，每帧长度 `w*h*4`。orientation 已应用。
+///
+/// 动图：JXL 的每个动画帧都是可独立渲染的 keyframe，按 `render_frame(i)` 逐帧解。
+/// duration 以 tick 计，按 `tps_numerator / tps_denominator` 换算成毫秒。
 fn decode(bytes: &[u8]) -> Result<Decoded, JxlErr> {
     if !looks_like_jxl(bytes) {
         return Err(JxlErr::Unrecognized);
@@ -328,53 +367,98 @@ fn decode(bytes: &[u8]) -> Result<Decoded, JxlErr> {
         .pool(JxlThreadPool::none())
         .read(bytes)
         .map_err(|e| JxlErr::from_msg(&e.to_string()))?;
-    let render = image
-        .render_frame(0)
-        .map_err(|e| JxlErr::from_msg(&e.to_string()))?;
 
-    // `image_all_channels` 已应用 orientation，且含各 extra channel（alpha 在其中）。
-    let fb = render.image_all_channels();
-    let w = fb.width() as u32;
-    let h = fb.height() as u32;
-    if w == 0 || h == 0 {
-        return Err(JxlErr::Corrupt);
-    }
-    let px = (w as u64).checked_mul(h as u64).ok_or(JxlErr::Corrupt)?;
-    if px > MAX_PIXELS {
-        return Err(JxlErr::TooLarge);
-    }
+    // 帧数与 tps：`num_loaded_keyframes()` 是可直接显示的帧数。
+    let keyframes = image.num_loaded_keyframes();
+    // tps：tick → 毫秒的换算因子。缺 animation 头时按单帧处理。
+    let (tick_to_ms_num, tick_to_ms_den) = match &image.image_header().metadata.animation {
+        Some(a) if a.tps_numerator > 0 && a.tps_denominator > 0 => {
+            // ms = tick * tps_denominator * 1000 / tps_numerator
+            (a.tps_denominator as u64 * 1000, a.tps_numerator as u64)
+        }
+        // 没有动画头（单帧）或 tps 非法：1 tick 当 1ms（单帧用不到 delay）。
+        _ => (1, 1),
+    };
+    // 超过上限就当静态图只出首帧，避免一次解几百帧爆内存。
+    let n = if keyframes == 0 {
+        1
+    } else {
+        keyframes.min(MAX_ANIM_FRAMES)
+    };
 
-    let ch = fb.channels();
-    let samples = fb.buf();
-    let n = px as usize;
-    if ch == 0 || samples.len() < n.saturating_mul(ch) {
-        return Err(JxlErr::Corrupt);
-    }
-
-    let mut rgba: Vec<u8> = Vec::new();
-    rgba.try_reserve_exact(n * 4).map_err(|_| JxlErr::Oom)?;
+    let mut frames: Vec<(Vec<u8>, u32)> = Vec::with_capacity(n);
+    let mut dims: Option<(u32, u32)> = None;
     for i in 0..n {
-        let b = i * ch;
-        // 通道布局：1=灰度, 2=灰度+alpha, 3=RGB, 4=RGBA。
-        // >4（含额外通道，如 black）时取前 3 当 RGB、补不透明 alpha——
-        // 额外通道的顺序不保证，宁可当不透明也不误把黑通道当 alpha。
-        let (r, g, bl, a) = match ch {
-            1 => (samples[b], samples[b], samples[b], 1.0),
-            2 => (samples[b], samples[b], samples[b], samples[b + 1]),
-            3 => (samples[b], samples[b + 1], samples[b + 2], 1.0),
-            4 => (samples[b], samples[b + 1], samples[b + 2], samples[b + 3]),
-            _ => (samples[b], samples[b + 1], samples[b + 2], 1.0),
+        let render = image
+            .render_frame(i)
+            .map_err(|e| JxlErr::from_msg(&e.to_string()))?;
+        // `image_all_channels` 已应用 orientation，且含各 extra channel（alpha 在其中）。
+        let fb = render.image_all_channels();
+        let w = fb.width() as u32;
+        let h = fb.height() as u32;
+        if w == 0 || h == 0 {
+            return Err(JxlErr::Corrupt);
+        }
+        // 所有帧必须同尺寸（JXL 动画画布固定）。
+        match dims {
+            Some(d) if d != (w, h) => return Err(JxlErr::Corrupt),
+            _ => dims = Some((w, h)),
+        }
+        let px = (w as u64).checked_mul(h as u64).ok_or(JxlErr::Corrupt)?;
+        if px > MAX_PIXELS {
+            return Err(JxlErr::TooLarge);
+        }
+
+        let ch = fb.channels();
+        let samples = fb.buf();
+        let np = px as usize;
+        if ch == 0 || samples.len() < np.saturating_mul(ch) {
+            return Err(JxlErr::Corrupt);
+        }
+
+        let mut rgba: Vec<u8> = Vec::new();
+        rgba.try_reserve_exact(np * 4).map_err(|_| JxlErr::Oom)?;
+        for k in 0..np {
+            let b = k * ch;
+            // 通道布局：1=灰度, 2=灰度+alpha, 3=RGB, 4=RGBA。
+            // >4（含额外通道，如 black）时取前 3 当 RGB、补不透明 alpha——
+            // 额外通道的顺序不保证，宁可当不透明也不误把黑通道当 alpha。
+            let (r, g, bl, a) = match ch {
+                1 => (samples[b], samples[b], samples[b], 1.0),
+                2 => (samples[b], samples[b], samples[b], samples[b + 1]),
+                3 => (samples[b], samples[b + 1], samples[b + 2], 1.0),
+                4 => (samples[b], samples[b + 1], samples[b + 2], samples[b + 3]),
+                _ => (samples[b], samples[b + 1], samples[b + 2], 1.0),
+            };
+            rgba.push(to_u8(r));
+            rgba.push(to_u8(g));
+            rgba.push(to_u8(bl));
+            rgba.push(to_u8(a));
+        }
+
+        // duration（tick）→ 毫秒；0 会让宿主判静态，所以钳到 ≥10ms。
+        // 单帧图不参与动画调度，delay 保持 0。
+        let delay = if n > 1 {
+            let ticks = image
+                .frame_header(i)
+                .map(|fh| fh.duration as u64)
+                .unwrap_or(0);
+            let ms = (ticks * tick_to_ms_num / tick_to_ms_den) as u32;
+            ms.max(10)
+        } else {
+            0
         };
-        rgba.push(to_u8(r));
-        rgba.push(to_u8(g));
-        rgba.push(to_u8(bl));
-        rgba.push(to_u8(a));
+        frames.push((rgba, delay));
     }
 
+    if frames.is_empty() {
+        return Err(JxlErr::Corrupt);
+    }
+    let (w, h) = dims.unwrap_or((0, 0));
     Ok(Decoded {
         width: w,
         height: h,
-        rgba,
+        frames,
     })
 }
 
@@ -411,24 +495,61 @@ mod tests {
     fn decodes_known_1x1_red() {
         let d = decode(RED_1X1).expect("decode ok");
         assert_eq!((d.width, d.height), (1, 1));
-        assert_eq!(d.rgba.len(), 4);
-        assert_eq!(d.rgba[0], 255, "R");
-        assert_eq!(d.rgba[1], 0, "G");
-        assert_eq!(d.rgba[2], 0, "B");
-        assert_eq!(d.rgba[3], 255, "A");
+        assert_eq!(d.frames.len(), 1, "静态图只有一帧");
+        let rgba = &d.frames[0].0;
+        assert_eq!(rgba.len(), 4);
+        assert_eq!(rgba[0], 255, "R");
+        assert_eq!(rgba[1], 0, "G");
+        assert_eq!(rgba[2], 0, "B");
+        assert_eq!(rgba[3], 255, "A");
+        assert_eq!(d.frames[0].1, 0, "静态图 delay 必须为 0");
     }
 
     #[test]
     fn decodes_gray_4x4_and_expands_alpha() {
         let d = decode(GRAY_4X4).expect("decode ok");
         assert_eq!((d.width, d.height), (4, 4));
-        assert_eq!(d.rgba.len(), 4 * 4 * 4);
+        assert_eq!(d.frames.len(), 1);
+        let rgba = &d.frames[0].0;
+        assert_eq!(rgba.len(), 4 * 4 * 4);
         // 灰度图：R=G=B，alpha 补 255。
-        for p in d.rgba.chunks_exact(4) {
+        for p in rgba.chunks_exact(4) {
             assert_eq!(p[0], p[1]);
             assert_eq!(p[1], p[2]);
             assert_eq!(p[3], 255);
         }
+    }
+
+    /// 真动画 JXL（libjxl testdata `cropped_traffic_light.jxl`，4 帧 50×80，
+    /// tps=100 ⇒ 1 tick=10ms，时长 3000/1000/3000/1000ms）：
+    /// 帧数、每帧时长、逐帧像素各不相同、越界回绕。
+    const ANIM_JXL: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../testdata/golden/anim_4f_traffic_light.jxl"
+    ));
+
+    #[test]
+    fn animated_jxl_serves_all_frames_with_real_durations() {
+        let d = decode(ANIM_JXL).expect("动画 JXL 解码失败");
+        assert_eq!((d.width, d.height), (50, 80));
+        assert_eq!(d.frames.len(), 4, "样本是 4 帧动画");
+        // tps=100/1 ⇒ 1 tick = 10ms。
+        let delays: Vec<u32> = d.frames.iter().map(|f| f.1).collect();
+        assert_eq!(delays, vec![3000, 1000, 3000, 1000], "每帧时长不符");
+
+        // 4 帧必须至少有两种不同画面（真动画）。
+        let mut distinct = 0;
+        let mut prev: Option<&Vec<u8>> = None;
+        for (rgba, _) in &d.frames {
+            if prev != Some(rgba) {
+                distinct += 1;
+                prev = Some(rgba);
+            }
+        }
+        assert!(distinct >= 2, "4 帧应至少有两种画面，实际 {distinct}");
+
+        // 越界回绕：帧 4 == 帧 0。
+        assert_eq!(d.frame(4).0, d.frame(0).0, "帧号 4 应回绕到帧 0");
     }
 
     #[test]

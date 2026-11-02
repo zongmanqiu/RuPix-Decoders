@@ -2,6 +2,15 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.4.3 — 2026-11-02 — abi 6
+
+- **动图**：Aseprite（`.ase/.aseprite`）从"只出第 0 帧"改为**逐帧服务**。查询报
+  `frames().len()` 与首帧时长，渲染按 `frame_index` 调 `render_frame(i)`，每帧报自己的
+  `duration`（毫秒，0 钳到 ≥10ms 防忙转）。合成口径仍固定为可见图层。
+- **PSD 不跟进**：PSD 的时间轴动画是私有时间轴，不是通用多帧图片语义；看图器打开 PSD
+  的预期是拼合图。本档 PSD 继续只出拼合图，这不是缺陷而是范围界定。
+- 未变：后缀集合、能力位、ABI。
+
 ## 0.4.2 — 2026-10-29 — abi 6
 
 - `ktx` / `ktx2` 移出（目标 texture），`dcm` / `dicom`、`nii`、`nrrd`、`mrc` / `mrcs` / `ccp4` / `map` 移出（目标 medical）。

@@ -2819,7 +2819,7 @@ version = "0.6.0"
 
 [[package]]
 name = "rupix-av"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "heif-oxide",
  "rgb",
@@ -2842,7 +2842,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "gif",
  "image",
@@ -2976,7 +2976,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-jxl"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "jxl-oxide",
  "rupix-abi",
@@ -2993,7 +2993,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-pro-ase"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aseprite-loader",
  "rupix-abi",
@@ -3140,7 +3140,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-tiff"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "rupix-abi",
  "tiff",

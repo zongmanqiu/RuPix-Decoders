@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-pro"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "rupix-abi",
  "rupix-merge-router",
@@ -456,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-pro-ase"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aseprite-loader",
  "rupix-abi",

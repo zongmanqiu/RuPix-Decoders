@@ -46,6 +46,23 @@ pub fn fill_info(
     orientation: i32,
     icc_len: u32,
 ) {
+    fill_info_frames(info, w, h, bytes_needed, orientation, icc_len, 1, 0);
+}
+
+/// 同上，但带帧语义（动图成员用）：`frame_count > 1` 且 `frame_delay_ms > 0`
+/// 宿主才会挂调度动画。单帧成员继续用 [`fill_info`]（等价于 `(1, 0)`）。
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
+pub fn fill_info_frames(
+    info: *mut IvRenderOut,
+    w: u32,
+    h: u32,
+    bytes_needed: u64,
+    orientation: i32,
+    icc_len: u32,
+    frame_count: u32,
+    frame_delay_ms: u32,
+) {
     if info.is_null() {
         return;
     }
@@ -57,8 +74,8 @@ pub fn fill_info(
     oi.bit_depth = 8;
     oi.orientation = orientation;
     oi.already_oriented = 0;
-    oi.frame_count = 1;
-    oi.frame_delay_ms = 0;
+    oi.frame_count = frame_count;
+    oi.frame_delay_ms = frame_delay_ms;
     oi.page_count = 1;
     oi.icc_len = icc_len;
 }

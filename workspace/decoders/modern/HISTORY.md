@@ -2,6 +2,16 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.3.3 — 2026-11-02 — abi 6
+
+- **动图**：JXL 从"只出首帧"改为**逐帧服务**。`num_loaded_keyframes()` 数帧、
+  `render_frame(i)` 逐帧渲染；`FrameHeader.duration`（tick）按
+  `tps_denominator * 1000 / tps_numerator` 换算成毫秒。帧数上限 512（超限当静态图出首帧，
+  避免一次解几百帧吃满内存）。静态 JXL 行为不变。
+- **动图**：AVIF/AVIFS 逐帧服务（`decode_animation` 优先于 `decode`——后者对动图
+  也返回 `Ok` 且静默只给首帧）。每帧独立时长取自动画头。
+- 未变：后缀集合、能力位、ABI、orientation 口径（仍在解码时应用并报 `already_oriented=1`）。
+
 ## 0.3.2 — 2026-10-29 — abi 6
 
 - 收编 `qoi` 与 `ff`：QOI 复用 `rupix-qoi`，Farbfeld 使用新 `rupix-ff` 单库。

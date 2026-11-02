@@ -13,7 +13,6 @@ crate 校验值），它搬进了同一节。
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import shutil
@@ -187,7 +186,7 @@ def main():
         if entry is None:
             print("skip %s: no index entry" % tier)
             continue
-        missing = [key for key in ("version", "size", "sha256", "released", "gitee", "github")
+        missing = [key for key in ("version", "size", "released", "gitee", "github")
                    if not entry.get(key)]
         if missing:
             raise SystemExit(
@@ -264,10 +263,9 @@ own licenses. Full license texts are in `licenses/`.
             for p in sorted(folder.rglob("*")):
                 if p.is_file():
                     add_entry(z, p.relative_to(stage).as_posix(), p.read_bytes())
-        digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
-        # 这枚 digest 是 **ZIP 的**；`decoders.json.sha256` 是包内 DLL 的（宿主也比 DLL 那一枚）。
-        # 两者不必相等也不该相等——分层判据见 docs/releasing.md「改了哪一层材料」。
-        print(f"{zip_path}  {zip_path.stat().st_size} B  sha256={digest}  deps={len(deps)} licenses={len(ids)}")
+        # 不再打印 ZIP 的 sha256（2026-11-02 用户口径：清单与宿主都不校验哈希）。
+        # 上传时平台会显示自己的校验值，够用；本仓不再产出第二份需要人工核对的数字。
+        print(f"{zip_path}  {zip_path.stat().st_size} B  deps={len(deps)} licenses={len(ids)}")
         built += 1
     if not built:
         raise SystemExit("no packages built")

@@ -41,10 +41,10 @@ webp;bmp;dib;rle;ico;icon;cur;ani;tga;icns",
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.2.4",
+    "version" => "0.2.6",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-29",
+    "released" => "2026-11-02",
 }
 
 /// 成员表。**顺序不影响路由**（按探针置信度排序），只影响同分时的先后。

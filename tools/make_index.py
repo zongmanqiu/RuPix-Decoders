@@ -7,14 +7,13 @@
 包裹层——那些只是把"一个列表"翻译成"一个对象的字段"，宿主每读一次都要多剥两层，
 人眼也得先跳过三行才知道正文在哪。清单里只有一种东西（DLL），那就只写这一种东西。
 
-每项十三个字段，顺序固定：
+每项十二个字段，顺序固定：
 
     id        解码器标识（小写；停用表与下载目录都按它认人，**不从文件名反推**）
     name      解码器名称（DLL 自述的 display_name，**不是 DLL 文件名**）
     version   版本号（`<id>_<ver>.dll` 的 ver 段，build.ps1 从 [package] 盖的章）
     abi       ABI 大版本（`iv_abi_version()`，宿主按它决定收不收）
-    size      字节数（下载后先按它挡截断/多收）
-    sha256    DLL 的 SHA-256（小写十六进制；下载后逐字节核对，挡同字节数替换）
+    size      字节数（**只用于显示**，宿主不拿它做任何判定）
     released  发布时间 `YYYY-MM-DD`（未发布的项为空串）
     desc      一句话说明（DLL 自述）
     formats   认领的扩展名，**分号分隔、不带点**（与 ABI `IvDecoderInfo.extensions`
@@ -24,15 +23,29 @@
     gitee     DLL 下载地址（Gitee 源；未发布为空串）
     github    DLL 下载地址（GitHub 源；未发布为空串；默认由 gitee 推导，可显式覆盖）
 
-# 为什么有 sha256、没有 file
+# 清单里没有哈希（2026-11-02 用户口径）
 
-`sha256` 与 `size` 不是二选一：`size` 挡截断/多收（用户能一眼看懂"清单写 1,967,104 B，
-你下到 1,048,576 B"），`sha256` 挡**同字节数的替换/镜像篡改**；两者都由宿主在下载后核对。
-`file` 仍然不写：文件名恒等于 `<id>_<version>.dll`，能从另外两个字段算出来。
+以前这里有 `sha256`，2026-11-02 删掉了，理由是**它挡的东西不存在，而维护它的代价是真的**：
+
+- 这些 DLL 全部由本仓自己的 `build.ps1` 产出，release 资产只有作者能发。要防的"第三方
+  替换/篡改"在这条链路上没有入口，清单里的一串十六进制只是给自己的产物再造一份副本。
+- 维护成本却很实在：MSVC 每次链接都生成新的 PDB GUID，**同一份源码重编出来的 DLL 字节
+  必变**（尺寸可能一模一样）。于是每次发布都要重算清单、重传资产，任何一次顺序搞错
+  （编 → 改清单 → 又编一次）都会让清单与已上传资产脱节，宿主那边就报"大小不符"。
+  这条假警报比它挡住的真问题多得多。
+- 真正的身份判据是 `id` + `version`：`version` 由 `Cargo.toml` 的 `[package] version`
+  盖进 DLL 文件名与自述，两处一起 bump，装完宿主还要读 `iv_decoder_info().id` 核对。
+  **装错一枚或装上一枚"其实不是我们发的"**，靠这三处就够拦。
+
+`size` 留着，但只作显示（列表上那列"1.2 MB"），不参与任何判定——同样因为重编会让它漂。
+`file` 不写：文件名恒等于 `<id>_<version>.dll`，能从另外两个字段算出来。
+
+★ 这条口径与宿主两侧是**同一份约定**：宿主 `decoders/remote.rs` 与 `extensions/mod.rs`
+里也没有哈希校验。改清单结构必须两边一起改，否则读侧会静默丢掉整项。
 
 # 生成器拥有什么、你可以手改什么
 
-- **生成器覆盖**：id / name / version / abi / size / sha256 / desc / formats / author / license —— 全部从**发布目录里
+- **生成器覆盖**：id / name / version / abi / size / desc / formats / author / license —— 全部从**发布目录里
   那枚 DLL 自己**读出来（`iv_decoder_info`），所以"清单说 A、DLL 说 B"这种脱节
   **物理上不可能发生**，不需要靠纪律维持。
 - **你可以手改**：`gitee`、`github`、`released`。生成器没有网络，无从判断某个 release
@@ -60,14 +73,13 @@ from __future__ import annotations
 import argparse
 import ctypes
 import datetime
-import hashlib
 import json
 import os
 import pathlib
 import sys
 
 # 清单里的字段顺序 = 契约。改顺序会让 git diff 变得难读，也可能骗过"我只看了一眼"的评审。
-FIELDS = ("id", "name", "version", "abi", "size", "sha256", "released", "desc", "formats", "author", "license", "gitee", "github")
+FIELDS = ("id", "name", "version", "abi", "size", "released", "desc", "formats", "author", "license", "gitee", "github")
 
 
 def derive_github_url(gitee_url: str) -> str:
@@ -282,7 +294,6 @@ def main() -> int:
             "version": version,
             "abi": sd["abi"],
             "size": dll.stat().st_size,
-            "sha256": hashlib.sha256(dll.read_bytes()).hexdigest(),
             "released": released,
             "desc": sd["desc"],
             "formats": sd["formats"],
