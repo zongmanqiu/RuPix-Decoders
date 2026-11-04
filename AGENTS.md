@@ -169,6 +169,11 @@
   `pro` 在 `workspace/decoders/pro/` 下跑 `cargo build --release -p rupix-pro`；
   测试把 `build` 换成 `test -- --test-threads=1`。`build.ps1` 只在用户明确要求全量发版时用。
   单档构建后只替换 `.build/decoders/<id>_<ver>.dll` 并只重打该档 ZIP；不要重打其他档。
+- ★ **发布 ZIP 一律由 7-Zip 生成**（2026-11-04）：`package_decoders.py` 调 `7z` / `7za` /
+  `7zz`（或 `RUPIX_7Z` 指到可执行文件）打 `-tzip -mx=9` 的**标准 ZIP**，压缩率高于默认
+  Deflate；找不到工具直接报错退出，**不退回 Python `zipfile` 直接写包**。打包前把暂存目录
+  （含目录自身）的 mtime 压到 `1980-01-01`，并用 `-mtm/-mta/-mtc=off` 关掉高精度时间字段，
+  保住"同内容同字节"。规则与实测见 `docs/releasing.md`，前置依赖见 `docs/building.md`。
 - 发布目录**只有** DLL（在 `../.temp/decoder-dist`）；中间产物在 `<target-dir>/release/<id>.dll`（`<target-dir>` =
   `../../.temp/decoder-target`，由 `build.ps1` 从 `workspace/.cargo/config.toml` 解析，不在源码目录里），
   脚本改名后拷出。
@@ -240,7 +245,7 @@
   ICO 256 px、PBM 1 bpp、BC1 0.5 B/px、GRAY8 1 B/px、GIF 8 bpp、4:2:x 1.5 B/px；
   各档实际数量以 `manifest.json` 为准，别在这里写死会过期的计数。
 - **两个 gate**：解码器自身拒绝 >64 MP（各档 `const MAX_PIXELS`，由 `check_caps.py` 守），但宿主更早拒绝
-  >41 MP 或 >164 MB RGBA（main/src/core/pixels.rs MAX_PIXELS = 41_000_000）。样本保持在宿主上限之下，
+  >64 MP 或 >256 MB RGBA（main/src/core/pixels.rs MAX_PIXELS = 64 * 1024 * 1024）。样本保持在宿主上限之下，
   保证每行都能被查看器真正打开；想探 64 MP 解码器门需用 ABI 直接调用（budget_bytes = 0）。
 - 验证：宿主 `core_smoke.exe` 走真实用户路径（目录过滤 → 扩展名认领 → 两阶段渲染）。
   2026-10-25 实测：1M 档 **27 个非 rawpx 样本逐条 OK**（含改过尺寸的 100M 档 `.jpg` 5172²、
@@ -340,9 +345,9 @@
 
 | 项 | 命令 | 判据 |
 |---|---|---|
-| 编译 + 测试 + 发布 | `build.ps1` | exit 0，打印 `done: N decoder(s) published to <path> (abi v5)`，末尾清单自检不报结构缺口 |
+| 编译 + 测试 + 发布 | `build.ps1` | exit 0，打印 `done: N decoder(s) published to <path> (abi v6)`，末尾清单自检不报结构缺口 |
 | 依赖门禁 | `python tools/check_deps.py` | `violations: 0` |
-| 闸值门禁 | `python tools/check_caps.py` | `violations: 0`。管**等值**不管"哪个值才对"：① 各 crate 各自抄的 `const MAX_PIXELS`（64 MP，**分配闸**）必须同值——这条口径以前只靠注释互相引用（"与 core / png / jpeg / tiff 同口径"），没人读；② 宿主 `main/src/core/pixels.rs` 的 `MAX_PIXELS`（41 MP，**看图硬顶**）必须等于 `testdata/make_samples.py` 里那份镜像值（宿主不在这儿就打印 skip，不装成通过）。★ **同名两值是有意的**：两道闸管两件不同的事，改名统一会要重编 DLL 只换可读性，已判废（宿主 m120）；自证：`--selftest` |
+| 闸值门禁 | `python tools/check_caps.py` | `violations: 0`。管**等值**不管"哪个值才对"：① 各 crate 各自抄的 `const MAX_PIXELS`（64 MP，**分配闸**）必须同值——这条口径以前只靠注释互相引用（"与 core / png / jpeg / tiff 同口径"），没人读；② 宿主 `main/src/core/pixels.rs` 的 `MAX_PIXELS`（64 MP，**看图硬顶**）必须等于 `testdata/make_samples.py` 里那份镜像值（宿主不在这儿就打印 skip，不装成通过）。★ 两道闸现在同值，但管的仍是两件不同的事，改名统一会要重编 DLL 只换可读性，已判废（宿主 m120）；自证：`--selftest` |
 | 认领门禁 | `python tools/check_claims.py` | `violations: 0`：各档的 `extensions:` 字面量两两不相交；每个后缀在 `testdata/claims.tsv` 恰好出现一次；`verified` 必须有 golden/测试证据，`unverified` 必须有原因 |
 | 文档门禁 | `python tools/check_docs.py` | `missing: 0`（每个 `workspace/decoders/<id>/` 有 `README.md` + `HISTORY.md`、根 `解码器开发规范.md` 在、全仓相对链接可达、行数预算、`DOCS_MANIFEST` 覆盖、旧路径词、锚点不越界不落空行、**任何 .rs/.md/.ps1 文件里没有裸 NUL 字节、`.ps1` 全 ASCII**） |
 | 历史门禁 | `python tools/check_history.py` | `violations: 0`（各档 HISTORY 存在；最新版本 = `Cargo.toml`；ABI = `IV_ABI_VERSION`；日期 = `decoders.json.released`；**禁 `状态`/待上传/发布包生成/未发布/release tag/仓库 URL**） |

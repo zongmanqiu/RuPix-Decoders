@@ -17,10 +17,10 @@ hp;hpg;plo;hg;hgl;plt;hp1;hp2;hpgl;hpgl2;gl2",
 
 rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_REGION);
 rupix_abi::export_metadata! {
-    "version" => "0.2.2",
+    "version" => "0.2.3",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-11-01",
+    "released" => "2026-11-04",
     "vector_exts" => "dwg;dwt;dxf;wmf;wmz;emf;emz;pdf;\
 ps;ps1;ps2;ps3;prn;eps;ai;xps;oxps;\
 hp;hpg;plo;hg;hgl;plt;hp1;hp2;hpgl;hpgl2;gl2",

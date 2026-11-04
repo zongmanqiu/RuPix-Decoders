@@ -34,10 +34,10 @@ export_decoder! {
 rupix_abi::export_caps!(rupix_abi::CAP_FULL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.3.3",
+    "version" => "0.3.4",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-29",
+    "released" => "2026-11-04",
 }
 
 static MEMBERS: &[Member] = &[

@@ -40,7 +40,7 @@
 ## 三、接进档
 
 1. `workspace/decoders/<tier>/Cargo.toml` 加依赖：
-   `rupix-<id> = { path = "../../workspace/singles/<id>", default-features = false }`。
+   `rupix-<id> = { path = "../../singles/<id>", default-features = false }`。
 2. `src/lib.rs` 的 `MEMBERS` 加一行。
 3. 认领后缀写进该档 `export_decoder!` 的 `extensions`；八档后缀两两不相交
    （`check_claims.py` 守着）。

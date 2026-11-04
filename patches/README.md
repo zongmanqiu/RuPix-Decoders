@@ -6,7 +6,7 @@
 
 | 目录 | 上游 | 版本 | 补丁用在 | 补丁 |
 |---|---|---|---|---|
-| `emfsdk-0.2.0/` | `KaiserY/emfsdk`（crates.io `emfsdk`） | 0.2.0 | `doc` 档的 `doc-emf`（EMF/EMZ 文本） | E01 |
+| `emfsdk-0.2.0/` | `KaiserY/emfsdk`（crates.io `emfsdk`） | 0.2.0 | `doc` 档的 `doc-emf`（EMF/EMZ 文本） | E01 / E02 |
 
 ## 每个目录必须有什么
 

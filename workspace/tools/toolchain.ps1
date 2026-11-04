@@ -36,6 +36,29 @@ function Initialize-RuPixToolchain {
     }
     $script:RuPixToolchain.RustToolchain = $env:RUSTUP_TOOLCHAIN
 
+    # --- 1b. source-path fingerprint: keep the author disk out of the DLLs ---
+    # rustc bakes absolute paths into panic locations / debug info, so every shipped
+    # DLL carried "<repo>\abi\src\lib.rs" and "%USERPROFILE%\.rustup\..". A portable
+    # product must not ship that map. --remap-path-prefix is a plain prefix replace.
+    # NOTE: defining RUSTFLAGS REPLACES the rustflags pinned by every
+    # .cargo\config.toml in this workspace (all of them set +crt-static), so that
+    # flag is repeated here - same trap as main\build\size_map.py documents.
+    # Only set when absent: a caller can always override.
+    if (-not $env:USERPROFILE) { $env:USERPROFILE = "$env:SystemDrive\Users\$env:USERNAME" }
+    if (-not $env:RUSTFLAGS) {
+        $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        # Remap the WORKSPACE root (the parent that also holds .3rd, where the patched
+        # upstream copies live) when this repo sits inside it: the doc tier bakes
+        # .3rd\emfsdk-0.2.0\src\*.rs into its DLL, and a repo-root-only prefix would
+        # leave those five paths in. A standalone clone has no .3rd and remaps only
+        # itself. One root covers both because prefix replacement takes the longest
+        # match first - no need for two entries.
+        $wsRoot = Split-Path $repoRoot -Parent
+        $from = if (Test-Path (Join-Path $wsRoot '.3rd')) { $wsRoot } else { $repoRoot }
+        $env:RUSTFLAGS = "-C target-feature=+crt-static --remap-path-prefix={0}=. --remap-path-prefix={1}=~" -f $from, $env:USERPROFILE
+    }
+
+
     # --- 2. CC=gcc guard (V4: gcc is in PATH here; mixed linking = K06) ---
     if ($env:CC -and ($env:CC -match "gcc")) {
         Write-Error ("toolchain: CC={0} - this repo links with MSVC only (K06 mixed CRT); unset CC" -f $env:CC)

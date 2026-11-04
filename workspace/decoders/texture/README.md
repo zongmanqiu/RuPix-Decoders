@@ -24,7 +24,7 @@ Basis 额外接受 Basis KTX2 载荷。合并路由先试 KTX2 成员，KTX2 载
 - `texture 0.1.0` 覆盖上表 8 个格式。其余纹理候选
   （ACE/FSH/GAF/LIF/M8/MTX/RSB/SYJ/TIL/TIM/TM2/WAD/WAL 以及存在歧义的 BPR）
   留待以后；它们还没有成熟的纯 Rust 库。
-- DDS/ImageMagick 的畸形输入由 ABI `guard` 兜住；本版 PVR 只支持 PVR v3 PVRTC
+- 畸形 DDS 与其它纹理样本由 ABI `guard` 兜住；本版 PVR 只支持 PVR v3 PVRTC
   RGB/RGBA 2/4 bpp。
 - BLP 是刻意自写的：`blp` crate 会通过 `self_cell` 引入 GPL-2.0-only，与本 DLL 的
   AGPL-3.0 不兼容（加一份声明文件也不能解决）。本仓解析器覆盖 BLP1/BLP2 JPEG、

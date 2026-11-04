@@ -6,15 +6,21 @@
   MSYS2 UCRT64 的 `x86_64-w64-mingw32-gcc` 与 libcdr/libwpg/libzmf 静态库。
   `rustup` 工具链由 `workspace/tools/toolchain.ps1` 固定（本机无默认工具链）。
 - `python` 在 PATH（门禁脚本用）；`py` 启动器仅用于 `testdata/make_samples.py`（它需要 Pillow）。
+- ★ **打发布包还需要 7-Zip 命令行**（完整版的 `7z.exe` 或独立版 `7za.exe`）：
+  `tools/package_decoders.py` 只用它生成 `<id>_<version>.zip`（`-tzip -mx=9`，压缩率高于
+  原先的默认 Deflate）。PATH 里找不到时把环境变量 `RUPIX_7Z` 设成可执行文件的完整路径；
+  三者都没有就报错退出，**不会静默换回 Python `zipfile`**。只编 DLL、跑门禁不需要它。
+  规则与实测数据见 [`releasing.md`](releasing.md)。
 - 当前只有 `doc-legacy` 链原生 C++；其余档纯 Rust。形态 B（原生 C/C++ DLL）在场时，
   `workspace/tools/toolchain.ps1 -RequireNative` 会强制要求 vcvars64 / NASM / CMake。
-- ★ **构建 `doc` 还需要仓库外的 `../.3rd/emfsdk-0.2.0/`**（带补丁 E01 的副本，`doc-emf`
+- ★ **构建 `doc` 还需要仓库外的 `../.3rd/emfsdk-0.2.0/`**（带 E01 / E02 两块补丁的副本，`doc-emf`
   走 path 依赖）：少了它 `cargo` 直接报找不到包；换成 crates.io 上未打补丁的 0.2.0
-  能编过，但 EMF/EMZ 里的中文会静默退化成 5×7 点阵。副本的溯源见其 `SOURCE.md`，
+  能编过，但 EMF/EMZ 里的中文会静默退化成 5×7 点阵（缺 E01），缩放比小的 EMF+ 粗画笔还会把一次描边放大成十亿级像素写入、整张图永不返回（缺 E02）。副本的溯源见其 `SOURCE.md`，
   **补丁本身公开登记在本仓 `patches/emfsdk-0.2.0/`**——新机器按那里的 README 从上游原文重放：
 
   ```bash
   git -c core.autocrlf=false apply patches/emfsdk-0.2.0/E01-system-fonts-and-logfont.patch
+  git -c core.autocrlf=false apply patches/emfsdk-0.2.0/E02-pen-width-and-line-clip.patch
   ```
 
   `core.autocrlf=false` 不能省：Windows 上它默认是 true，`git apply` 会写出 CRLF，
@@ -151,3 +157,4 @@ cargo build --release -p rupix-common
 | 宿主镜像目录出现两份同 id | 发布后统一 prune；Windows 不允许覆盖已加载 DLL |
 | `check_docs.py` 报锚点越界 | 文档里只写符号名，不写裸行号；行号会搬 |
 | `cargo test` 假死 | 必须 `--test-threads=1`；并行会让会话池互相挤掉 |
+| DLL 里 `strings` 出 `C:\Users\…` 或工程绝对路径 | 构建没传 `--remap-path-prefix`（在 `workspace/tools/toolchain.ps1` 的「1b」段里）；直接 `cargo build` 会绕过它 | 用 `build.ps1`；改 `RUSTFLAGS` 时**必须把 `+crt-static` 一起写上**（env 整条覆盖 `rustflags`，见宿主仓 `docs/踩坑记录-6.md` K177） |

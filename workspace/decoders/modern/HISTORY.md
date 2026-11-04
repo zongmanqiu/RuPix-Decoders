@@ -2,6 +2,23 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.3.4 — 2026-11-04 — abi 6
+
+- **修复（挂死）**：AVIF/AVIFS 一律**单线程**解码（`zenavif::DecoderConfig::new().threads(1)`，
+  走 `decode_with` / `decode_animation_with`）。
+  病因：`rav1d-safe 0.5.7` 的多线程路径存在真实的别名竞争——`rav1d-disjoint-mut` 的
+  `DisjointMut` 校验器会在 `rav1d-worker-N` 上 panic（`overlapping DisjointMut:
+  current &mut _[40448..40512] ... existing &mut _[40500..40504]`）。**panic 发生在 worker
+  线程，而死等它的解码调用者收不到任何信号**，于是 `iv_render` 永不返回：宿主侧表现为
+  "这张图永远转圈、后面的图全堵住"，`catch_unwind` / SEH 都看不见（本线程没抛异常）。
+  单线程把 worker 整条路去掉，竞争与"等死掉的 worker"一起消失。
+- **代价**：AVIF 解码慢一些（1 MP 量级仍在几十毫秒；4K AVIF 从并行档降到单线程档）。
+  与"偶发永久挂死"比，这个取向沿用宪章 §5.1「跨机行为一致 > 快」。
+- **证据**：`noise.avif` 400×300 档重复解码——修前 3 轮×15 笔出现 1 次
+  `rav1d-worker-2 panicked` + 挂死（不可稳定复现，race 决定成败）；修后 100 笔
+  （4×15 + 2×10×2 文件）**0 panic、0 超时**。
+- 未变：后缀集合、能力位、ABI、orientation 口径、其余成员（JXL/JNG/QOI/Farbfeld）行为。
+
 ## 0.3.3 — 2026-11-02 — abi 6
 
 - **动图**：JXL 从"只出首帧"改为**逐帧服务**。`num_loaded_keyframes()` 数帧、

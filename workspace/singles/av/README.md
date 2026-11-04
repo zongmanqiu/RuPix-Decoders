@@ -152,7 +152,7 @@ irot=3 → 3000×4000 / EXIF 6）、`fingerprint_separates_same_length_different
 ★ 5 个 AVIF（315 B–10.6 KB，来源见 `smoke_av.rs:6-8`）住在**全仓共享的 `testdata/golden/`**
 （不在本 crate 里），且是**运行时 `std::fs::read`** 而非 `include_bytes!`——把仓库根挪走后
 不重编也没关系，但样本文件必须在那儿。
-`smoke_av.rs` 从 `<workspace>/../参考项目 读 HEIC/AVIF，缺文件打印 SKIP、真失败 `exit(1)`
+`smoke_av.rs` 从工作区外的样本目录读 HEIC/AVIF，缺文件打印 SKIP、真失败 `exit(1)`
 （`:131-162`）；**没有 HEIC 夹具**，所以 `decode_heif` 端到端未被测过（容器头解析已由上面的
 合成盒树锁住，缺的是 HEVC 载荷那条腿）。
 生产路径无 `unwrap`/`expect`/`panic!`（唯一的 `panic!` 在测试加载器，example 里有 `expect`）。

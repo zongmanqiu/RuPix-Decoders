@@ -15,13 +15,15 @@
 
 ## 认领（`iv_probe`）
 
-`iv_probe` 让三个成员各跑一遍探针，对外报**最高**的那个置信度（认=100，不认=0）：
+`iv_probe` 让五个成员各跑一遍探针，对外报**最高**的那个置信度（认=100，不认=0）：
 
 | 成员 | 认什么 | 置信度 |
 |---|---|---|
 | `av` | ISOBMFF 容器里的 `heic/heif/hif/avif/avifs`（按 `ftyp` 品牌） | 100 |
 | `jxl` | JXL 的两种容器：裸 codestream（`0xFF0A`）与 ISOBMFF 封装 | 100 |
 | `jng` | JNG 签名 `8B 4A 4E 47 0D 0A 1A 0A` | 100 |
+| `qoi` | QOI 头部签名 | 100 |
+| `ff` | Farbfeld 头部签名 | 100 |
 | 其它 | — | 0 |
 
 合并解码器对外只有一个身份，"我有多确定"必须取最确定的那个——否则一个报 100 的成员
@@ -45,6 +47,14 @@ JNG 当前只实现 **8-bit JPEG + PNG alpha**；`JHDR` 的 12/20-bit 样本返�
 `ERR_UNSUPPORTED`。`JDAA` JPEG-alpha 分支已实现但还没有独立 fixture；
 已入库的 `jng_64x48_alpha.jng` 覆盖 PNG-alpha。
 
+## AVIF 的线程取舍（0.3.4 起）
+
+AVIF/AVIFS 一律**单线程**解码（`zenavif::DecoderConfig::new().threads(1)`）。
+`rav1d-safe 0.5.7` 的多线程路径有真实的别名竞争：worker 线程 panic 之后，等它的
+解码调用者永远收不到结果，宿主侧表现为"这张图一直转圈、后面的图全堵住"，
+`catch_unwind` 与 SEH 都看不见（本线程没有抛异常）。单线程把整条 worker 路径去掉，
+代价是大图解码慢一些。判据与证据见 [`HISTORY.md`](HISTORY.md) 0.3.4。
+
 ## 构建
 
 ```powershell
@@ -61,7 +71,7 @@ cargo test  --release -p rupix-modern -- --test-threads=1
 ```
 
 测试：`claims_only_its_own_seven_suffixes`（探针）、
-`all_members_render_through_one_entry_point`（两阶段，三个成员各一张）、
+`all_members_render_through_one_entry_point`（两阶段，五个成员各一张）、
 `unknown_bytes_are_not_claimed_and_not_rendered`（不认就不解）。
 
 ## 历史

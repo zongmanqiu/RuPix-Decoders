@@ -25,7 +25,7 @@
 | [`releasing.md`](releasing.md) | 版本、tag、双镜像上传、清单回填、发布顺序 |
 | [`testing.md`](testing.md) | 串行测试、单测/端到端、golden、bench 口径、证据规则 |
 | [`licensing.md`](licensing.md) | 许可证允许表、供应链门禁、未覆盖项 |
-| [`catalog.md`](catalog.md) | `decoders.json` 十三个字段、镜像 URL、宿主消费、完整性判据 |
+| [`catalog.md`](catalog.md) | `decoders.json` 十二个字段、镜像 URL、宿主消费、完整性判据 |
 | [`contributing.md`](contributing.md) | 新增/修改解码器的完整步骤与文档同步清单 |
 | [`history-policy.md`](history-policy.md) | 八档 `HISTORY.md` 的格式、版本语义、记录边界 |
 | [`pitfalls.md`](pitfalls.md) | 本仓踩过的坑；编号 D，不与宿主 K 号混用 |

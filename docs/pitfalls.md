@@ -133,13 +133,15 @@ CFA 相位用绝对坐标（或折进 48×48 表）。不要用亮度启发式�
 SHA-256 全变了（实测 `doc` 从 `c5eaf0c2…` 变成 `8cbfe5ab…`），**字节数却一模一样**。
 交付记录里的"最终 ZIP sha"于是变成"哪一刻打的包"的指纹，不是内容的指纹。
 
-**原因**：`ZipFile.write()` 取磁盘文件的真实 mtime，`writestr(str)` 取当前时钟；
-这两个字段逐字节进入每个条目的 local/central header。crate 许可证文件甚至带着上游的
-2006 年 mtime（实测条目 `(2006, 7, 24, 9, 21, 28)`）。
+**原因**：压缩器从磁盘 mtime 取条目的 DOS 时间，这个字段逐字节进入每个条目的
+local/central header。crate 许可证文件甚至带着上游的 2006 年 mtime。改用 7-Zip 之后还多一层：
+它会额外写 NTFS 高精度时间字段，光钉住 DOS 时间仍然不够。
 
-**做法**：`ZIP_FIXED_DATE = (1980, 1, 1, 0, 0, 0)` + `add_entry()`（`ZipInfo` 显式建，
-`compress_type` 与 `external_attr` 也钉死），**不要退回 `z.write()`**。判据 = 同一份内容连打两次，
-外观尺寸与逐条目内容一致（2026-11-01 八档实测）。
+**做法**：现行打包走 7-Zip（`-tzip -mx=9`，见 [`releasing.md`](releasing.md)）：`pack_zip()`
+先把暂存目录（含目录自身）的 mtime 统一压到 `ZIP_FIXED_DATE = 1980-01-01`，再用
+`-mtm=off -mta=off -mtc=off` 关掉高精度时间字段。**少任何一步都会让重打包换字节**。
+判据 = 同一份内容连打两次，ZIP 的 SHA-256 一致、逐条目 `date_time` 全是
+`(1980, 1, 1, 0, 0, 0)`（2026-11-04 两仓打包函数各连打两次实测）。
 ★ 2026-11-02 起**不再记也不核对哈希**（清单与宿主都删了，见 `catalog.md`「清单里没有哈希」），
 所以这条坑现在只值"可复现"一个用处：想确认"改的到底是内容还是时间戳"时重打一次看字节；
 平时的发布流程里没有"要填的 sha"这一栏了。
@@ -209,3 +211,31 @@ CRLF，blob 与 index 仍是 LF、`git status` 干净（归一化发生在 add�
 **附带一坑**：Windows 上 `core.autocrlf=true` 是常态，`git apply` 会把补丁里的 LF 写成 CRLF，
 打完的文件比原文多出每行一个字节（本机实测 `lib.rs` 差 583 字节），副本的行尾就和上游那份不一致。
 重放补丁一律 `git -c core.autocrlf=false apply`，本仓 `.gitattributes` 也把 `*.patch` 钉成 LF。
+
+## D20 第三方解码库的**工作线程** panic，在宿主那边看不见：表现为"永不返回"而不是崩溃
+
+- **症状**（2026-11-04，modern 0.3.3）：AVIF 偶发打不开，一直转圈，宿主日志里那一笔
+  `iv_render` 整段不回包（`phase=query`、`run_ms` 一直涨），后面所有图全堵在队列里。
+  **同一个文件换一次运行又能正常打开**——race 决定成败，所以"重试就好了"。
+- **真因**：`zenavif` → `rav1d-safe 0.5.7` 的多线程路径有真实的别名竞争。
+  `rav1d-disjoint-mut` 的 `DisjointMut` 校验器当场抓到并 **panic**：
+
+  ```
+  thread 'rav1d-worker-2' panicked at rav1d-safe-0.5.7/include/dav1d/picture.rs:641:19:
+        overlapping DisjointMut:
+   current: &mut _[40448..40512] on ThreadId(15) ...
+  existing: &mut _[40500..40504]
+  ```
+
+  panic 在 **worker 线程**上，而死等它的解码调用者只是在 `recv` 一个永远不会来的结果。
+  ⇒ 对宿主来说**没有异常、没有返回值、没有任何信号**，只有一个不返回的 `iv_render`。
+- **为什么宿主侧一切防护都失效**：`catch_unwind` 拦的是**本线程**的 unwind，SEH 拦的是
+  **本线程**的硬件异常。worker 线程的 panic 既不会传上来，也不会让进程崩——它只是让
+  那个等待永远成立。所以"给 FFI 加 try/catch"这类办法在这条路上**一个字节都帮不上**。
+  （宿主能做的只有超时后放弃并把这条调用链判死；真正根治必须让外来线程不存在，
+  或者把解码搬进可杀死的进程。）
+- **判据**：错误信息里出现 `thread '<名字>-worker-N' panicked`，而宿主侧看到的是超时挂死。
+  两者的**线程名不是同一个**，这条对照是关键。
+- **修法**：把该格式的线程数钉成 1（`zenavif::DecoderConfig::new().threads(1)`）；`modern` 0.3.4 起 AVIF/AVIFS 一律走这条单线程路径。
+  没有 worker 线程 ⇒ 既没有竞争，也没有"等死掉的 worker"这条路。
+- **类**：D12/D13 —— 都是"看得见的指标指向错的层"。

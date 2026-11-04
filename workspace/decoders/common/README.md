@@ -21,8 +21,8 @@ PNM/PAM、QOI、FF、DDS 已移出：QOI/FF 去 modern，PNM/PAM 去 classic，D
 | `png` | `png` 0.18 | png | 本机实测 395 Mpix/s（`fdeflate` 后端） |
 | `gif` | `gif` 0.14 | gif | 本机实测 223 Mpix/s，无对手 |
 | `tiff` | `tiff` 0.11 | tif tiff | 本机实测 435 Mpix/s，全场第一 |
-| `qoi` | 自研（零依赖） | qoi | 规范本身只有几百行，引库不划算 |
-| `core` | `image` 0.25 + `image-webp` | apng webp bmp dib rle ico icon cur ani pnm ppm pgm pbm pam dds ff tga | 通用兜底：低成本格式 + 冠军让位时接住 |
+| `icns` | `image` 0.25 + 尺寸档 | icns | 按最大尺寸档取 macOS 图标 |
+| `core` | `image` 0.25 + `image-webp` | apng webp bmp dib rle ico icon cur ani tga | 通用兜底：低成本格式 + 冠军让位时接住 |
 
 **没有 `turbo` 腿**：`jpeg` 以 `default-features = false` 依赖，`turbo` feature 关闭
 ⇒ 只剩 `zune-jpeg` 整解，也不再声明 `CAP_SCALED`。缩放是基座的事

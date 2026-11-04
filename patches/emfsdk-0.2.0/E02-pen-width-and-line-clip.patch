@@ -1,0 +1,152 @@
+diff --git a/src/render.rs b/src/render.rs
+index e65c1f1..1af2c73 100644
+--- a/src/render.rs
++++ b/src/render.rs
+@@ -481,6 +481,59 @@ impl EmfTransform {
+   }
+ }
+ 
++/// 把线段裁到矩形内（Liang–Barsky）。整段在矩形外返回 `None`。
++///
++/// 只服务描边：EMF 里的坐标是外部数据，动辄出现六位数；不裁剪的话 Bresenham 会
++/// 老老实实一步步走完（一条 63 万像素的线，配上错误的笔宽就是几十分钟）。
++fn clip_segment(
++  (x0, y0): (f32, f32),
++  (x1, y1): (f32, f32),
++  (left, top): (f32, f32),
++  (right, bottom): (f32, f32),
++) -> Option<((f32, f32), (f32, f32))> {
++  if !x0.is_finite() || !y0.is_finite() || !x1.is_finite() || !y1.is_finite() {
++    return None;
++  }
++  let (dx, dy) = (x1 - x0, y1 - y0);
++  let mut t0 = 0.0f32;
++  let mut t1 = 1.0f32;
++  // 每条边界一个 (分母, 分子)：t < 0 是进入点，t > 0 是离开点。
++  for (p, q) in [
++    (-dx, x0 - left),
++    (dx, right - x0),
++    (-dy, y0 - top),
++    (dy, bottom - y0),
++  ] {
++    if p == 0.0 {
++      // 与该边平行：在边界外就整段不可见。
++      if q < 0.0 {
++        return None;
++      }
++      continue;
++    }
++    let t = q / p;
++    if p < 0.0 {
++      if t > t1 {
++        return None;
++      }
++      if t > t0 {
++        t0 = t;
++      }
++    } else {
++      if t < t0 {
++        return None;
++      }
++      if t < t1 {
++        t1 = t;
++      }
++    }
++  }
++  Some((
++    (x0 + dx * t0, y0 + dy * t0),
++    (x0 + dx * t1, y0 + dy * t1),
++  ))
++}
++
+ #[derive(Clone, Copy, Debug)]
+ struct EmfPen {
+   color: EmfColor,
+@@ -1019,6 +1072,29 @@ impl EmfVectorState {
+     )
+   }
+ 
++  /// 画笔宽度是**世界坐标**单位，必须乘上与点同一个 world/viewport 变换才落到像素。
++  ///
++  /// 上游把 `EmfPen::width` 直接当像素半径用。缩放比极小的文档（EMF+ 常见，
++  /// 本机实测 0.00018）里，一条 12700 单位的笔宽就变成 12700 像素半径：一次描边要刷
++  /// 1.6 亿像素 × 上百个点，表现为「这张图一打开就永远出不来」（2026-11-04 实测
++  /// `图片2.emf` 卡死 15 分钟以上，且把整个单线程解码队列堵死，后续换图全部无响应）。
++  fn device_pen_width(&self, width: usize) -> usize {
++    if width <= 1 {
++      return 1;
++    }
++    // 夹一个上限再进 `i32`：笔宽字段是外部数据，溢出会让下面这条映射变成 UB 级噪音。
++    let w = width.min(1_000_000) as i32;
++    let (x0, _) = self.map_point(EmfPoint { x: 0, y: 0 });
++    let (x1, _) = self.map_point(EmfPoint { x: w, y: 0 });
++    let px = (x1 - x0).abs();
++    if !px.is_finite() {
++      return 1;
++    }
++    // 再夹到画布尺寸：半径超过画布的那部分本来就一个像素也落不下。
++    let cap = self.width.max(self.height).max(1);
++    (px.round() as usize).clamp(1, cap)
++  }
++
+   fn set_pixel(&mut self, x: i32, y: i32, color: EmfColor) {
+     if x < 0 || y < 0 {
+       return;
+@@ -1593,12 +1669,31 @@ impl EmfVectorState {
+   }
+ 
+   fn draw_line(&mut self, a: EmfPoint, b: EmfPoint, pen: EmfPen) {
+-    let (x0, y0) = self.map_point(a);
+-    let (x1, y1) = self.map_point(b);
+-    let mut x0 = x0.round() as i32;
+-    let mut y0 = y0.round() as i32;
+-    let x1 = x1.round() as i32;
+-    let y1 = y1.round() as i32;
++    // 先把笔宽换到设备空间，再按像素走线（见 `device_pen_width`）。
++    let pen = EmfPen {
++      color: pen.color,
++      width: self.device_pen_width(pen.width),
++    };
++    let (ax, ay) = self.map_point(a);
++    let (bx, by) = self.map_point(b);
++    // 线段按笔宽外扩后裁剪：坐标异常时 Bresenham 会走几亿步空转，而可见的部分
++    // 全在这个矩形里。裁剪后再取整，步数就被画布尺寸锁死了。
++    let radius = (pen.width.max(1) / 2) as f32;
++    let Some(((ax, ay), (bx, by))) = clip_segment(
++      (ax, ay),
++      (bx, by),
++      (-radius, -radius),
++      (
++        self.width as f32 - 1.0 + radius,
++        self.height as f32 - 1.0 + radius,
++      ),
++    ) else {
++      return;
++    };
++    let mut x0 = ax.round() as i32;
++    let mut y0 = ay.round() as i32;
++    let x1 = bx.round() as i32;
++    let y1 = by.round() as i32;
+     let dx = (x1 - x0).abs();
+     let sx = if x0 < x1 { 1 } else { -1 };
+     let dy = -(y1 - y0).abs();
+@@ -1623,8 +1718,17 @@ impl EmfVectorState {
+ 
+   fn set_pen_pixel(&mut self, x: i32, y: i32, pen: EmfPen) {
+     let radius = (pen.width.max(1) / 2) as i32;
+-    for yy in y - radius..=y + radius {
+-      for xx in x - radius..=x + radius {
++    // 落笔方框先夹到画布：半径再大，落在画布外的像素也只是白转一圈（`set_pixel`
++    // 进来就返回），而这圈空转的代价是 4×半径²。
++    let x_start = x.saturating_sub(radius).max(0);
++    let x_end = x.saturating_add(radius).min(self.width as i32 - 1);
++    let y_start = y.saturating_sub(radius).max(0);
++    let y_end = y.saturating_add(radius).min(self.height as i32 - 1);
++    if x_start > x_end || y_start > y_end {
++      return;
++    }
++    for yy in y_start..=y_end {
++      for xx in x_start..=x_end {
+         self.set_pixel(xx, yy, pen.color);
+       }
+     }

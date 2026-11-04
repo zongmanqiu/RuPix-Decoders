@@ -33,8 +33,11 @@ HP-GL 的 `PC`（笔色）由本档自己扫一遍：`nom-hpgl` 不认它、且�
 EMF/EMZ 的 `emfsdk` 没有抗锯齿也没有视口参数：本档在预算允许时按 **2× 画布**请求、
 再盒式降采样回目标尺寸（4 个样本一平均 = 抗锯齿），超预算退回 1×。它原本只用一款
 通用无衬线、且忽略 `LOGFONTW` 的字族名（汉字会整段掉进 5×7 点阵），本档用的是
-`/.3rd/emfsdk-0.2.0` 里**带补丁 E01** 的副本：系统字体只索引一次、按字族名优先、
-逐字兜底（雅黑 / 宋体 / Noto CJK / 苹方 / 正黑 / MS Gothic / Malgun / Segoe UI）。
+`/.3rd/emfsdk-0.2.0` 里**带补丁 E01 / E02** 的副本：E01 让系统字体只索引一次、
+按字族名优先、逐字兜底（雅黑 / 宋体 / Noto CJK / 苹方 / 正黑 / MS Gothic / Malgun /
+Segoe UI）；E02 把画笔宽度从世界坐标换到设备空间、线段按笔宽外扩后裁剪——否则缩放比
+小的 EMF+ 粗画笔会把一次描边放大成十亿级像素写入，渲染永不返回并堵死单线程解码队列
+（0.2.3 起修，实测同一文件从"不返回"到 17 ms）。
 
 XPS 由本档自己渲染：OPC 链（`_rels/.rels` → `FixedDocumentSequence` →
 `FixedDocument` → `FixedPage`）+ FixedPage 的 Path/Canvas/Glyphs 直接映射成 SVG。

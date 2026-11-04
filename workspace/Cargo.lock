@@ -1733,7 +1733,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-modern"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "rupix-abi",
  "rupix-av",

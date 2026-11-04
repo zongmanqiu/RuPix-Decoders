@@ -1,7 +1,7 @@
 # jxl — JPEG XL 解码器
 
 一句话：`jxl` 的唯一认领者，jxl-oxide 纯 Rust 解码。**查询阶段就把整图解出来**并缓存，
-渲染阶段只是搬运——这是全部 全部单库里唯一反过来的时序，改它前必读下面两节。
+渲染阶段只是搬运——这是全部单库里唯一反过来的时序，改它前必读下面两节。
 
 ## 身份（`src/lib.rs:40-47` 实读）
 
@@ -19,8 +19,8 @@
 无 `[dev-dependencies]`、无 `build.rs`。
 根 `Cargo.toml:45-46, 75-76` 给 `jxl-oxide` 与 `moxcms` 提 `opt-level = 3`；解码器本体留 `z`，
 所以它的 f32→u8 循环是按体积编的。★ 2026-10-21 m77 复核：单库 workspace（`singles/Cargo.toml`）
-**没有** `[profile.release.package.rupix-jxl]` 这一条，那句话仍然成立；对照读数与这条要不要补，
-。（2026-10-25 重组后单库 profile 在 `singles/Cargo.toml`；发布档用全局 `opt-level = 3`。）
+**没有** `[profile.release.package.rupix-jxl]` 这一条，那句话仍然成立。
+（2026-10-25 重组后单库 profile 在 `singles/Cargo.toml`；发布档用全局 `opt-level = 3`。）
 许可证：宿主 `THIRD-PARTY-NOTICES.md` §2.2 —— **m76（2026-10-21）已按 `cargo metadata` 读已发布包自己的
 `license` 字段核掉**：jxl-oxide = `MIT OR Apache-2.0`、moxcms = `BSD-3-Clause OR Apache-2.0`、
 rayon = `MIT OR Apache-2.0`（原 [待核] 三条全部转 [实测]；rayon 仍会被 `raw` 带进 workspace 解析，见下）。

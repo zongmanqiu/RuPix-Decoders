@@ -1,6 +1,6 @@
 [package]
 name = "rupix-modern"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix 合并解码器：现代格式（HEIC/HEIF/AVIF + JPEG XL + JNG）"

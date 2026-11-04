@@ -1410,7 +1410,7 @@ version = "0.6.0"
 
 [[package]]
 name = "rupix-doc"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "rupix-abi",
  "rupix-doc-cad",

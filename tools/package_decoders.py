@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
-import zipfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,9 +32,11 @@ MIRROR_REPO = "https://github.com/zongmanqiu/RuPix-Decoders"
 RAWLER_VERSION = "0.7.2"
 RAWLER_COMMIT = "ff7a4524cc7187554544269482e5fd5e68a6b4ab"
 RAWLER_CRATE_SHA256 = "04f4cc35c23969a4a834e0b117c7da41ace812eb9053b5effc3fc5c77d114677"
-# ZIP 条目时间戳钉死 ⇒ 包字节是内容的纯函数。z.write() 取真实 mtime、writestr(str) 取当前时钟，
-# 一次零改动的重打包就会换 sha；那意味着"同一版本的包"不再由源码树唯一决定。
+# ZIP 条目时间戳钉死 ⇒ 包字节是内容的纯函数。7-Zip 是从磁盘文件的 mtime 取条目时间的，
+# 所以打包前把暂存目录（含目录自身）统一压到这一刻，再关掉高精度时间字段；少一步，
+# 一次零改动的重打包就会换 sha，"同一版本的包"就不再由源码树唯一决定。
 ZIP_FIXED_DATE = (1980, 1, 1, 0, 0, 0)
+ZIP_FIXED_EPOCH = time.mktime((*ZIP_FIXED_DATE, 0, 0, -1))
 
 TIERS = {
     "common": ("rupix-common", ROOT / "workspace"),
@@ -161,11 +164,46 @@ def license_text(pkg_dir: Path, lid: str):
     return None
 
 
-def add_entry(z: zipfile.ZipFile, arcname: str, data: bytes):
-    info = zipfile.ZipInfo(arcname, date_time=ZIP_FIXED_DATE)
-    info.compress_type = zipfile.ZIP_DEFLATED
-    info.external_attr = 0o644 << 16
-    z.writestr(info, data)
+def seven_zip() -> str:
+    """Locate the 7-Zip CLI. Override > PATH > the usual install directories."""
+    override = os.environ.get("RUPIX_7Z")
+    if override:
+        if not Path(override).is_file():
+            raise SystemExit(f"RUPIX_7Z points to a missing executable: {override}")
+        return override
+    for name in ("7z", "7za", "7zz"):
+        found = shutil.which(name)
+        if found:
+            return found
+    for candidate in (r"C:\Program Files\7-Zip\7z.exe",
+                      r"C:\Program Files (x86)\7-Zip\7z.exe"):
+        if Path(candidate).is_file():
+            return candidate
+    raise SystemExit(
+        "7-Zip CLI not found: install 7-Zip (or put 7za.exe on PATH), or set "
+        "RUPIX_7Z to the full path of 7z.exe / 7za.exe. Release ZIPs must be "
+        "produced by 7-Zip; see docs/releasing.md."
+    )
+
+
+def pack_zip(zip_path: Path, stage: Path, exe7z: str) -> None:
+    """Pack a staged directory with 7-Zip, keeping the archive reproducible.
+
+    `-tzip -mx=9` = ZIP / max Deflate (better ratio than the default level).
+    `-mtm/-mta/-mtc=off` = do not emit high-precision NTFS timestamps, so the
+    DOS timestamp we fixed on disk is the only one that lands in the archive.
+    """
+    for p in [stage, *sorted(stage.rglob("*"))]:
+        os.utime(p, (ZIP_FIXED_EPOCH, ZIP_FIXED_EPOCH))
+    if zip_path.exists():
+        # `7z a` UPDATES an existing archive: stale entries would survive.
+        zip_path.unlink()
+    names = [p.name for p in sorted(stage.iterdir())]
+    subprocess.run(
+        [exe7z, "a", "-tzip", "-mx=9", "-mtm=off", "-mta=off", "-mtc=off",
+         "-bso0", "-bsp0", str(zip_path), *names],
+        cwd=stage, check=True,
+    )
 
 
 def main():
@@ -178,6 +216,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     entries = json.loads(INDEX.read_text(encoding="utf-8"))
     by_id = {e["id"]: e for e in entries}
+    exe7z = seven_zip()
     built = 0
     for tier, (package, cwd) in TIERS.items():
         if only and tier not in only:
@@ -258,11 +297,7 @@ own licenses. Full license texts are in `licenses/`.
             tier_readme.read_text(encoding="utf-8").rstrip() + "\n" + license_section(tier, ver),
             encoding="utf-8", newline="\n")
         zip_path = out / (pkg_name + ".zip")
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, strict_timestamps=False) as z:
-            add_entry(z, dll_name, (stage / dll_name).read_bytes())
-            for p in sorted(folder.rglob("*")):
-                if p.is_file():
-                    add_entry(z, p.relative_to(stage).as_posix(), p.read_bytes())
+        pack_zip(zip_path, stage, exe7z)
         # 不再打印 ZIP 的 sha256（2026-11-02 用户口径：清单与宿主都不校验哈希）。
         # 上传时平台会显示自己的校验值，够用；本仓不再产出第二份需要人工核对的数字。
         print(f"{zip_path}  {zip_path.stat().st_size} B  deps={len(deps)} licenses={len(ids)}")

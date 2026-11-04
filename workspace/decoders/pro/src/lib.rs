@@ -41,7 +41,7 @@ rupix_abi::export_metadata! {
     "version" => "0.4.3",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-29",
+    "released" => "2026-11-02",
 }
 
 static MEMBERS: &[Member] = &[

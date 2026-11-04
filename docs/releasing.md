@@ -30,12 +30,26 @@
 5. 资产由人工上传；本仓不做联网地址校验。
 6. 宿主侧刷新 `decoders.json` 镜像，验证「可下载」卡与安装。
 
-★ **打包是确定性的**（2026-11-01）：`package_decoders.py` 把每个 ZIP 条目的时间戳钉死成
-`1980-01-01`（`ZIP_FIXED_DATE` + `add_entry()`）⇒ 同样内容就是同样的包字节（八档连打两次
-实测逐字节一致）。钉之前 `z.write()` 取文件真实 mtime，一次零改动的重打包就会换掉整枚包。
-这条现在**只服务"可复现"**：上传前重打一次就能确认"改的到底是内容还是时间戳"。
+★ **发布 ZIP 一律由 7-Zip 生成**（2026-11-04 起）：`package_decoders.py` 调 7-Zip 命令行
+（`7z` / `7za` / `7zz`，PATH 里找不到时可用 `RUPIX_7Z` 指到可执行文件），参数是
+`a -tzip -mx=9 -mtm=off -mta=off -mtc=off`。产物仍是**标准 ZIP / Deflate**、文件名仍是
+`<id>_<version>.zip`，不是 `.7z`，宿主解压链路一字未改。换工具的理由只有一个：同样内容，
+最高级 Deflate 实测比原先的默认级别更小（851 KB DLL：7-Zip 371,876 B，Python 默认 387,583 B，
+省约 4%）。找不到 7-Zip 时脚本**直接报错退出，不静默回退**，前置依赖见
+[`building.md`](building.md)。
+
+★ **打包仍是确定性的**：7-Zip 从磁盘 mtime 取条目时间，所以 `pack_zip()` 在打包前把暂存
+目录（含目录自身）统一压到 `1980-01-01`，并关掉高精度时间戳字段；同样内容连打两次逐字节
+一致（实测）。这条**只服务"可复现"**：上传前重打一次就能确认"改的到底是内容还是时间戳"。
 **不再服务对账**——2026-11-02 起清单与宿主都不比哈希（见 `docs/catalog.md`
 「清单里没有哈希」），所以"这一版到底是哪枚包"由 `id` + `version` 认定，而不是字节。
+
+★ **2026-11-04 已全量重打并上架**：本地 `../.temp/decoder-packages/` 的八枚 ZIP 均由 7-Zip
+生成，并经 Gitee OpenAPI（`releases` + `attach_files`）传到各自的 `<id>_<version>` tag：
+已有 tag 的替换同名附件，没有 tag 的由服务端顺带创建；**release 说明统一取该档
+`HISTORY.md` 里对应版本那一条**，不另写一份。清单 `size` 记的是 **DLL 字节数**，与 ZIP
+用哪个压缩器无关，所以切换打包器不触发数字改动。清单里 `github` 那列是另一处镜像，
+release 资产要单独同步；Gitee 上架不代表镜像同步。
 
 > 清单可以先提交、资产后上传；那段时间该列地址会 404，宿主如实报下载失败。
 > 反过来不行：`decoders.json` 不提交，宿主不知道有新版。
@@ -76,13 +90,14 @@
 
 ## 发布前清单
 
-- [ ] `build.ps1` 全绿，打印 `done: N decoder(s) published ... (abi v5)`。
-- [ ] 四枚 DLL 都在 `decoder-dist`，同 id 无旧版本。
+- [ ] `build.ps1` 全绿，打印 `done: N decoder(s) published ... (abi v6)`。
+- [ ] 八枚 DLL 都在 `decoder-dist`，同 id 无旧版本。
+- [ ] 打包机能找到 7-Zip（`7z` / `7za` 在 PATH，或已设 `RUPIX_7Z`）；发布 ZIP 由它生成。
 - [ ] 每枚 DLL 的 Gitee / GitHub release 都已上传，tag 与资产名一致。
 - [ ] `decoders.json` 的 `version` / `abi` / `formats` 与 DLL 自述一致（`size` 只用于显示）。
 - [ ] `released` 已填；`gitee` / `github` 已由人工上传。
 - [ ] ZIP 内 `metadata.json` 与 `decoders.json` 同一条目逐字段一致（含地址与日期）。
-- [ ] 需要可复现时重打一次：同内容应得同字节（打包已确定性）。**不记录也不核对哈希**——
+- [ ] 需要可复现时重打一次：同内容应得同字节（7-Zip + 固定时间戳）。**不记录也不核对哈希**——
       2026-11-02 起清单与宿主都不比哈希，这一栏没有"要填的数字"。
 - [ ] release 说明写明许可证为 AGPL-3.0，并链接 README / `THIRD-PARTY-NOTICES.md`；ZIP 内附 `README.md`（含「许可与源码」一节）、`LICENSE`、notices、`licenses/`。
 - [ ] `workspace/decoders/<id>/HISTORY.md` 已记录本次对外变化；**没有状态/待上传/包生成/tag 行**。

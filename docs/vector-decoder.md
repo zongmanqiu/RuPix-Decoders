@@ -114,7 +114,7 @@ typedef struct IvRegionReq {
   装法见 `doc-cad` 的 `font_db()`（`OnceLock<Arc<Database>>`，进程内只扫一次），
   判据要落在**像素**上（`doc-hpgl` 的 `label_text_reaches_the_pixels`）。
 - ★ **第三方库内绘制文字、又没有字体回调时**，只能按 `.3rd` 规则留一份带补丁的副本
-  （现行唯一一例：`emfsdk` 的 E01，按 `LOGFONT` 选字族 + 逐字兜底 + 字体库只索引一次，
+  （现行唯一一例：`emfsdk` 的 E01 / E02：按 `LOGFONT` 选字族 + 逐字兜底 + 字体库只索引一次，兼把笔宽换到设备空间并裁剪描边，
   登记见 `.3rd/emfsdk-0.2.0/SOURCE.md`）。不许把"上游不给回调"当限制写进产品行为。
 - 宿主只负责通道、区域判据、调用编排、预算和降级；**不需要也不应该改宿主**。
 - `CAP_REGION`/区域通道缺席时，宿主降级为整幅渲染；不要为了避免降级而谎报能力。

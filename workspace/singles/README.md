@@ -21,8 +21,8 @@
 | `doc-hpgl` | nom-hpgl + resvg | doc | 无 |
 | `doc-legacy` | libcdr / libwpg / libzmf（C++ 静态库）+ resvg | doc-legacy | 无 |
 | `doc-pdf` | hayro | doc | 无 |
-| `doc-print` | PostScript（hayro-postscript） | doc | 无 |
-| `doc-xps` | justpdf-formats/xps | doc | 无 |
+| `doc-print` | PostScript（stet 解释器） | doc | 无 |
+| `doc-xps` | 自研 OPC 容器 + FixedPage XML（zip / roxmltree） | doc | 无 |
 | `ff` | Farbfeld 自写 | modern | 无 |
 | `gif` | gif | common | 有 |
 | `icns` | image（icns）+ 尺寸档 | common | 无 |

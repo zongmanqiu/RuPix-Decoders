@@ -676,7 +676,21 @@ fn decode_avif(data: &[u8]) -> Result<DecodedRgba, i32> {
     // 宿主按 5..=8 自行换边，两边对得上。
     let orientation = container_transform(data).map(|(o, _)| o).unwrap_or(1);
 
-    let (w, h, frames) = match zenavif::decode_animation(data) {
+    // ★ 2026-11-04 根治：**AVIF 一律单线程解码**。
+    //
+    //   rav1d-safe 0.5.7 的多线程路径有一个真实的别名竞争（`rav1d-disjoint-mut` 的
+    //   `DisjointMut` 校验器当场抓到：同一张 picture 的两个 `&mut` 区间重叠，
+    //   一个在 `rav1d-worker-N` 上、另一个已在册）。它**在 worker 线程里 panic**，
+    //   而阻塞中的解码调用者在等那个 worker 的结果——于是 `iv_render` 永不返回。
+    //   宿主侧 `catch_unwind` / SEH 都看不见：本线程根本没抛异常，它只是在等一个
+    //   已经死掉的线程。真机表现就是"某张图打开后永远转圈，后面全堵住"，
+    //   而且**同一个文件换一次运行又能正常打开**（race 决定成败）。
+    //
+    //   单线程把 worker 线程整个去掉：既没有竞争，也没有"等死掉的 worker"这条路。
+    //   代价是 AVIF 解码慢一些（1 MP 量级实测仍在几十毫秒），换来的是"不会挂死"。
+    //   宪章 §5.1「跨机行为一致 > 快」在这里同样成立。
+    let cfg = zenavif::DecoderConfig::new().threads(1);
+    let (w, h, frames) = match zenavif::decode_animation_with(data, &cfg, &zenavif::Unstoppable) {
         Ok(anim) => {
             let n = anim.frames.len();
             if n == 0 {
@@ -703,7 +717,7 @@ fn decode_avif(data: &[u8]) -> Result<DecodedRgba, i32> {
         Err(_) => {
             // 不是动画（或解码失败）。先试 decode()——静态 AVIF 走快路径；
             // decode() 也失败的才是真错误。
-            let buf = zenavif::decode(data).map_err(|e| {
+            let buf = zenavif::decode_with(data, &cfg, &zenavif::Unstoppable).map_err(|e| {
                 set_last_error(&format!("zenavif 库报错 \"{e}\""));
                 map_zenavif_err(&e.to_string())
             })?;

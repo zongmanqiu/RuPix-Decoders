@@ -95,7 +95,7 @@ py tools/make_index.py --set-github-url '<id>=https://…/<id>_<version>.zip'
 ## 宿主怎么消费
 
 1. 宿主从 raw 镜像拉清单，只读当前来源的地址列。
-2. 下载后按 `size` 比对；不符即拒绝安装。
+2. 下载后不按 `size` 比对：它只用于列表显示，包身份由 `id` + `version` 认定。
 3. 安装到 `<exe>/decoders/<id>_<version>.dll`；宿主扫描目录，读 DLL 自述。
 4. `released` 为空 = 未发布；对应列也为空，宿主不会给一个点了 404 的按钮。
 5. 清单可以先提交、资产后上传；那段时间地址会 404，宿主如实报下载失败。

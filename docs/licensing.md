@@ -50,7 +50,7 @@ DLL 的自述键值表（`iv_metadata()`）带 `version` / `author=RuPix` / `lic
 
 | 副本 | 许可 | 用在哪 | 补丁 |
 |---|---|---|---|
-| `emfsdk-0.2.0/` | MIT OR Apache-2.0 | `decoders/doc` 的 `emf`/`emz` 成员 | E01 字体栈 + 逐字兜底 + 字体库只索引一次 |
+| `emfsdk-0.2.0/` | MIT OR Apache-2.0 | `decoders/doc` 的 `emf`/`emz` 成员 | E01 字体栈 + 逐字兜底 + 字体库只索引一次；E02 笔宽换设备空间 + 描边裁剪 |
 
 `.3rd` 在仓库外，所以**同一份补丁必须在本仓 `patches/<crate>-<version>/` 有公开登记**
 （`README.md` + `manifest.json` + `*.patch`）：别人拿上游原文 + 这份补丁就能重建发布物，
