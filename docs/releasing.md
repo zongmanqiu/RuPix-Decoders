@@ -27,7 +27,10 @@
 4. 每枚 ZIP 上传到自己的 release：tag 与资产名都用 `<id>_<version>`。
    - Gitee：`https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/<id>_<version>/<id>_<version>.zip`
    - GitHub：`https://github.com/zongmanqiu/RuPix-Decoders/releases/download/<id>_<version>/<id>_<version>.zip`
-5. 资产由人工上传；本仓不做联网地址校验。
+5. 资产由人工上传；本仓不做联网地址校验。★ **源码与资产分工不同**：源码、清单、tag
+   只推 Gitee，GitHub 是自动镜像；镜像不复制 release 对象，所以 ZIP 附件与说明正文必须在
+   两边分别上传，GitHub 侧在镜像过来的那个 tag 上新建或编辑 release，不另建 tag。
+   完整规则见根 [`开发指南.md`](../开发指南.md) §四.9。
 6. 宿主侧刷新 `decoders.json` 镜像，验证「可下载」卡与安装。
 
 ★ **发布 ZIP 一律由 7-Zip 生成**（2026-11-04 起）：`package_decoders.py` 调 7-Zip 命令行
@@ -49,7 +52,9 @@
 已有 tag 的替换同名附件，没有 tag 的由服务端顺带创建；**release 说明统一取该档
 `HISTORY.md` 里对应版本那一条**，不另写一份。清单 `size` 记的是 **DLL 字节数**，与 ZIP
 用哪个压缩器无关，所以切换打包器不触发数字改动。清单里 `github` 那列是另一处镜像，
-release 资产要单独同步；Gitee 上架不代表镜像同步。
+**两个镜像必须分别上传，Gitee 上架不代表镜像同步**；2026-11-04 晚 GitHub 镜像也已对齐：
+八枚同名 ZIP 与说明逐一对上（`modern_0.3.4` / `doc_0.2.3` 在已有 tag 上新建 release，
+其余六个覆盖同名附件）。
 
 > 清单可以先提交、资产后上传；那段时间该列地址会 404，宿主如实报下载失败。
 > 反过来不行：`decoders.json` 不提交，宿主不知道有新版。

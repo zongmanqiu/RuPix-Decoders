@@ -200,6 +200,8 @@
   GitHub `zongmanqiu` 不是同一用户名），可用 `--set-github-url` 覆盖。GitHub 侧也要上传
   同一批 release；资产由人工上传，本地不做网络校验。缺 `gitee` 的项在收尾
   列成 `MISSING gitee`，`released` 也随之为空。
+- ★ 源码、清单、tag **只推 Gitee**（GitHub 是自动镜像，不手推）；release 附件与说明
+  Gitee / GitHub 两边分别上传。分工见根 `开发指南.md` §四.9（本节不复述）。
 - **发布清单 = `workspace/decoders/` 下的目录，别的不算**：`build.ps1` 按
   `workspace/decoders/*` 枚举，`make_index.py` 也只收这里存在的 id。这里**只放档**
   （一个文件夹一枚发布 DLL）；单库住 `workspace/singles/`，**永远不进发布目录**。曾有的测试夹具 `test-decoders/testred`
