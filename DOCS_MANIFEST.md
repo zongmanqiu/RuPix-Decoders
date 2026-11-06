@@ -6,7 +6,7 @@
 | 文件 | 何时更新 | 验证 |
 |---|---|---|
 | `开发指南.md` | 修改/发布流程、交付检查表、版本与地址真源变化 | `manual`（发布演练）；本文件是流程唯一正本 |
-| `README.md` | 八档版本/后缀数/发布状态、安装方式、文档入口变化 | `check_docs.py` 链接；八档表与 `decoders.json` / `Cargo.toml` 人工核对 |
+| `README.md` | 八档表、仓库结构、文档索引变化（门面页，技术细则一律去 `docs/`） | `check_docs.py` 链接 + 行数预算；`check_abi_refs.py` 判 ABI 冻结句；八档表与 `decoders.json` / `Cargo.toml` 人工核对 |
 | `AGENTS.md` | 仓库边界、ABI 冻结、构建/发布落点、测试红线、新增解码器顺序变化 | `build.ps1` + `check_docs.py`；人工核对 |
 | `解码器开发规范.md` | ABI 结构/错误码/导出/像素格式/能力位/版本策略变化 | `build.ps1` + 宿主 `cargo test --lib core::abi` |
 | `docs/README.md` | 文档增删或职责变化 | `check_docs.py` 链接 |

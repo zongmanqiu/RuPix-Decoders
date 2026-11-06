@@ -101,6 +101,14 @@ py tools/make_index.py --set-github-url '<id>=https://…/<id>_<version>.zip'
 5. 清单可以先提交、资产后上传；那段时间地址会 404，宿主如实报下载失败。
    反过来不行：`decoders.json` 不提交，宿主不知道有新版。
 
+### 手工安装的目录形状
+
+ZIP 解开后把 `<id>_<version>.dll` 和同版本的 `<id>_<version>/` 目录一起放进
+`<exe>/decoders/`。`decoders/` 是用户目录，宿主**只加载顶层 `*.dll`**：同版本目录里的
+`README.md` / `LICENSE` / `THIRD-PARTY-NOTICES.md` / `licenses/` / `metadata.json`
+是给人读和做许可追溯的，不参与加载，放进子目录不会多出一枚解码器。
+正常走宿主「设置 → 解码器 → 可下载」下载安装，不需要手工做这一步。
+
 ## 发布前核对
 
 - [ ] `size` 与 `decoder-dist` 里实际 DLL 一致（重新链接会变，必须重跑生成器）。

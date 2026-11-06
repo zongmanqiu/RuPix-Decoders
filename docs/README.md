@@ -7,7 +7,7 @@
 
 | 你是 | 先读 | 再看 |
 |---|---|---|
-| 只想装解码器 | 根 [`README.md`](../README.md) | [`workspace/decoders/README.md`](../workspace/decoders/README.md)、各档 `README.md` |
+| 只想找 DLL 下载 / 看版本 | 根 [`README.md`](../README.md) | [`catalog.md`](catalog.md) §宿主怎么消费、[`workspace/decoders/README.md`](../workspace/decoders/README.md) |
 | 要改代码 / 发版 / 提交 | 根 [`开发指南.md`](../开发指南.md) | [`contributing.md`](contributing.md)、[`building.md`](building.md)、[`releasing.md`](releasing.md) |
 | 要写新解码器 / 改 ABI | [`解码器开发规范.md`](../解码器开发规范.md) | [`contributing.md`](contributing.md)、[`architecture.md`](architecture.md) |
 | 要做格式能力规划 | 根 [`解码器能力规划.md`](../解码器能力规划.md) |

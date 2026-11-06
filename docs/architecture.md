@@ -37,7 +37,8 @@ manifest 解析 target-dir、target triple 与 `[lib] name`）。
 ### 档 vs 单库
 
 - **单库**（`workspace/singles/<id>/`）：真正的解码实现，形态是"薄壳 + `probe_impl` / `render_impl`"。
-  它也可以开 `standalone` 编成独立解码器，但不发布。
+  它也可以开 `standalone` 编成独立解码器，但不发布——单库只作 bench 对照、档的装配来源
+  与 A/B 排查，总表见 [`workspace/singles/README.md`](../workspace/singles/README.md)。
 - **档**（`workspace/decoders/<id>/`）：装配件。`Cargo.toml` 只列成员依赖（`default-features = false`），
   `src/lib.rs` 是 `export_decoder!` + `MEMBERS` 路由表 + `iv_*` 导出，**不写解码逻辑**。
 - **例外**：`raw` 档同时是 tier 和引擎——相机 RAW 的显影链（线性化、去马赛克、色彩矩阵、
