@@ -116,10 +116,10 @@ export_decoder! {
 rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_SCALED | rupix_abi::CAP_RAW_PARAM);
 
 rupix_abi::export_metadata! {
-    "version" => "0.5.3",
+    "version" => "0.5.4",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-10-29",
+    "released" => "2026-11-08",
 }
 
 const BIT_DEPTH_8: u32 = 8;

@@ -10,11 +10,11 @@
 
 | 字段 | 值 |
 |---|---|
-| id / crate / 版本 | `raw` / `rupix-raw` / **0.5.3**（已发布，2026-10-29，见 `decoders.json`） |
+| id / crate / 版本 | `raw` / `rupix-raw` / **0.5.4**（已发布，2026-11-08，见 `decoders.json`） |
 | name | `Camera RAW & Raw Pixel Data` |
 | 后缀 | 29 种相机 RAW（含 `.raw`）+ `rgb rgba gray gry bgra yuv i420 yv12 nv12 yuy2 uyvy`（11） |
 | is_vector / has_alpha | `0` / `0` |
-| 产物 | `raw_0.5.3.dll` |
+| 产物 | `raw_0.5.4.dll` |
 | 构建 | 纯 Rust；无 `build.rs`、无 C 源、无 `.3rd` 依赖 |
 | 许可证 | `rawler 0.7.2`（LGPL-2.1）+ `flashraw 0.1.1`（MIT/Apache-2.0）静态链接；ZIP 附许可证全文，重链接材料（rawler 上游 commit + crate 校验值）见本 README 末尾由打包器追加的「`raw` 的 LGPL 重链接材料」一节 |
 
@@ -48,7 +48,8 @@
 - 渲染：`rawler::decode` 永远 page 0；厂商/容器分派全在 rawler 内部，本档没有
   按厂商分支。
 - 出画两条腿：点亮缩放意图且本档能分箱 → `develop_binned` 直接出低清档；
-  否则 `develop` 全尺寸显影。
+  否则 `develop` 全尺寸显影。**两条腿共用 `develop::scene_gain`**（统计源是未分箱的
+  原始样本，块内取 max），所以首帧与升级档亮度一致，不随分箱、不随尺寸漂移。
 - 画幅：`crop_area` → `active_area` → 整块；越界钳进原样；不做亮度启发式。
 - 色彩矩阵：读 `color_matrix`，优先 D65，缺则按 illuminant 枚举序取最小；
   `normalize(xyz2cam · SRGB_TO_XYZ_D65)` 行和归一；白平衡折进列；
@@ -70,5 +71,5 @@
 
 30 个 `#[test]` 覆盖探针、方向、矩阵、gamma、白平衡、黑帧、分箱、画幅、
 缓存键与两阶段尺寸。examples：`dump_exts`、`smoke_raw`、`bench_raw_stages`、
-`bench_raw_bin`、`check_raw_tier`、`probe_raw_frame`。
+`bench_raw_bin`、`check_raw_tier`、`probe_raw_frame`、`probe_tier_brightness`（两腿亮度差）。
 细节见 [`DESIGN.md`](DESIGN.md)，对外变化见 [`HISTORY.md`](HISTORY.md)。

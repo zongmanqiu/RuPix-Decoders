@@ -18,7 +18,7 @@
     "name": "Modern Formats (HEIC/AVIF/JXL/JNG)",
     "version": "0.3.4",
     "abi": 6,
-    "size": 7306752,
+    "size": 7313408,
     "released": "2026-11-04",
     "desc": "现代格式：手机照片、高效压缩图像与 QOI/Farbfeld",
     "formats": "heic;heif;hif;avif;avifs;jxl;jng;qoi;ff",
@@ -44,16 +44,16 @@
   {
     "id": "raw",
     "name": "Camera RAW & Raw Pixel Data",
-    "version": "0.5.3",
+    "version": "0.5.4",
     "abi": 6,
-    "size": 12001280,
-    "released": "2026-10-29",
+    "size": 11377152,
+    "released": "2026-11-08",
     "desc": "相机 RAW 与裸像素/YUV 数据",
     "formats": "3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f;rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip",
-    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.3/raw_0.5.3.zip"
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.4/raw_0.5.4.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.4/raw_0.5.4.zip"
   },
   {
     "id": "doc",

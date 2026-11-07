@@ -14,7 +14,7 @@
 |---|---|---|---|
 | `common` | 0.2.6 | `zune-jpeg` 0.5、`png` 0.18、`gif` 0.14、`tiff` 0.11、`zune-psd` 0.5、`image` 0.25（含 `hdr`）、`image-webp` 0.2、自研 `qoi` | 见 §二；`qoi` 为本仓自写，无第三方 |
 | `modern` | 0.3.4 | `heif-oxide` 0.1、`zenavif` 0.1、`jxl-oxide` 0.12、`moxcms` 0.8、`rayon` 1.x | 见 §二；注意 `zenavif` / `rav1d-safe` 的 AGPL 分支 |
-| `raw` | 0.5.3 | `rawler` 0.7.2、`flashraw` 0.1.1、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`flashraw` = MIT/Apache-2.0（X3F 回退）；`rawpx` 无第三方 |
+| `raw` | 0.5.4 | `rawler` 0.7.2、`flashraw` 0.1.1、自研 `rawpx` | `rawler` = **LGPL-2.1**（见 §三）；`flashraw` = MIT/Apache-2.0（X3F 回退）；`rawpx` 无第三方 |
 | `pro` | 0.4.3 | `hayro-jpeg2000` 0.4、`jxr` 0.2、`exr` 1.74、`image` 0.25、`zune-psd` 0.5、`xcf` 0.4、`aseprite-loader` 0.4 | 见 §二；`xcf` = Unlicense；KTX/DICOM/NIfTI 归 texture/medical |
 | `texture` | 0.1.0 | `image` 0.25（JPEG/zune-jpeg）、`image-extras`/`dds` 0.2、`ktx2` 0.5、`texture2ddecoder` 0.1、`basisu` 0.1、`vtf` 0.4（含 `texpresso`） | 见 §二；BLP1/BLP2 头/调色板/DXT 为本仓自写 |
 | `doc` | 0.2.3 | `acadrust` 0.6、`dxf`/`dxf_to_svg`、`hayro` 0.8、`stet` 0.9、`emfsdk` 0.2（`../.3rd` 补丁副本 E01 / E02）、`nom-hpgl` 0.2、`djvu-rs` 0.42、`wmf-core` 0.1、`resvg` 0.49、`zip` 2.6 + `roxmltree` 0.20（XPS 容器/XML） | 见 §二 |

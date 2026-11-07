@@ -1,4 +1,4 @@
-use super::develop::{auto_gain, black_levels, cam_to_srgb_wb, gamma_buckets, mul3, white_level};
+use super::develop::{black_levels, cam_to_srgb_wb, gamma_buckets, mul3, scene_gain, white_level};
 use super::frame;
 
 pub fn cfa_period(cfa: &rawler::cfa::CFA) -> (usize, usize) {
@@ -234,11 +234,11 @@ pub fn develop_binned(
     // The first screen often uses this binned path, while zoom/1:1 later uses
     // `develop`. They must share the same display exposure or the image visibly
     // changes brightness when the full-resolution request lands.
-    let exposure = if img.make.is_empty() && img.model.is_empty() {
-        1.0
-    } else {
-        auto_gain(&linear)
-    };
+    //
+    // ★ m257：共用方式是**两边都从传感器原始样本统计**（`scene_gain`），而不是各自
+    // 拿手里的线性图算——分箱后的线性图被面积平均过，噪点没了，99.9 分位掉到阈值以下，
+    // 于是这条腿给 1.0、全尺寸腿给 1.39，升级时整张图跳亮 15.7 个灰阶。
+    let exposure = scene_gain(img);
     let mut out = vec![0u8; ow * oh * 4];
     for (i, d4) in out.chunks_exact_mut(4).enumerate() {
         let rgb = &linear[i * 3..i * 3 + 3];

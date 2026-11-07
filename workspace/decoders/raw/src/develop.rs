@@ -156,11 +156,9 @@ pub fn develop_in(
     // auto-exposure. Without it, low-key ORF/ARW/NEF files look much darker
     // than the camera's own preview. Only lift genuinely dark images; high-key
     // and black frames keep their exposure.
-    let exposure = if img.make.is_empty() && img.model.is_empty() {
-        1.0 // synthetic unit-test images: keep their exact exposure
-    } else {
-        auto_gain(&linear)
-    };
+    // ★ m257：统计源是**未分箱的传感器样本**（`scene_gain`），不是这张线性图——
+    // 分箱腿的线性图已被面积平均，拿它统计会得出另一个数（两条腿差 15.7 灰阶）。
+    let exposure = scene_gain(img);
 
     // ── 4. Gamma 编码 → RGBA8（只出画幅那一块）。──────────────────────────
     // m79：这一步原来每像素调 3 次 `powf`（m78 量出它占整条显影链的 50–56%）。
@@ -184,23 +182,93 @@ pub fn develop_in(
     Ok((out, f.w))
 }
 
-/// Display auto-exposure: lift low-key images the way camera previews / LibRaw's
-/// default `auto_bright` do. A sample of the linear image is enough for the 99th
-/// percentile; black frames stay black, and already-bright images keep their
-/// exposure.
-pub(crate) fn auto_gain(linear: &[f32]) -> f32 {
-    let pixels = linear.len() / 3;
-    if pixels == 0 {
+/// 显示曝光的**唯一统计入口**：从**未分箱**的传感器样本算一张图的显示曝光。
+///
+/// ★ m257 换掉了原来"拿显影后的线性图统计"的做法（`auto_gain`）。原因：
+/// 分箱腿手里那张线性图已经被 p×p 面积平均过，**噪点被抹掉** ⇒ 99.9 分位掉到阈值以下
+/// ⇒ 判成「已经够亮」给 `1.0`；而同一张图的全尺寸腿给 `1.3929`。两条腿因此差 **15.7 个
+/// 灰阶**，升级落屏那一刻整张图跳亮度——2026-11-08 用户实报「打开 CR2 已出图，停一会儿
+/// 会变亮」。统计源只认传感器原始样本 ⇒ 谁拿到哪一档都算出同一个数（与尺寸、与分箱无关）。
+///
+/// 口径：按 CFA 真实周期切块，块内取**原始样本归一化后的最大值**（Bayer 2×2 恰好是
+/// max(R,G,B)，与旧口径同形），**不做块内平均**——平均正是分箱腿误判的来源。
+pub(crate) fn scene_gain(img: &rawler::RawImage) -> f32 {
+    // Synthetic unit-test images: keep their exact exposure.
+    if img.make.is_empty() && img.model.is_empty() {
         return 1.0;
     }
-    let step = (pixels / 50_000).max(1);
+    let (w, h) = (img.width, img.height);
+    if w == 0 || h == 0 {
+        return 1.0;
+    }
+    let cpp = img.cpp.max(1);
+    let black = black_levels(img, cpp);
+    let white = white_level(img);
+    // 块边长 = CFA 真实周期（Bayer 2 / X-Trans 6）。非方或超界就退回逐像素：判据仍然
+    // 只依赖原始样本，所以**不影响两条腿同值**这条性质。
+    let (cfa, b) = match &img.photometric {
+        rawler::rawimage::RawPhotometricInterpretation::Cfa(cfg) => {
+            let (ph, pw) = super::cfa_period(&cfg.cfa);
+            let b = if ph == pw && (1..=8).contains(&ph) {
+                ph
+            } else {
+                1
+            };
+            (Some(&cfg.cfa), b)
+        }
+        _ => (None, 1),
+    };
+    let (bw, bh) = (w / b, h / b);
+    if bw == 0 || bh == 0 {
+        return 1.0;
+    }
+    if !matches!(
+        &img.data,
+        rawler::RawImageData::Integer(_) | rawler::RawImageData::Float(_)
+    ) {
+        return 1.0;
+    }
+    // 抽样到 ~5 万个块：统计量足够稳，成本与整图显影比可以忽略。
+    let total = bw * bh;
+    let step = (total / 50_000).max(1);
     let mut hist = [0u32; 256];
     let mut n = 0u32;
-    for i in (0..pixels).step_by(step) {
-        let v = linear[i * 3].max(linear[i * 3 + 1]).max(linear[i * 3 + 2]);
-        let bin = (v.clamp(0.0, 1.0) * 255.0) as usize;
-        hist[bin] += 1;
-        n += 1;
+    let mut idx = 0usize;
+    for by in 0..bh {
+        for bx in 0..bw {
+            if idx.is_multiple_of(step) {
+                let mut m = 0.0f32;
+                for dy in 0..b {
+                    let y = by * b + dy;
+                    for dx in 0..b {
+                        let x = bx * b + dx;
+                        let c = match cfa {
+                            Some(c) => c.color_at(y, x).min(2),
+                            None => (x % cpp).min(2),
+                        };
+                        let (bv, den) = (black[c], (white[c] - black[c]).max(1e-6));
+                        let raw = match &img.data {
+                            rawler::RawImageData::Integer(p) => p[y * w + x] as f32,
+                            rawler::RawImageData::Float(p) => p[y * w + x],
+                        };
+                        m = m.max(((raw - bv) / den).clamp(0.0, 1.0));
+                    }
+                }
+                hist[(m * 255.0).min(255.0) as usize] += 1;
+                n += 1;
+            }
+            idx += 1;
+        }
+    }
+    gain_from_hist(&hist, n)
+}
+
+/// 由亮度直方图定显示曝光（99.9 / 99 两个分位 + 高光余量分档）。
+///
+/// 这一半是纯函数，与统计源无关：`scene_gain` 造直方图、这里读结论。
+fn gain_from_hist(hist: &[u32; 256], n: u32) -> f32 {
+    if n == 0 {
+        return 1.0;
     }
     // Already-clipped highlights are a stop sign: 3FR/NEF samples can have
     // their sensor whites at full scale while still having a low mean, and
