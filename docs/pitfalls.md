@@ -262,3 +262,24 @@ exposure"，但**没有任何机制在 share**。
 **类**：凡是"同一份数据两条路径各自算一遍"的量（曝光、白平衡、黑电平），都要问一句
 "两边算出来会不会不同"；注释里的"必须相同"不算实现。
 
+
+## D22 裸 `cargo build` 出的 DLL 不能发布：缺 remap，宿主门禁当场拒
+
+**现象**：宿主 `6_deploy` 报 `host path gate: 发布目录里的随包产物还带着本机绝对路径：
+decoders\modern_0.3.4.dll: C:\Users\`、`decoders\raw_0.5.4.dll: C:\Users\`。而开发指南
+§四第 2 步教的正是"单档构建 `cargo build --release -p rupix-<id>`"——按字面做就中招。
+
+**原因**：`workspace/tools/toolchain.ps1` 里那段
+`$env:RUSTFLAGS = "-C target-feature=+crt-static --remap-path-prefix=<ws>=.
+--remap-path-prefix=<USERPROFILE>=~"` **只在脚本被 dot-source 之后**才存在。
+裸 cargo 只吃到 `.cargo/config.toml` 的 `+crt-static`，panic 位置与 debug info 里的绝对路径
+原样烙进二进制。
+
+**判据**：产物字节里数一下——`open(p,'rb').read().count(b'C:\Users')` 必须是 **0**。
+字节数也不一样（modern 7,313,408 vs 7,754,752），所以"能跑、能出图"不能当合格。
+
+**做法**：`cd RuPix-Decoder\workspace` 之后 `. .\tools\toolchain.ps1 ; Initialize-RuPixToolchain`
+再 cargo；或者直接 `build.ps1`。已经产出脏 DLL 时**重编**，不要试图清洗（remap 是编译期前缀替换）。
+
+**类**：D14/D15 —— "本地验证通过"不等于"产物合格"。凡是有 remap / 去路径 / 去时间戳要求的
+构建，判据必须落在**产物字节**上，不能落在"编译成功了"。

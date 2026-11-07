@@ -76,11 +76,15 @@
   版本号就可以不动——列表上的 `size` 会暂时是重编前的数字，那只是显示看着旧，不影响任何判定。
 - 对照另一仓：`RuPix-Plugin/` 的 `plugins.json` 同样不再有哈希（同日改），那边"改一个字就得重传
   并同步清单"的老说法也作废了：改包内文件要重传（用户拿到的文件变了），但不必改清单数字。
-- ★ **发布物必须是单档构建的产物**（2026-11-08 实测）：全量 `build.ps1` 会在 workspace 层做
-  feature 合并，把同一个档链出**更大**的 DLL——`modern` 单档 7,313,408 B，全量构建 7,754,752 B
-  （+448 KB，全是本档用不到的代码），旧的 0.3.4 资产是 7,306,752 B。`decoder-dist/` 里若留着
-  全量构建的那枚，就相当于把带冗余的包发给用户；拿不准时按 `开发指南.md` §四第 2 步单档重建。
-  由此清单 `size` 与远端包内 DLL 也允许差几千字节（同样只影响列表显示，不重传、不改版本）。
+- ★ **发布物必须用带 remap 的入口构建**（2026-11-08 实测，纠正同日的错误结论）：裸
+  `cargo build --release -p rupix-<id>` 也能出 DLL，但它没有 `workspace/tools/toolchain.ps1`
+  设的那份 RUSTFLAGS（`+crt-static` + 两条 `--remap-path-prefix`）⇒ 二进制里烙着本机
+  `C:\Users\...` 与仓库绝对路径，宿主 `6_deploy` 的 host path gate 会当场拒绝（实测
+  `modern` / `raw` 两枚一起被拦）。同源码的两种构建连字节数都不同（`modern` 7,313,408 B
+  vs 7,754,752 B），所以"看着能跑"不等于合格。
+  单档发布前先拿到那份 RUSTFLAGS（`Import-Module workspace\tools\toolchain.ps1`），或直接走
+  `build.ps1`；拿不准时以 `decoder-dist` 里 `deploy` 不报错的那一枚为准。
+- 清单 `size` 与远端包内 DLL 仍允许差几千字节（重编漂移，只影响列表显示，不重传、不改版本）。
 
 ## 发布目录规则
 
