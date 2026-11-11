@@ -11,6 +11,7 @@
 | `解码器开发规范.md` | ABI 结构/错误码/导出/像素格式/能力位/版本策略变化 | `build.ps1` + 宿主 `cargo test --lib core::abi` |
 | `docs/README.md` | 文档增删或职责变化 | `check_docs.py` 链接 |
 | `docs/architecture.md` | workspace、档 vs 单库、路由、ABI 快照、边界变化 | `manual`（评审） |
+| `docs/vector-decoder.md` | 矢量解码器（ABI v6）的区域语义、字体硬要求、默认接格式策略、验收清单变化 | `manual`（评审） |
 | `docs/building.md` | 工具链、target、`build.ps1` 顺序、profile、形态 A/B 变化 | `build.ps1` 实跑 + `manual` |
 | `解码器能力规划.md` | 目标 DLL/方向/未来格式/当前后缀数变化 | `manual`（评审） |
 | `testdata/GENERATION_EXCEPTIONS.md` | 无法生成/公开的格式增删 | `manual` + `testdata/tests` |

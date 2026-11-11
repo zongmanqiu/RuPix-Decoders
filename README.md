@@ -1,7 +1,12 @@
 # RuPix 解码器仓库
 
 > RuPix 看图器的**格式解码 DLL** 源码与发布清单。
-> [**Gitee**](https://gitee.com/qiuzongman/RuPix-Decoders) | [**GitHub**](https://github.com/zongmanqiu/RuPix-Decoders)
+>
+> 宿主仓库: [Gitee](https://gitee.com/qiuzongman/RuPix) | [GitHub](https://github.com/zongmanqiu/RuPix)
+>
+> 解码器仓库（本仓）: [Gitee](https://gitee.com/qiuzongman/RuPix-Decoders) | [GitHub](https://github.com/zongmanqiu/RuPix-Decoders)
+>
+> 插件仓库: [Gitee](https://gitee.com/qiuzongman/RuPix-Plugins) | [GitHub](https://github.com/zongmanqiu/RuPix-Plugins)
 >
 > 普通用户不用碰这个仓库：宿主「设置 → 解码器 → 可下载」点「下载」即可。
 

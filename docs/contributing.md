@@ -67,8 +67,10 @@
 - `decoders.json`：`py tools/make_index.py` 重生成。
 - `docs/architecture.md`：workspace / 路由 / 能力位变化时。
 - `docs/catalog.md`：字段或镜像规则变化时。
-- 宿主侧：`docs/架构总览.md` §四解码器矩阵、`docs/图片格式与后缀名.md` 归属列、
-  `README.md` 解码器表（并排开发时）。
+- 宿主侧：**常规加格式 / 换库不写宿主文档**——宿主只记录"动态并集"规则
+  （`<宿主>/docs/图片格式与后缀名.md` §二），不登记具体 DLL（对照见
+  `<宿主>/开发指南.md` §二「改图片格式支持范围」行）；只有 ABI 语义变化才动
+  `<宿主>/AGENTS.md` §五与 `<宿主>/docs/架构总览.md`（见根 AGENTS.md §二）。
 
 ## 六、验证
 

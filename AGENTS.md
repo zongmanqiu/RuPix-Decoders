@@ -1,7 +1,7 @@
 # RuPix 解码器仓库规则（AGENTS.md）
 
 > 对**本仓库根**（`RuPix-Decoder/`，远端同名仓库）生效的硬约束简版。
-> 门面与解码器一览见 `README.md`；契约全文见 `解码器开发规范.md`（真源在此，宿主仓库那份 `docs/解码器开发规范.md` 只留指针）；
+> 门面与解码器一览见 `README.md`；契约全文见 `解码器开发规范.md`（真源在此，宿主仓库那份 `docs/解码器开发规范.md` 是宿主侧自包含的对接说明，不复制契约全文）；
 > 跨模块流程/设计见 `docs/`（地图 `docs/README.md`）；每个 DLL 的当前状态见
 > `workspace/decoders/<id>/README.md`、对外变化见 `workspace/decoders/<id>/HISTORY.md`；
 > **修改、发布与交付检查的操作顺序见根 [`开发指南.md`](开发指南.md)**（流程唯一正本）；本文件只写硬约束与特殊形态。
@@ -48,7 +48,8 @@
    `workspace/singles/`（单库，**独立 cargo workspace**，见下）、
    `testdata/`（生成器 + `golden/` 证物）、`tools/`、`workspace/.cargo/`、`build.ps1`、
    `docs/`（**只放跨模块流程/设计**，地图 `docs/README.md`）、
-   `解码器开发规范.md`、`THIRD-PARTY-NOTICES.md`、`decoders.json`、`DOCS_MANIFEST.md`。
+   `解码器开发规范.md`、`解码器能力规划.md`、`开发指南.md`、
+   `THIRD-PARTY-NOTICES.md`、`decoders.json`、`DOCS_MANIFEST.md`。
    `dist/` 不在仓库里；发布暂存落 `../.temp/decoder-dist`。
    变更史写在 `workspace/decoders/<id>/HISTORY.md`（各档一份）；ABI 版本史写在
    `解码器开发规范.md` §九。本仓库不再另养无主的日志文件。
@@ -133,9 +134,10 @@
   不一致直接把宿主测试跑红）。**不许手改宿主那一份**，也不许改完契约不刷快照。
 - **改 ABI 必须同步宿主注释**（两处，缺一即文档漂移）：`<宿主>/src/core/decode.rs` 的
   `DecodeBackend` trait 文档（消费方定义接口 / `decoders::Host` 实现 /
-  `install_backend` 装入）与 `src/decoders/mod.rs` 的「DecodeBackend：core 调度接口的解码器层实现」节注释。
+  `install_backend` 装入）与 `src/decoders/backend.rs` 的「DecodeBackend：core 调度接口的解码器层实现」节注释。
 - 同一改动内还要同步：本仓库 `解码器开发规范.md`（§三～§五、§九版本策略）、
-  `<宿主>/AGENTS.md` §五、`<宿主>/docs/架构总览.md` —— 对照表见 `<宿主>/开发指南.md` §二「改解码器 ABI」行。
+  `<宿主>/AGENTS.md` §五、`<宿主>/docs/解码器开发规范.md`（宿主侧对接说明）、
+  `<宿主>/docs/架构总览.md` —— 对照表见 `<宿主>/开发指南.md` §二「改解码器 ABI」行。
 - 验收：本仓库 `build.ps1` 全绿 + 宿主 `cargo test --lib core::abi` 全绿。
 
 ## 三、产物与发布（唯一落点）
@@ -313,8 +315,8 @@
    ★ 档里**不写解码逻辑**——要换库、要改算法，去单库 crate 里改。
 5. 每个单库带**盲点单测**：截断文件、畸形头、超 `budget_bytes`、`ext = NULL` 只按魔数认领
    （无魔数格式必须返回 0）、越界 / 菱形结构（见 §五）。**并且档里要有一条端到端**
-   （探针 + 两阶段渲染 + 让位/路由，如 `workspace/decoders/common` 的
-   `pro` 的 `psd_and_hdr_render_through_the_pro_entry_point`）——只验单库不知道档有没有接上。
+   （探针 + 两阶段渲染 + 让位/路由，如 `workspace/decoders/pro` 的
+   `psd_and_hdr_render_through_the_pro_entry_point`）——只验单库不知道档有没有接上。
    ★ 需要**样本文件**时放 `testdata/golden/`（全仓共享，按后缀共享），**不要**放进
    `workspace/singles/<id>/` 或 `workspace/decoders/<id>/`——同一后缀只有一枚认领者，换库时样本不该跟着丢；
    `include_bytes!` 用 `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")` 引用。
