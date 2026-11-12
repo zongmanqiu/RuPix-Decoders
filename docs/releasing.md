@@ -79,7 +79,7 @@
 - ★ **发布物必须用带 remap 的入口构建**（2026-11-08 实测，纠正同日的错误结论）：裸
   `cargo build --release -p rupix-<id>` 也能出 DLL，但它没有 `workspace/tools/toolchain.ps1`
   设的那份 RUSTFLAGS（`+crt-static` + 两条 `--remap-path-prefix`）⇒ 二进制里烙着本机
-  `C:\Users\...` 与仓库绝对路径，宿主 `6_deploy` 的 host path gate 会当场拒绝（实测
+  `%USERPROFILE%\...` 与仓库绝对路径，宿主 `6_deploy` 的 host path gate 会当场拒绝（实测
   `modern` / `raw` 两枚一起被拦）。同源码的两种构建连字节数都不同（`modern` 7,313,408 B
   vs 7,754,752 B），所以"看着能跑"不等于合格。
   单档发布前先拿到那份 RUSTFLAGS（`Import-Module workspace\tools\toolchain.ps1`），或直接走

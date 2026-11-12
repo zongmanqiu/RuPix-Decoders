@@ -46,7 +46,7 @@
     "name": "Camera RAW & Raw Pixel Data",
     "version": "0.5.4",
     "abi": 6,
-    "size": 11379200,
+    "size": 12011008,
     "released": "2026-11-08",
     "desc": "相机 RAW 与裸像素/YUV 数据",
     "formats": "3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f;rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy",

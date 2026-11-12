@@ -567,3 +567,9 @@ if (Test-Path $indexPath) {
         Write-Host ("catalogue : decoders.json matches the {0} built DLL(s)" -f $catCount)
     }
 }
+
+# All gates above are explicit: every Invoke-Native call checked $LASTEXITCODE and
+# every python gate checked its own code. Without this line PowerShell would return
+# the *last native command's* status (which can be stale/non-zero even after all
+# tests pass), making 3_build_ext.bat report a failure for a clean build.
+exit 0
