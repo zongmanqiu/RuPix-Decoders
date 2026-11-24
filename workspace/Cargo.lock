@@ -1649,7 +1649,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-common"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "rupix-abi",
  "rupix-core",

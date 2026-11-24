@@ -2,16 +2,16 @@
   {
     "id": "common",
     "name": "Common Raster Set",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "abi": 6,
-    "size": 2320384,
-    "released": "2026-11-02",
+    "size": 2321920,
+    "released": "2026-11-25",
     "desc": "常见位图合集：照片、截图、图标与 macOS 图标",
     "formats": "jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo;png;apng;gif;tif;tiff;webp;bmp;dib;rle;ico;icon;cur;ani;tga;icns",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.6/common_0.2.6.zip",
-    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.6/common_0.2.6.zip"
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.7/common_0.2.7.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.7/common_0.2.7.zip"
   },
   {
     "id": "modern",
@@ -74,7 +74,7 @@
     "name": "Legacy Document Graphics",
     "version": "0.2.0",
     "abi": 6,
-    "size": 42040320,
+    "size": 42041344,
     "released": "2026-11-01",
     "desc": "旧版文档矢量：CMX/CCX、WPG、ZMF、ZBR",
     "formats": "cmx;ccx;wpg;zmf;zbr",

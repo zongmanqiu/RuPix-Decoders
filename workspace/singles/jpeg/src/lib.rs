@@ -105,6 +105,10 @@ pub extern "C" fn iv_render(
     render_impl(data, len, req, out, out_cap, info, _ext)
 }
 
+/// 缩略图快路径的最低边：低于它宁可不走内嵌预览——240×180 的格子会被放大得太糊，
+/// 不如多花一次整解。160 覆盖相机最常见的 160×120 缩略图。
+const MIN_THUMB_EDGE: u32 = 160;
+
 /// 合并库直接调这一层：`guard` 在内部，调用方不必再包一层。
 #[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
 pub fn render_impl(
@@ -115,6 +119,24 @@ pub fn render_impl(
     out_cap: usize,
     info: *mut IvRenderOut,
     _ext: *const c_char,
+) -> i32 {
+    render_impl_with_min(data, len, req, out, out_cap, info, _ext, MIN_THUMB_EDGE)
+}
+
+/// 同 [`render_impl`]，但把“内嵌缩略图最低边”开放给测试（生产入口恒用
+/// [`MIN_THUMB_EDGE`]）。测试用 16×12 的小黄金图当缩略图，不能为一个用例塞一张
+/// 160×120 的二进制样本。
+#[allow(clippy::not_unsafe_ptr_arg_deref)] // 规范 §三「指针参数的所有权」
+#[allow(clippy::too_many_arguments)] // 与 ABI 请求面一一对应；内部版本多一个测试门槛
+fn render_impl_with_min(
+    data: *const u8,
+    len: usize,
+    req: *const IvRenderReq,
+    out: *mut u8,
+    out_cap: usize,
+    info: *mut IvRenderOut,
+    _ext: *const c_char,
+    min_thumb_edge: u32,
 ) -> i32 {
     guard(|| {
         if data.is_null() || len == 0 {
@@ -170,11 +192,18 @@ pub fn render_impl(
             return ERR_TOO_LARGE;
         }
 
-        // ── 分派：这一次请求走哪条腿（模块头「两条腿」）。None = 整解。──────
-        let scaled = scaled_plan(req, input, w, h);
-        let (dw, dh) = match &scaled {
-            Some(p) => (p.w, p.h),
-            None => (w, h),
+        // ── 分派：缩略图快路径 > 缩放腿 > 整解。──────────────────────────
+        //    `REQ_THUMBNAIL` 只由宿主胶片条那一类请求携带；主画面/升级不会走到这里。
+        let thumb = thumbnail_plan(input, req, min_thumb_edge);
+        let scaled = if thumb.is_none() {
+            scaled_plan(req, input, w, h)
+        } else {
+            None
+        };
+        let (dw, dh) = match (&thumb, &scaled) {
+            (Some((_, tw, th)), _) => (*tw, *th),
+            (None, Some(p)) => (p.w, p.h),
+            (None, None) => (w, h),
         };
         let bytes_needed = dw as u64 * dh as u64 * 4;
         // ★ 方向：EXIF 标签在 APP1 里，**只扫段表不碰熵数据**（`rupix_abi` 的 kit 函数，
@@ -204,6 +233,35 @@ pub fn render_impl(
         }
 
         // ── 阶段 2：真解码，库直接输出 RGBA8（解码器侧零逐像素转换）。────────
+        if let Some((thumb, _, _)) = thumb {
+            // 内嵌缩略图就是一份独立的小 JPEG：只解它，主图一个像素都不碰。
+            let rgba = match decode_rgba(thumb) {
+                Ok(v) => v,
+                Err((code, msg)) => {
+                    set_last_error(msg);
+                    return code;
+                }
+            };
+            if rgba.len() as u64 != bytes_needed {
+                set_last_error("缩略图像素数与其文件头不符");
+                return ERR_CORRUPT;
+            }
+            unsafe {
+                std::ptr::copy_nonoverlapping(rgba.as_ptr(), out, bytes_needed as usize);
+            }
+            copy_icc(out, bytes_needed, &icc);
+            fill_info(
+                info,
+                dw,
+                dh,
+                bytes_needed,
+                orientation,
+                icc_len as u32,
+                page_count,
+            );
+            return ERR_OK;
+        }
+
         if let Some(p) = scaled {
             // 缩放腿直写宿主缓冲，连整图那次拷贝也一起省了。
             if let Err((code, msg)) = unsafe { decode_scaled_into(input, &p, out) } {
@@ -251,6 +309,35 @@ pub fn render_impl(
         ERR_OK
     })
 }
+/// 这一次请求能否走内嵌缩略图：只认 `REQ_THUMBNAIL` + 合法 EXIF IFD1，
+/// 且缩略图不能太小（低于 `min_thumb_edge`）。返回 `(JPEG 字节, 宽, 高)`。
+///
+/// **门槛不是“有就用”**：EXIF 里也可能躺着 16×16 的图标式缩略图；把它拉到 240×180
+/// 只会比整解更糊。低于门槛就回整解，宿主看到的是清晰度正常的格子，不是“快但糊”。
+fn thumbnail_plan(
+    input: &[u8],
+    req: *const IvRenderReq,
+    min_thumb_edge: u32,
+) -> Option<(&[u8], u32, u32)> {
+    let flags = if req.is_null() {
+        0
+    } else {
+        unsafe { (*req).flags }
+    };
+    if flags & REQ_THUMBNAIL == 0 {
+        return None;
+    }
+    let thumb = rupix_abi::jpeg_exif_thumbnail(input)?;
+    let (w, h) = header_dimensions(thumb).ok()?;
+    if w == 0 || h == 0 || w.max(h) < min_thumb_edge {
+        return None;
+    }
+    if w as u64 * h as u64 > MAX_PIXELS {
+        return None; // 畸形 EXIF 指向一张超大图：不走快路径
+    }
+    Some((thumb, w, h))
+}
+
 /// 把 ICC 段写到像素段之后（宿主按 `bytes_needed + icc_len` 分配）。
 fn copy_icc(out: *mut u8, bytes_needed: u64, icc: &[u8]) {
     if !icc.is_empty() {
@@ -1070,6 +1157,141 @@ mod tests {
         "/../../../testdata/golden/grey_8x8.jpg"
     ));
 
+    /// 把一段最小的 TIFF（IFD0 方向 + IFD1 缩略图偏移/长度）塞进 APP1，再插回主 JPEG
+    /// 的 SOI 之后。缩略图是独立 JPEG；偏移相对 TIFF 头，与 EXIF 规范一致。
+    fn jpeg_with_exif_thumb(main: &[u8], thumb: &[u8]) -> Vec<u8> {
+        let ifd0 = 8usize;
+        let ifd1 = ifd0 + 2 + 12 + 4;
+        let thumb_off = ifd1 + 2 + 2 * 12 + 4;
+        let mut tiff = Vec::new();
+        tiff.extend(b"II");
+        tiff.extend(42u16.to_le_bytes());
+        tiff.extend((ifd0 as u32).to_le_bytes());
+        // IFD0：方向 = 1，next = IFD1。
+        tiff.extend(1u16.to_le_bytes());
+        tiff.extend(0x0112u16.to_le_bytes());
+        tiff.extend(3u16.to_le_bytes());
+        tiff.extend(1u32.to_le_bytes());
+        tiff.extend(1u32.to_le_bytes());
+        tiff.extend((ifd1 as u32).to_le_bytes());
+        // IFD1：0x0201 偏移 / 0x0202 长度，均为单值 LONG。
+        tiff.extend(2u16.to_le_bytes());
+        for (tag, value) in [(0x0201u16, thumb_off as u32), (0x0202, thumb.len() as u32)] {
+            tiff.extend(tag.to_le_bytes());
+            tiff.extend(4u16.to_le_bytes());
+            tiff.extend(1u32.to_le_bytes());
+            tiff.extend(value.to_le_bytes());
+        }
+        tiff.extend(0u32.to_le_bytes());
+        assert_eq!(tiff.len(), thumb_off);
+        tiff.extend_from_slice(thumb);
+
+        let mut body = b"Exif\0\0".to_vec();
+        body.extend(tiff);
+        let mut out = Vec::with_capacity(main.len() + body.len() + 4);
+        out.extend(&main[..2]); // SOI
+        out.extend([0xFF, 0xE1]);
+        out.extend(((body.len() + 2) as u16).to_be_bytes());
+        out.extend(&body);
+        out.extend(&main[2..]);
+        out
+    }
+
+    fn render_with_min(
+        data: &[u8],
+        req: &IvRenderReq,
+        min_edge: u32,
+    ) -> (i32, IvRenderOut, Vec<u8>) {
+        let mut info = IvRenderOut::default();
+        let q = render_impl_with_min(
+            data.as_ptr(),
+            data.len(),
+            req,
+            std::ptr::null_mut(),
+            0,
+            &mut info,
+            std::ptr::null(),
+            min_edge,
+        );
+        if q != ERR_OK {
+            return (q, info, Vec::new());
+        }
+        let mut buf = vec![0u8; info.bytes_needed as usize];
+        let code = render_impl_with_min(
+            data.as_ptr(),
+            data.len(),
+            req,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut info,
+            std::ptr::null(),
+            min_edge,
+        );
+        (code, info, buf)
+    }
+
+    /// `REQ_THUMBNAIL` 走 EXIF IFD1：查询与渲染都只碰 16×12 的缩略图，主图 64×48 不解。
+    #[test]
+    fn thumbnail_flag_uses_the_embedded_jpeg_instead_of_the_main_image() {
+        let main = jpeg_with_exif_thumb(BASE64, GOLDEN);
+        let r = IvRenderReq {
+            target_w: 8,
+            target_h: 6,
+            flags: REQ_THUMBNAIL,
+            ..req()
+        };
+        let (code, info, buf) = render_with_min(&main, &r, 8);
+        assert_eq!(code, ERR_OK);
+        assert_eq!(
+            (info.actual_w, info.actual_h),
+            (16, 12),
+            "应从 EXIF 取 16×12 缩略图，而不是 64×48 主图"
+        );
+        assert_eq!(buf.len(), 16 * 12 * 4);
+    }
+
+    /// 质量门槛：默认 160 边，16×12 的内嵌图太小 ⇒ 回整解，不把糊图塞给宿主。
+    #[test]
+    fn tiny_embedded_thumbnail_falls_back_to_full_decode() {
+        let main = jpeg_with_exif_thumb(BASE64, GOLDEN);
+        let r = IvRenderReq {
+            target_w: 8,
+            target_h: 6,
+            flags: REQ_THUMBNAIL,
+            ..req()
+        };
+        let (code, info, _) = render_with_min(&main, &r, MIN_THUMB_EDGE);
+        assert_eq!(code, ERR_OK);
+        assert_eq!(
+            (info.actual_w, info.actual_h),
+            (64, 48),
+            "低于门槛应回整解主图"
+        );
+    }
+
+    /// 没有这一位、或文件没有 IFD1：行为与今天逐字节相同（整解主图）。
+    #[test]
+    fn thumbnail_flag_alone_does_not_change_the_path_without_an_embedded_copy() {
+        let r = IvRenderReq {
+            target_w: 8,
+            target_h: 6,
+            flags: REQ_THUMBNAIL,
+            ..req()
+        };
+        let (code, info, _) = render_with_min(BASE64, &r, 8);
+        assert_eq!(code, ERR_OK);
+        assert_eq!((info.actual_w, info.actual_h), (64, 48));
+
+        let main = jpeg_with_exif_thumb(BASE64, GOLDEN);
+        let r = IvRenderReq {
+            target_w: 8,
+            target_h: 6,
+            ..req()
+        };
+        let (code, info, _) = render_with_min(&main, &r, 8);
+        assert_eq!(code, ERR_OK);
+        assert_eq!((info.actual_w, info.actual_h), (64, 48));
+    }
     /// 带缩放意图的请求——宿主缩略图路径发的就是这一枚 flags。
     fn scaled_req(tw: u32, th: u32) -> IvRenderReq {
         IvRenderReq {

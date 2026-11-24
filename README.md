@@ -14,7 +14,7 @@
 
 | DLL | 版本 | 认领后缀 | ZIP 大小 | 发行日期 | Gitee | GitHub |
 |---|---:|---:|---:|---:|---|---|
-| `common` | 0.2.6 | 24 | 0.95 MB | 2026-11-02 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.6/common_0.2.6.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.6/common_0.2.6.zip) |
+| `common` | 0.2.7 | 24 | 0.95 MB | 2026-11-25 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.7/common_0.2.7.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.7/common_0.2.7.zip) |
 | `modern` | 0.3.4 | 9 | 2.79 MB | 2026-11-04 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.4/modern_0.3.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.4/modern_0.3.4.zip) |
 | `raw` | 0.5.4 | 40 | 3.61 MB | 2026-11-08 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.4/raw_0.5.4.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.4/raw_0.5.4.zip) |
 | `pro` | 0.4.3 | 16 | 0.76 MB | 2026-11-02 | [下载](https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.3/pro_0.4.3.zip) | [下载](https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.3/pro_0.4.3.zip) |

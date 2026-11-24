@@ -10,7 +10,7 @@ PNM/PAM、QOI、FF、DDS 已移出：QOI/FF 去 modern，PNM/PAM 去 classic，D
 | 量法 | 体积 |
 |---|---|
 | 原 6 枚独立解码器合计（`core`+`jpeg`+`png`+`gif`+`tiff`+`qoi`） | 3884 KB |
-| 合并档（0.2.6，2026-11-02；0.2.4 合并当时为 2,241,536 B，其后多帧/多页修复涨到此刻） | **2,322,432 B** |
+| 合并档（0.2.7，2026-11-25；0.2.4 合并当时为 2,241,536 B，其后多帧/多页修复涨到此刻） | **2,321,920 B** |
 | 差（对原 6 枚口径） | 约 **−50%** |
 
 ## 成员
@@ -28,6 +28,11 @@ PNM/PAM、QOI、FF、DDS 已移出：QOI/FF 去 modern，PNM/PAM 去 classic，D
 ⇒ 只剩 `zune-jpeg` 整解，也不再声明 `CAP_SCALED`。缩放是基座的事
 （`core::geometry::downscale`，AVX2 面积平均），解码器只负责"按真实尺寸解出一张位图"。
 这一条同时把 1.25 MB 的 libjpeg-turbo 静态库挡在门外。
+
+**缩略图快路径（0.2.7，`CAP_THUMB`）**：JPEG 成员在宿主置 `REQ_THUMBNAIL` 时先读
+EXIF IFD1 的内嵌 JPEG（`0x0201` / `0x0202`），只解那张小图；没有 / 太小（最大边 < 160）/
+解不开就回整解。主画面首屏与升级不走这条路，所以不需要 `CAP_SCALED` 的
+“首屏/升级两条腿同源”约束。PNG/GIF/TIFF/WebP 没有标准内嵌缩略图，收到这一位也照常整解。
 
 **WebP 走 `image-webp`**（`core` 的 `webp-rust` feature），不是 libwebp：慢 44%（3 MP 实测
 90.6 vs 50.3 ms），但换来"这枚 DLL 一个 C 字符都不带"。依赖树全 Rust，

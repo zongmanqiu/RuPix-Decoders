@@ -35,16 +35,18 @@ webp;bmp;dib;rle;ico;icon;cur;ani;tga;icns",
     has_alpha: 1,
 }
 
-// 只有整解：合并后不再声明 CAP_SCALED（jpeg 的 turbo 腿已关，缩放归基座），
+// 声明 CAP_FULL + CAP_THUMB：后者只服务宿主胶片条那一格（`REQ_THUMBNAIL`），
+// 走 JPEG 的 EXIF IFD1 内嵌缩略图；不声明 CAP_SCALED（jpeg 的 turbo 腿已关，
+// 主画面缩放仍归基座，首屏/升级两条腿同源那条约束不被触发）。
 // 也不声明 CAP_MULTIFRAME（成员里只有 gif/core 会出多帧，逐格式的能力差异
 // 目前没有"按后缀查能力"的接口，宁可不报）。
-rupix_abi::export_caps!(rupix_abi::CAP_FULL);
+rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_THUMB);
 
 rupix_abi::export_metadata! {
-    "version" => "0.2.6",
+    "version" => "0.2.7",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-11-02",
+    "released" => "2026-11-25",
 }
 
 /// 成员表。**顺序不影响路由**（按探针置信度排序），只影响同分时的先后。
@@ -235,6 +237,113 @@ mod tests {
         assert_eq!(px.len(), 8 * 8 * 4);
     }
 
+    const THUMB160: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../testdata/golden/base_160x120.jpg"
+    ));
+
+    /// 把一段最小 TIFF（IFD0 + IFD1 缩略图偏移/长度）塞进 APP1，插回主 JPEG 的 SOI 之后。
+    fn jpeg_with_exif_thumb(main: &[u8], thumb: &[u8]) -> Vec<u8> {
+        let ifd0 = 8usize;
+        let ifd1 = ifd0 + 2 + 12 + 4;
+        let thumb_off = ifd1 + 2 + 2 * 12 + 4;
+        let mut tiff = Vec::new();
+        tiff.extend(b"II");
+        tiff.extend(42u16.to_le_bytes());
+        tiff.extend((ifd0 as u32).to_le_bytes());
+        tiff.extend(1u16.to_le_bytes());
+        tiff.extend(0x0112u16.to_le_bytes()); // Orientation
+        tiff.extend(3u16.to_le_bytes());
+        tiff.extend(1u32.to_le_bytes());
+        tiff.extend(1u32.to_le_bytes());
+        tiff.extend((ifd1 as u32).to_le_bytes());
+        tiff.extend(2u16.to_le_bytes());
+        for (tag, value) in [(0x0201u16, thumb_off as u32), (0x0202, thumb.len() as u32)] {
+            tiff.extend(tag.to_le_bytes());
+            tiff.extend(4u16.to_le_bytes());
+            tiff.extend(1u32.to_le_bytes());
+            tiff.extend(value.to_le_bytes());
+        }
+        tiff.extend(0u32.to_le_bytes());
+        assert_eq!(tiff.len(), thumb_off);
+        tiff.extend_from_slice(thumb);
+
+        let mut body = b"Exif\0\0".to_vec();
+        body.extend(tiff);
+        let mut out = Vec::new();
+        out.extend(&main[..2]);
+        out.extend([0xFF, 0xE1]);
+        out.extend(((body.len() + 2) as u16).to_be_bytes());
+        out.extend(&body);
+        out.extend(&main[2..]);
+        out
+    }
+
+    /// 合并路由必须把 `REQ_THUMBNAIL` 原样交给 JPEG 成员：查询与渲染都走 160×120 的
+    /// EXIF 内嵌图，而不是 16×12 的主图。
+    #[test]
+    fn thumbnail_request_uses_the_embedded_jpeg_in_the_merged_router() {
+        let data = jpeg_with_exif_thumb(JPG, THUMB160);
+        let r = IvRenderReq {
+            target_w: 240,
+            target_h: 180,
+            flags: REQ_THUMBNAIL,
+            ..req()
+        };
+        let mut info = IvRenderOut::default();
+        assert_eq!(
+            iv_render(
+                data.as_ptr(),
+                data.len(),
+                &r,
+                std::ptr::null_mut(),
+                0,
+                &mut info,
+                std::ptr::null(),
+            ),
+            ERR_OK
+        );
+        assert_eq!(
+            (info.actual_w, info.actual_h),
+            (160, 120),
+            "应报 EXIF 缩略图尺寸，而不是主图 16×12"
+        );
+        let mut buf = vec![0u8; info.bytes_needed as usize];
+        assert_eq!(
+            iv_render(
+                data.as_ptr(),
+                data.len(),
+                &r,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut info,
+                std::ptr::null(),
+            ),
+            ERR_OK
+        );
+        assert_eq!(buf.len(), 160 * 120 * 4);
+
+        // 没有这一位：仍走主图整解，行为与今天相同。
+        let plain = IvRenderReq {
+            target_w: 240,
+            target_h: 180,
+            ..req()
+        };
+        let mut info = IvRenderOut::default();
+        assert_eq!(
+            iv_render(
+                data.as_ptr(),
+                data.len(),
+                &plain,
+                std::ptr::null_mut(),
+                0,
+                &mut info,
+                std::ptr::null(),
+            ),
+            ERR_OK
+        );
+        assert_eq!((info.actual_w, info.actual_h), (16, 12));
+    }
     #[test]
     fn unknown_bytes_are_not_claimed_and_not_rendered() {
         let junk = b"definitely not an image, just ascii bytes";

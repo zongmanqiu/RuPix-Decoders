@@ -21,6 +21,7 @@ const CAP_MULTIPAGE=16
 const CAP_RAW_PARAM=4
 const CAP_REGION=64
 const CAP_SCALED=2
+const CAP_THUMB=128
 const CAP_VECTOR=32
 const ERR_BUFFER_TOO_SMALL=4
 const ERR_CORRUPT=2
@@ -47,6 +48,7 @@ const PF_UYVY=10
 const PF_YUY2=9
 const PF_YV12=12
 const REQ_ALLOW_SCALED=4
+const REQ_THUMBNAIL=8
 type IvExportSvgFn (data:*const u8, len:usize, out:*mut u8, out_cap:usize, needed:*mut usize)->i32
 type IvRenderRegionFn (data:*const u8, len:usize, req:*const IvRegionReq, out:*mut u8, out_cap:usize, info:*mut IvRenderOut, ext:*const c_char)->i32
 export iv_abi_version ()->u32

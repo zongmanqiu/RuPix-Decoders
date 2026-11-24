@@ -6,7 +6,7 @@
 > 交付默认只要求 **10M 档**；`1M` / `100M` 只有用户显式选择时才生成，不是默认或必需产物。
 > `golden/heic_640x480.heic` 来自 `loremfile.dev/heic/640x480.heic`，CC0 1.0；HEIF/HIF 共用该容器。
 | `make_samples.py` + `samples.json`：1/10/100 MiB 雪花/真实 seed 生成器（默认 10M） | **是**（只有脚本和配置） | — | — |
-| `golden/`：31 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、HEIC、JNG、2 帧最小 GIF、最小 PSD/HDR、无 alpha JXR、公版 DjVu 扫描…） | **是** | 456 KB | `include_bytes!` **编译期**进测试二进制 |
+| `golden/`：32 个 golden / 边界证物（1×1 红点、隔行 PNG、CMYK TIFF、4 枚相机 RAW、AVIF 旋转样本、2 个最小 JXL、HEIC、JNG、2 帧最小 GIF、最小 PSD/HDR、无 alpha JXR、公版 DjVu 扫描…） | **是** | 462 KB | `include_bytes!` **编译期**进测试二进制 |
 | 生成出来的 `<tier>/noise<ext>` | **否** → `../.temp/testdata/` | 默认 10M 档 104 个；`--tier all` 时 312 个（104 后缀 × 3 档） | 运行时读文件 |
 
 划分标准是两条，缺一不可：**能不能用脚本算出来** + **算出来的字节能不能保证永远不变**。
@@ -14,9 +14,9 @@
 - 算不出来，**或**算出来也会随工具链漂移的（真实相机 RAW、某个具体 bug 的复现字节、
   `golden` 参考输出）→ 入库，且放在**全仓共享**的 `golden/`，不放进任何一个 crate 里。
 
-★ 为什么第二条也要算：31 个证物里 **12 个真造不出**（4 枚真机 RAW、5 枚 AVIF、2 枚 JXL，
-以及 1 枚无 DjVu 编码器可复现的公版扫描），另 **18 个能造 + 1 个 CC0 HEIC**（6 TIFF、4 JPEG、2 PNG、1 APNG、
-1 GIF、1 PSD、1 HDR、1 JXR、1 JNG），只是需要冻结字节。这 18 个**也不该改成现生成**：同一个字节永远
+★ 为什么第二条也要算：32 个证物里 **12 个真造不出**（4 枚真机 RAW、5 枚 AVIF、2 枚 JXL，
+以及 1 枚无 DjVu 编码器可复现的公版扫描），另 **19 个能造 + 1 个 CC0 HEIC**（6 TIFF、5 JPEG、2 PNG、1 APNG、
+1 GIF、1 PSD、1 HDR、1 JXR、1 JNG），只是需要冻结字节。这 19 个**也不该改成现生成**：同一个字节永远
 对应同一个断言，换个 Pillow 版本重生成就可能漂移，测试会静默变松——留档比"能重建"更重要。
 
 ## 为什么都不跟着解码库走
@@ -34,6 +34,8 @@
 - **新增样本放这里，不要放进 `workspace/decoders/<tier>/` 或 `workspace/singles/<id>/`**：
   文件名自带信息（`grey16_4x4.tif`、`prog_64x48.jpg`），后缀就是格式；两个 crate 想看同一份样本时
   直接引用同一路径，不需要拷贝。
+- `base_64x48.jpg` / `base_160x120.jpg`：Pillow 写出的近纯白基础 JPEG（本仓自生成，CC0-1.0）。
+  前者当普通主图夹具；后者当「主图 + EXIF IFD1 内嵌预览」夹具（`common` 0.2.7 的 `CAP_THUMB`）。
 - 引用方式（`include_bytes!` 要编译期常量，所以路径得从 crate 里拼出来）：
   ```rust
   const GOLDEN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"),
@@ -172,7 +174,7 @@ corpus**，只在 local-only 目录测试。不得用 0 字节文件、改名 DN
 
 ## 与 `golden/` 的分工
 
-| | `golden/`（入库，456 KB，31 个） | 生成器产物（仓库外，默认 104 个；`--tier all` 为 312 个 = 104 后缀 × 3 档） |
+| | `golden/`（入库，462 KB，32 个） | 生成器产物（仓库外，默认 104 个；`--tier all` 为 312 个 = 104 后缀 × 3 档） |
 |---|---|---|
 | 用途 | **断言正确性**：能不能解、值对不对、该不该拒绝 | **压性能与尺寸/内存门** |
 | 入口 | `include_bytes!` 编译期嵌入测试二进制 | 运行时读文件（`main/examples/core_smoke.rs`、`main/examples/decoder_smoke.rs`） |

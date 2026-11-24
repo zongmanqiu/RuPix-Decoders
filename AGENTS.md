@@ -228,9 +228,9 @@
 
 - 位置：`testdata/make_samples.py`。`testdata/` 有**两半**，划分标准是"能不能用脚本算出来"：
   `make_samples.py` 生成的 1/10/100 MiB 雪花样本 **不入库**（写 `../.temp/testdata/`）；
-  `testdata/golden/` 里 **31 个** golden / 边界证物（**456 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
+  `testdata/golden/` 里 **32 个** golden / 边界证物（**462 KB**）**入库**，一律 `include_bytes!` 编译期嵌入，
   引用路径见 `testdata/README.md`。入库判据不是"绝对造不出来"（实测：12 个真造不出——4 枚真机 RAW、
-  5 枚 AVIF、2 枚 JXL、1 枚公版 DjVu；另 18 个能造 + 1 个 CC0 HEIC，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
+  5 枚 AVIF、2 枚 JXL、1 枚公版 DjVu；另 19 个能造 + 1 个 CC0 HEIC，只是需要冻结字节），而是**"最小样本 + 字节必须恒定"**：
   同一个字节永远对应同一个断言，换 Pillow 版本重生成就可能漂移、测试静默变松。
 - **按后缀生成一份，不按解码器**：一个后缀只有一枚认领者（`check_deps.py` 守着），所以
   "JPEG 的测试图"对谁都是同一份字节；按解码器各存一份会让同一张 100 MB 图存在十几份并各自漂移。

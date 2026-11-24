@@ -25,7 +25,7 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 样本
 
-- `testdata/golden/`：31 个 golden / 边界证物（456 KB）**入库**，以编译期
+- `testdata/golden/`：32 个 golden / 边界证物（462 KB）**入库**，以编译期
   `include_bytes!` 为主；`av` 与 `raw` 的少数用例运行时读取。引用路径：
   `concat!(env!("CARGO_MANIFEST_DIR"), "/../../../testdata/golden/<file>")`。
 - `testdata/make_samples.py`：生成 1/10/100 MiB 雪花样本，**不入库**，写
@@ -69,7 +69,7 @@ cargo test --release --workspace -- --test-threads=1
 
 ## 已知空白
 
-- `heic/heif/hif` 已有 CC0 HEIC golden；31 个 golden 均至少被一处 `.rs` 引用。先补最少证物，或在
+- `heic/heif/hif` 已有 CC0 HEIC golden；32 个 golden 均至少被一处 `.rs` 引用。先补最少证物，或在
   文档中明确标为未验证（现已登记在 `claims.tsv`）。
 - `raw` 的 64 MP 闸只在查询阶段检查；宿主跳过查询直接渲染可绕过。没有真机样本
   可验，登记而不改。
