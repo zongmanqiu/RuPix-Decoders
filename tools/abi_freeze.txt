@@ -18,6 +18,7 @@ struct IvRenderReq target_w:u32 target_h:u32 budget_bytes:u32 flags:u32 frame_in
 const CAP_FULL=1
 const CAP_MULTIFRAME=8
 const CAP_MULTIPAGE=16
+const CAP_PARALLEL=256
 const CAP_RAW_PARAM=4
 const CAP_REGION=64
 const CAP_SCALED=2

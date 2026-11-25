@@ -113,13 +113,26 @@ export_decoder! {
 //                  所以 `.raw` 的参数窗请求落得到本档；位缺席时宿主也会从
 //                  导出存在性推导（`caps_of` 取"声明 ∪ 推导"），显式声明
 //                  只是不依赖推导。
-rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_SCALED | rupix_abi::CAP_RAW_PARAM);
+//
+// ★ `CAP_PARALLEL`（m349 P2 复审，2026-11-25）：承诺 iv_probe / iv_render /
+//   iv_render_raw 可多线程并发。依据 = 全库审计：本 crate 的显影缓存
+//   （cache.rs `CACHE`）是 `thread_local`（每线程 1 槽），develop/binning/orient/
+//   flash 无任何全局量；rawpx 成员无全局量；底层 rawler 0.8 纯 Rust，其唯一全局
+//   `LOADER: RawLoader` 是 lazy_static 只读相机表（`decode(&self)` 共享引用 +
+//   catch_unwind，结构体无内部可变性），镜头库同为 lazy_static 只读。
+//   并发压力验收：4 线程 × 多格式（cr2/dng/raf）× 200 次，像素与单线程逐字节一致。
+rupix_abi::export_caps!(
+    rupix_abi::CAP_FULL
+        | rupix_abi::CAP_SCALED
+        | rupix_abi::CAP_RAW_PARAM
+        | rupix_abi::CAP_PARALLEL
+);
 
 rupix_abi::export_metadata! {
-    "version" => "0.5.4",
+    "version" => "0.5.5",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-11-08",
+    "released" => "2026-11-25",
 }
 
 const BIT_DEPTH_8: u32 = 8;

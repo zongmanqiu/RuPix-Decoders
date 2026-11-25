@@ -710,12 +710,29 @@ fn webp_anim_fingerprint(data: &[u8]) -> (u64, [u8; 32], [u8; 32]) {
     (n as u64, head, tail)
 }
 
-// 会话池（与 gif_anim/apng_anim 同款）：解码线程是唯一使用方，用 Mutex 兜底。
-static WEBP_ANIM_SESSIONS: std::sync::Mutex<Vec<WebpAnimSession>> =
-    std::sync::Mutex::new(Vec::new());
+// 会话池（与 gif_anim/apng_anim 同款）。★ m349 P2：改**线程本地**——宿主声明
+// `CAP_PARALLEL` 后，多线程会同时调用 `iv_render`；每线程一份 2 槽 LRU 语义不变
+// （同一窗口的动画帧恒在同一条解码线程上续用会话），而进程内不再有共享态。
+// 实现用「每线程泄漏一枚 &'static RefCell」：LocalKey::with 的闭包借不出长命引用，
+// 泄漏让访问器能还出 RefMut<'static>，全部调用点零改动。泄漏量 = 每线程一枚空
+// Vec 的壳（会话本体进出都走它），线程退出才回收，可忽略。
+thread_local! {
+    static WEBP_ANIM_POOL: std::cell::Cell<
+        Option<&'static std::cell::RefCell<Vec<WebpAnimSession>>>,
+    > = const { std::cell::Cell::new(None) };
+}
 
-fn webp_anim_sessions() -> std::sync::MutexGuard<'static, Vec<WebpAnimSession>> {
-    WEBP_ANIM_SESSIONS.lock().unwrap_or_else(|e| e.into_inner())
+fn webp_anim_sessions() -> std::cell::RefMut<'static, Vec<WebpAnimSession>> {
+    let cell: &'static std::cell::RefCell<Vec<WebpAnimSession>> = WEBP_ANIM_POOL.with(|c| {
+        if let Some(p) = c.get() {
+            return p;
+        }
+        let p: &'static std::cell::RefCell<Vec<WebpAnimSession>> =
+            Box::leak(Box::new(std::cell::RefCell::new(Vec::new())));
+        c.set(Some(p));
+        p
+    });
+    cell.borrow_mut()
 }
 
 /// WebP 动画解码会话（libwebp 后端）。一次性解码全部帧，缓存在会话池里。
@@ -1010,7 +1027,7 @@ mod gif_anim {
 
     // 安全性：Session 内部全是自持数据（owned 缓冲 + owned 解码器），`!Send` 只是
     // trait object 没标 Send 边界的名义问题，不含线程亲和状态（无 Rc/RefCell/裸指针别名）。
-    // 宿主只在解码线程调用 iv_*，即便另有调用方也被 SESSIONS 的 Mutex 串行化访问。
+    // 宿主只在解码线程调用 iv_*；m349 P2 起会话池已线程本地化，多线程并发各用各的池。
     unsafe impl Send for Session {}
 
     impl Session {
@@ -1079,12 +1096,27 @@ mod gif_anim {
         (n > 0).then_some(n)
     }
 
-    /// 会话池。解码线程是唯一使用方，但宿主契约不保证这一点，用 Mutex 兜底。
-    /// lock 中毒（理论上 guard/panic 已隔离，防御性起见）→ 拿回锁继续用。
-    static SESSIONS: std::sync::Mutex<Vec<Session>> = std::sync::Mutex::new(Vec::new());
-
-    fn sessions() -> std::sync::MutexGuard<'static, Vec<Session>> {
-        SESSIONS.lock().unwrap_or_else(|e| e.into_inner())
+    /// 会话池。★ m349 P2：改**线程本地**（随 `CAP_PARALLEL` 声明）——每线程一份
+    /// 2 槽 LRU；同一窗口的动画帧恒在同一条解码线程上续用，语义不变；进程内
+    /// 不再有共享态，多线程并发 `iv_render` 各用各的池。访问器实现 = 每线程泄漏
+    /// 一枚 `&'static RefCell`（借不出长命引用的 LocalKey 限制；泄漏量可忽略，
+    /// 与 webp/gif 同款，见 webp_anim 模块注释）。
+    fn sessions() -> std::cell::RefMut<'static, Vec<Session>> {
+        thread_local! {
+            static POOL: std::cell::Cell<
+                Option<&'static std::cell::RefCell<Vec<Session>>>,
+            > = const { std::cell::Cell::new(None) };
+        }
+        let cell: &'static std::cell::RefCell<Vec<Session>> = POOL.with(|c| {
+            if let Some(p) = c.get() {
+                return p;
+            }
+            let p: &'static std::cell::RefCell<Vec<Session>> =
+                Box::leak(Box::new(std::cell::RefCell::new(Vec::new())));
+            c.set(Some(p));
+            p
+        });
+        cell.borrow_mut()
     }
 
     /// 查询阶段：逻辑屏幕尺寸 + 帧数（表头数出来的；读不出 = 0）。不解码、不动游标。
@@ -1258,7 +1290,7 @@ mod apng_anim {
     }
 
     // 安全性：同 gif_anim —— Session 内部全是自持数据，无线程亲和状态；
-    // 宿主只在解码线程调用 iv_*，即便另有调用方也被 SESSIONS 的 Mutex 串行化。
+    // 宿主只在解码线程调用 iv_*；m349 P2 起会话池已线程本地化，多线程并发各用各的池。
     unsafe impl Send for Session {}
 
     impl Session {
@@ -1347,11 +1379,23 @@ mod apng_anim {
         }
     }
 
-    /// 会话池。解码线程是唯一使用方，但宿主契约不保证这一点，用 Mutex 兜底。
-    static SESSIONS: std::sync::Mutex<Vec<Session>> = std::sync::Mutex::new(Vec::new());
-
-    fn sessions() -> std::sync::MutexGuard<'static, Vec<Session>> {
-        SESSIONS.lock().unwrap_or_else(|e| e.into_inner())
+    /// 会话池。★ m349 P2：改**线程本地**（随 `CAP_PARALLEL` 声明，与 gif_anim 同款）。
+    fn sessions() -> std::cell::RefMut<'static, Vec<Session>> {
+        thread_local! {
+            static POOL: std::cell::Cell<
+                Option<&'static std::cell::RefCell<Vec<Session>>>,
+            > = const { std::cell::Cell::new(None) };
+        }
+        let cell: &'static std::cell::RefCell<Vec<Session>> = POOL.with(|c| {
+            if let Some(p) = c.get() {
+                return p;
+            }
+            let p: &'static std::cell::RefCell<Vec<Session>> =
+                Box::leak(Box::new(std::cell::RefCell::new(Vec::new())));
+            c.set(Some(p));
+            p
+        });
+        cell.borrow_mut()
     }
 
     /// 查询阶段：画布尺寸 + 帧数（`acTL` 读出来的；读不出 = 0）。不解码、不动游标。

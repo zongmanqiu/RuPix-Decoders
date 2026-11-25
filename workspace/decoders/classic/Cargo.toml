@@ -1,6 +1,6 @@
 [package]
 name = "rupix-classic-dll"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "AGPL-3.0"
 description = "RuPix classic raster tier: PCX/DCX/PNM/PAM/WBMP/XBM/XPM/PICT/ILBM/SGI"

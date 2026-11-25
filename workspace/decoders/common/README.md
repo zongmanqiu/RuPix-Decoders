@@ -32,7 +32,11 @@ PNM/PAM、QOI、FF、DDS 已移出：QOI/FF 去 modern，PNM/PAM 去 classic，D
 **缩略图快路径（0.2.7，`CAP_THUMB`）**：JPEG 成员在宿主置 `REQ_THUMBNAIL` 时先读
 EXIF IFD1 的内嵌 JPEG（`0x0201` / `0x0202`），只解那张小图；没有 / 太小（最大边 < 160）/
 解不开就回整解。主画面首屏与升级不走这条路，所以不需要 `CAP_SCALED` 的
-“首屏/升级两条腿同源”约束。PNG/GIF/TIFF/WebP 没有标准内嵌缩略图，收到这一位也照常整解。
+"首屏/升级两条腿同源"约束。PNG/GIF/TIFF/WebP 没有标准内嵌缩略图，收到这一位也照常整解。
+
+**可并发调用（0.2.8，`CAP_PARALLEL`）**：全库审计后声明——三处动画会话池改线程本地，
+多线程并发 `iv_probe`/`iv_render` 各用各的会话，宿主据此跳过同一枚 DLL 的串行锁
+（m349 P2）。并发压力 4 线程 × 200 迭代像素逐字节一致。
 
 **WebP 走 `image-webp`**（`core` 的 `webp-rust` feature），不是 libwebp：慢 44%（3 MP 实测
 90.6 vs 50.3 ms），但换来"这枚 DLL 一个 C 字符都不带"。依赖树全 Rust，

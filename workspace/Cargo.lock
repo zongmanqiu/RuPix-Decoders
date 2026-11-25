@@ -1649,7 +1649,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-common"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "rupix-abi",
  "rupix-core",
@@ -1733,7 +1733,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-modern"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "rupix-abi",
  "rupix-av",
@@ -1769,7 +1769,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-raw"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "flashraw",
  "rawler",

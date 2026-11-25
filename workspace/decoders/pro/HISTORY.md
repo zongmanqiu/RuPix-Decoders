@@ -2,6 +2,16 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.4.4 — 2026-11-25 — abi 6
+
+- **可并发调用**：新增能力位 `CAP_PARALLEL`（v6 内加法，`1 << 8`）。宿主据此对
+  pro 跳过"同一枚 DLL 串行锁"——多窗口同后缀、同窗多车道（m349）不再排队。
+- **审计依据**：七个成员（jp2/jxr/exr/psd/hdr/xcf/ase）全部纯 Rust、零 C 库
+  （jp2=hayro-jpeg2000、jxr=mxr 纯 Rust、exr=OpenEXR crate）；各成员 lib.rs 无
+  任何 static/Mutex/thread_local 全局量，解码状态全部每调用新建。
+- **并发压力验收**：4 线程 × 多格式（psd/hdr）× 200 次，像素与单线程逐字节一致。
+- **未变**：后缀集合、ABI 版本（v6 内加法）、单线程解码路径与像素输出。
+
 ## 0.4.3 — 2026-11-02 — abi 6
 
 - **动图**：Aseprite（`.ase/.aseprite`）从"只出第 0 帧"改为**逐帧服务**。查询报

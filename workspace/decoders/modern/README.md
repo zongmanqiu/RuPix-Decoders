@@ -77,3 +77,9 @@ cargo test  --release -p rupix-modern -- --test-threads=1
 ## 历史
 
 对外可见变化见 [`HISTORY.md`](HISTORY.md)。本页只保留当前状态、成员与限制。
+
+**可并发调用（0.3.5，`CAP_PARALLEL`）**：全库审计后声明——五个成员全部纯 Rust、
+零 C 库，av/jng 的解码缓存是 `thread_local`（每线程 1 槽），qoi/ff 无全局量，
+heif-oxide / zenavif / jxl-oxide 零 unsafe 无静态可变量。多线程并发 `iv_probe`/
+`iv_render` 各用各的会话，宿主据此跳过同一枚 DLL 的串行锁（m349 P2）。并发压力
+4 线程 × 多格式 × 200 次像素逐字节一致。

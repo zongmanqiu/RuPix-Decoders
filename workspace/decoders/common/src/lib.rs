@@ -35,15 +35,20 @@ webp;bmp;dib;rle;ico;icon;cur;ani;tga;icns",
     has_alpha: 1,
 }
 
-// 声明 CAP_FULL + CAP_THUMB：后者只服务宿主胶片条那一格（`REQ_THUMBNAIL`），
-// 走 JPEG 的 EXIF IFD1 内嵌缩略图；不声明 CAP_SCALED（jpeg 的 turbo 腿已关，
-// 主画面缩放仍归基座，首屏/升级两条腿同源那条约束不被触发）。
+// 声明 CAP_FULL + CAP_THUMB + CAP_PARALLEL。CAP_THUMB 只服务宿主胶片条那一格
+// （`REQ_THUMBNAIL`），走 JPEG 的 EXIF IFD1 内嵌缩略图；不声明 CAP_SCALED
+// （jpeg 的 turbo 腿已关，主画面缩放仍归基座，首屏/升级两条腿同源那条约束不被触发）。
 // 也不声明 CAP_MULTIFRAME（成员里只有 gif/core 会出多帧，逐格式的能力差异
 // 目前没有"按后缀查能力"的接口，宁可不报）。
-rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_THUMB);
+// ★ `CAP_PARALLEL`（m349 P2，2026-11-25）：承诺 iv_probe / iv_render 可多线程并发。
+//   依据 = 全库审计：成员（jpeg/png/gif/tiff/icns/core）除 core 的动画会话池外
+//   无进程级共享态；三处会话池（webp/gif/apng）已改线程本地（每线程 2 槽 LRU，
+//   同窗口的动画帧恒在同一条解码线程上续用，单线程行为逐字节一致）；LAST_ERROR
+//   早已线程本地。并发压力验收：4 线程 × 多格式 × 200 次，像素与单线程逐字节一致。
+rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_THUMB | rupix_abi::CAP_PARALLEL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.2.7",
+    "version" => "0.2.8",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
     "released" => "2026-11-25",

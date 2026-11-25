@@ -3,6 +3,21 @@
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 > 本档是 tier + 引擎：显影链在 `workspace/decoders/raw/src/lib.rs`，不在单库。
 
+## 0.5.5 — 2026-11-25 — abi 6
+
+- **可并发调用**：新增能力位 `CAP_PARALLEL`（v6 内加法，`1 << 8`）。宿主据此对
+  raw 跳过"同一枚 DLL 串行锁"——多窗口同后缀、同窗多车道（m349）不再排队；
+  承诺面含参数化的 `iv_render_raw`。
+- **审计依据**：本 crate 的显影缓存（cache.rs `CACHE`）是 `thread_local`（每线程
+  1 槽），develop/binning/orient/flash 无任何全局量；rawpx 成员无全局量；底层
+  rawler 0.8 纯 Rust，唯一全局 `LOADER: RawLoader` 是 lazy_static 只读相机表
+  （`decode(&self)` 共享引用 + catch_unwind，结构体无内部可变性），镜头库同为
+  lazy_static 只读。
+- **并发压力验收**：宿主侧 4 线程 × 200 次 × 3 份真机 RAW（cr2/dng/raf，6-20 MB
+  全链路显影，重负载 138.6s）像素与单线程逐字节一致；档内新增并发用例钉
+  `iv_render_raw` + `iv_probe`（4 线程 × 20 次与串行基线一致）。
+- **未变**：后缀集合、ABI 版本（v6 内加法）、单线程显影路径与像素输出。
+
 ## 0.5.4 — 2026-11-08 — abi 6
 
 - **修复**：首帧（分箱快档）与升级档（全尺寸）此前各自对"自己那份线性图"算自动曝光，

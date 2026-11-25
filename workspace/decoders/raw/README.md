@@ -73,3 +73,10 @@
 缓存键与两阶段尺寸。examples：`dump_exts`、`smoke_raw`、`bench_raw_stages`、
 `bench_raw_bin`、`check_raw_tier`、`probe_raw_frame`、`probe_tier_brightness`（两腿亮度差）。
 细节见 [`DESIGN.md`](DESIGN.md)，对外变化见 [`HISTORY.md`](HISTORY.md)。
+
+**可并发调用（0.5.5，`CAP_PARALLEL`）**：全库审计后声明——显影缓存是
+`thread_local`（每线程 1 槽），rawpx 无全局量，底层 rawler 0.8 纯 Rust 且其唯一
+全局 `LOADER` 是 lazy_static 只读相机表（结构体无内部可变性）。多线程并发
+`iv_probe`/`iv_render`/`iv_render_raw` 各用各的会话，宿主据此跳过同一枚 DLL 的
+串行锁（m349 P2）。并发压力：宿主侧 4 线程 × 200 次 × 3 份真机 RAW（cr2/dng/raf
+全链路显影）与档内 `iv_render_raw`+`iv_probe` 并发用例，像素逐字节一致。

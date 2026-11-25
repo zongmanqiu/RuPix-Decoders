@@ -149,6 +149,80 @@ fn render_raw_size_mismatch_is_corrupt() {
     assert_eq!(code, ERR_CORRUPT);
 }
 
+/// m349 P2 `CAP_PARALLEL` 验收（档内）：`iv_render_raw`（rawpx 参数化路）与
+/// `iv_probe` 多线程并发下必须与串行基线逐字节一致。相机 RAW 的 `iv_render`
+/// 并发覆盖在两处：外部宿主 `parallel_stress`（4 线程 × 200 次 × 真机 RAW）与
+/// `parallel_stress` 的跳锁路径——金样库里的相机 RAW 都是故意损坏的错误路径
+/// 样本，本档没法拿它们跑并发。
+#[test]
+fn concurrent_render_raw_and_probe_match_the_serial_baseline() {
+    // 串行基线：rawpx 参数化解的像素 + 各格式探针分。
+    let fingerprint = |buf: &[u8]| -> u64 {
+        let mut h: u64 = 0xcbf29ce484222325;
+        for b in buf {
+            h ^= *b as u64;
+            h = h.wrapping_mul(0x100000001b3);
+        }
+        h
+    };
+    let render_raw_2x2 = || -> Vec<u8> {
+        let src: Vec<u8> = (10..=25).collect();
+        let req = IvRenderReq::default();
+        let mut info = IvRenderOut::default();
+        let q = iv_render_raw(
+            src.as_ptr(),
+            src.len(),
+            2,
+            2,
+            PF_BGRA8,
+            &req,
+            std::ptr::null_mut(),
+            0,
+            &mut info,
+        );
+        assert_eq!(q, ERR_OK);
+        let mut buf = vec![0u8; info.bytes_needed as usize];
+        let r = iv_render_raw(
+            src.as_ptr(),
+            src.len(),
+            2,
+            2,
+            PF_BGRA8,
+            &req,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut info,
+        );
+        assert_eq!(r, ERR_OK);
+        buf
+    };
+    let base_raw = fingerprint(&render_raw_2x2());
+
+    // 并发腿：4 线程 × 20 次，参数化解与探针混跑。
+    let mismatch = std::sync::atomic::AtomicUsize::new(0);
+    std::thread::scope(|s| {
+        for _ in 0..4 {
+            s.spawn(|| {
+                for _ in 0..20 {
+                    if fingerprint(&render_raw_2x2()) != base_raw {
+                        mismatch.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    // 探针并发：真 CR2 头要 100 分，垃圾字节要 0 分。
+                    let cr2_head: [u8; 16] = [
+                        0x49, 0x49, 0x2a, 0x00, 0x10, 0x00, 0x00, 0x00, 0x43, 0x52, 0x02, 0x00,
+                        0x00, 0x00, 0x00, 0x00,
+                    ];
+                    let p = iv_probe(cr2_head.as_ptr(), cr2_head.len(), c"cr2".as_ptr());
+                    if p != 100 {
+                        mismatch.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            });
+        }
+    });
+    assert_eq!(mismatch.load(std::sync::atomic::Ordering::Relaxed), 0);
+}
+
 #[test]
 fn orientation_mapping_is_exif() {
     use rawler::decoders::Orientation as O;
@@ -633,7 +707,12 @@ fn flat_neutral(w: usize, h: usize) -> rawler::RawImage {
 fn caps_declare_scaled() {
     // rawpx 并入本档后多导出 `iv_render_raw`，能力位必须同时含
     // CAP_RAW_PARAM（宿主据此把参数化裸数据路由进来）。
-    assert_eq!(iv_caps(), CAP_FULL | CAP_SCALED | CAP_RAW_PARAM);
+    // m349 P2 复审起还声明 CAP_PARALLEL（iv_probe/iv_render/iv_render_raw
+    // 可并发，依据见 lib.rs caps 处审计注释）。
+    assert_eq!(
+        iv_caps(),
+        CAP_FULL | CAP_SCALED | CAP_RAW_PARAM | CAP_PARALLEL
+    );
 }
 
 /// 档位只在**点亮缩放意图、且这一档确实比原图小**时出得来。

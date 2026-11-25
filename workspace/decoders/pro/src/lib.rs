@@ -35,13 +35,19 @@ xcf;ase;aseprite;psd;hdr",
 // 而两条渲染路径并存 = 同一格式的像素可能因机器而异。
 //
 // ★ WMF/DjVu 已迁出 pro（2026-10-28，doc 档接管）；本档不再声明 CAP_REGION。
-rupix_abi::export_caps!(rupix_abi::CAP_FULL);
+//
+// ★ `CAP_PARALLEL`（m349 P2 复审，2026-11-25）：承诺 iv_probe / iv_render 可多线程并发。
+//   依据 = 全库审计：七个成员（jp2/jxr/exr/psd/hdr/xcf/ase）全部纯 Rust、零 C 库
+//   （jp2=hayro-jpeg2000、jxr=mxr 0.2.1 纯 Rust、exr=OpenEXR crate）；各成员
+//   lib.rs 无任何 static/Mutex/thread_local 全局量，解码状态全部每调用新建。
+//   并发压力验收：4 线程 × 多格式（psd/hdr）× 200 次，像素与单线程逐字节一致。
+rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_PARALLEL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.4.3",
+    "version" => "0.4.4",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-11-02",
+    "released" => "2026-11-25",
 }
 
 static MEMBERS: &[Member] = &[

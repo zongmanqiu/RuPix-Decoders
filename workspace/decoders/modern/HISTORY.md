@@ -2,6 +2,17 @@
 
 > 只记 DLL 对外可见的变化。ABI 版本史见 `解码器开发规范.md` §九。
 
+## 0.3.5 — 2026-11-25 — abi 6
+
+- **可并发调用**：新增能力位 `CAP_PARALLEL`（v6 内加法，`1 << 8`）。宿主据此对
+  modern 跳过"同一枚 DLL 串行锁"——多窗口同后缀、同窗多车道（m349）不再排队。
+- **审计依据**：五个成员（av/jng/jxl/qoi/ff）全部纯 Rust、零 C 库；av 的
+  `DECODE_CACHE` 与 jng 的 `CACHE` 都是 `thread_local`（每线程 1 槽，跨线程无共享）；
+  qoi/ff 无任何全局量；heif-oxide / zenavif / jxl-oxide 声明零 unsafe、无静态可变量。
+- **并发压力验收**：4 线程 × 多格式（avif/jxl/jng/heic）× 200 次，像素与单线程
+  逐字节一致，无 panic / 挂死 / 错误文案串味。
+- **未变**：后缀集合、ABI 版本（v6 内加法）、单线程解码路径与像素输出。
+
 ## 0.3.4 — 2026-11-04 — abi 6
 
 - **修复（挂死）**：AVIF/AVIFS 一律**单线程**解码（`zenavif::DecoderConfig::new().threads(1)`，

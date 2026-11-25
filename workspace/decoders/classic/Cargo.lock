@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-classic-dll"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "rupix-abi",
  "rupix-classic",

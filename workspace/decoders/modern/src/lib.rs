@@ -31,13 +31,19 @@ export_decoder! {
 
 // 只有整解：HEIC/AVIF/JXL 都没有"解码期降采样"的口子（预测编码不给这个口子），
 // 缩放一律交给基座。
-rupix_abi::export_caps!(rupix_abi::CAP_FULL);
+//
+// ★ `CAP_PARALLEL`（m349 P2 复审，2026-11-25）：承诺 iv_probe / iv_render 可多线程并发。
+//   依据 = 全库审计：五个成员（av/jng/jxl/qoi/ff）全部纯 Rust、零 C 库；av 的
+//   `DECODE_CACHE` 与 jng 的 `CACHE` 都是 `thread_local`（每线程 1 槽，跨线程无共享）；
+//   qoi/ff 无任何全局量；heif-oxide/zenavif/jxl-oxide 声明零 unsafe、无静态可变量。
+//   并发压力验收：4 线程 × 多格式（avif/jxl/jng/heic）× 200 次，像素与单线程逐字节一致。
+rupix_abi::export_caps!(rupix_abi::CAP_FULL | rupix_abi::CAP_PARALLEL);
 
 rupix_abi::export_metadata! {
-    "version" => "0.3.4",
+    "version" => "0.3.5",
     "author" => "RuPix",
     "license" => "AGPL-3.0",
-    "released" => "2026-11-04",
+    "released" => "2026-11-25",
 }
 
 static MEMBERS: &[Member] = &[

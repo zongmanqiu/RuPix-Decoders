@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-pro"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "rupix-abi",
  "rupix-merge-router",

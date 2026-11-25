@@ -51,3 +51,8 @@ cargo test --release --workspace -- --test-threads=1
 ## 历史
 
 对外可见变化见 [`HISTORY.md`](HISTORY.md)。本页只保留当前状态、成员与限制。
+
+**可并发调用（0.4.4，`CAP_PARALLEL`）**：全库审计后声明——七个成员全部纯 Rust、
+零 C 库（jp2=hayro-jpeg2000、jxr=mxr、exr=OpenEXR crate），各成员无任何全局量，
+解码状态每调用新建。多线程并发 `iv_probe`/`iv_render` 各用各的会话，宿主据此跳过
+同一枚 DLL 的串行锁（m349 P2）。并发压力 4 线程 × 多格式 × 200 次像素逐字节一致。

@@ -371,7 +371,7 @@ dependencies = [
 
 [[package]]
 name = "rupix-texture-dll"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "rupix-abi",
  "rupix-merge-router",
