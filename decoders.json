@@ -4,56 +4,56 @@
     "name": "Common Raster Set",
     "version": "0.2.8",
     "abi": 6,
-    "size": 2326016,
-    "released": "",
+    "size": 2323968,
+    "released": "2026-11-25",
     "desc": "常见位图合集：照片、截图、图标与 macOS 图标",
     "formats": "jpg;jpeg;jpe;jfif;jif;jfi;exif;jps;mpo;png;apng;gif;tif;tiff;webp;bmp;dib;rle;ico;icon;cur;ani;tga;icns",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/common_0.2.8/common_0.2.8.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/common_0.2.8/common_0.2.8.zip"
   },
   {
     "id": "modern",
     "name": "Modern Formats (HEIC/AVIF/JXL/JNG)",
     "version": "0.3.5",
     "abi": 6,
-    "size": 7761408,
+    "size": 7754752,
     "released": "2026-11-25",
     "desc": "现代格式：手机照片、高效压缩图像与 QOI/Farbfeld",
     "formats": "heic;heif;hif;avif;avifs;jxl;jng;qoi;ff",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/modern_0.3.5/modern_0.3.5.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/modern_0.3.5/modern_0.3.5.zip"
   },
   {
     "id": "pro",
     "name": "Professional Formats",
     "version": "0.4.4",
     "abi": 6,
-    "size": 2029568,
+    "size": 2027520,
     "released": "2026-11-25",
     "desc": "专业格式：创作、HDR 与工程格式",
     "formats": "jp2;j2k;j2c;jpc;jpx;jpf;jpt;jxr;wdp;hdp;exr;xcf;ase;aseprite;psd;hdr",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/pro_0.4.4/pro_0.4.4.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/pro_0.4.4/pro_0.4.4.zip"
   },
   {
     "id": "raw",
     "name": "Camera RAW & Raw Pixel Data",
     "version": "0.5.5",
     "abi": 6,
-    "size": 12020736,
+    "size": 12011008,
     "released": "2026-11-25",
     "desc": "相机 RAW 与裸像素/YUV 数据",
     "formats": "3fr;ari;arw;cr2;cr3;crm;crw;dcr;dcs;dng;erf;fff;iiq;kdc;mef;mos;mrw;nef;nrw;orf;ori;pef;qtk;raf;raw;rw2;rwl;srw;x3f;rgb;rgba;gray;gry;bgra;yuv;i420;yv12;nv12;yuy2;uyvy",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/raw_0.5.5/raw_0.5.5.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/raw_0.5.5/raw_0.5.5.zip"
   },
   {
     "id": "doc",
@@ -88,27 +88,27 @@
     "name": "Classic Raster Formats",
     "version": "0.1.1",
     "abi": 6,
-    "size": 851968,
-    "released": "",
+    "size": 851456,
+    "released": "2026-11-25",
     "desc": "经典位图：PCX/DCX、PNM/PAM、WBMP/XBM/XPM、PICT、ILBM、SGI",
     "formats": "pcx;pcc;dcx;pnm;ppm;pgm;pbm;pam;wbmp;xbm;xpm;pict;pct;pic;ilbm;lbm;iff;sgi;iris;bw",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/classic_0.1.1/classic_0.1.1.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/classic_0.1.1/classic_0.1.1.zip"
   },
   {
     "id": "texture",
     "name": "GPU & Game Textures",
     "version": "0.1.1",
     "abi": 6,
-    "size": 2575872,
-    "released": "",
+    "size": 2574336,
+    "released": "2026-11-25",
     "desc": "GPU/游戏纹理：DDS/KTX/KTX2/ASTC/PVR/Basis/BLP/VTF",
     "formats": "dds;ktx;ktx2;astc;pvr;basis;blp;vtf",
     "author": "RuPix",
     "license": "AGPL-3.0",
-    "gitee": "",
-    "github": ""
+    "gitee": "https://gitee.com/qiuzongman/RuPix-Decoders/releases/download/texture_0.1.1/texture_0.1.1.zip",
+    "github": "https://github.com/zongmanqiu/RuPix-Decoders/releases/download/texture_0.1.1/texture_0.1.1.zip"
   }
 ]
