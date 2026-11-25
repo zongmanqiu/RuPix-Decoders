@@ -6,12 +6,12 @@
 
 | 档 | 版本 | 后缀数 | 状态 | 成员 | 文档 |
 |---|---|---:|---:|---|---:|---|
-| `common` | 0.2.7 | 24 | 已发布（见 decoders.json） | 6 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
-| `modern` | 0.3.4 | 9 | 已发布（见 decoders.json） | 5 | [README](modern/README.md) · [HISTORY](modern/HISTORY.md) |
-| `raw` | 0.5.4 | 40 | 已发布（2026-11-08，见 decoders.json） | 1（rawpx 仅走 iv_render_raw） | [README](raw/README.md) · [HISTORY](raw/HISTORY.md) · [DESIGN](raw/DESIGN.md) |
-| `pro` | 0.4.3 | 16 | 已发布（见 decoders.json） | 7 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
-| `classic` | 0.1.0 | 20 | 已发布（见 decoders.json）；纯 Rust | 9 | [README](classic/README.md) · [HISTORY](classic/HISTORY.md) |
-| `texture` | 0.1.0 | 8 | 已发布（见 decoders.json）；纯 Rust | 8 | [README](texture/README.md) · [HISTORY](texture/HISTORY.md) |
+| `common` | 0.2.8 | 24 | 已发布（见 decoders.json） | 6 | [README](common/README.md) · [HISTORY](common/HISTORY.md) |
+| `modern` | 0.3.5 | 9 | 已发布（见 decoders.json） | 5 | [README](modern/README.md) · [HISTORY](modern/HISTORY.md) |
+| `raw` | 0.5.5 | 40 | 已发布（2026-11-25，见 decoders.json） | 1（rawpx 仅走 iv_render_raw） | [README](raw/README.md) · [HISTORY](raw/HISTORY.md) · [DESIGN](raw/DESIGN.md) |
+| `pro` | 0.4.4 | 16 | 已发布（见 decoders.json） | 7 | [README](pro/README.md) · [HISTORY](pro/HISTORY.md) |
+| `classic` | 0.1.1 | 20 | 已发布（见 decoders.json）；纯 Rust | 9 | [README](classic/README.md) · [HISTORY](classic/HISTORY.md) |
+| `texture` | 0.1.1 | 8 | 已发布（见 decoders.json）；纯 Rust | 8 | [README](texture/README.md) · [HISTORY](texture/HISTORY.md) |
 | `doc` | 0.2.3 | 30 | 已发布（2026-11-04，见 decoders.json）；常见文档/CAD | 8 | [README](doc/README.md) · [HISTORY](doc/HISTORY.md) |
 | `doc-legacy` | 0.2.0 | 5 | 已发布（2026-11-01，见 decoders.json）；CMX/WPG/ZMF/ZBR | 1 | [README](doc-legacy/README.md) · [HISTORY](doc-legacy/HISTORY.md) |
 

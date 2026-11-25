@@ -40,4 +40,4 @@ cargo test --release -- --test-threads=1
 cargo build --release
 ```
 
-DLL 落 `.temp/texture-target/release/texture.dll`；统一构建脚本发布为 `texture_0.1.0.dll`。
+DLL 落 `.temp/texture-target/release/texture.dll`；统一构建脚本发布为 `texture_0.1.1.dll`。

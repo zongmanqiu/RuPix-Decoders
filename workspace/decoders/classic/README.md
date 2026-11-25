@@ -36,7 +36,7 @@ cargo build --release
 ```
 
 产物落 `.temp/classic-target/release/classic.dll`；`.cargo/config.toml` 让它不落进源码树。
-统一构建脚本发布为 `classic_0.1.0.dll`。
+统一构建脚本发布为 `classic_0.1.1.dll`。
 
 ## 限制
 

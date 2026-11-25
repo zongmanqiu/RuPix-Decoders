@@ -10,11 +10,11 @@
 
 | 字段 | 值 |
 |---|---|
-| id / crate / 版本 | `raw` / `rupix-raw` / **0.5.4**（已发布，2026-11-08，见 `decoders.json`） |
+| id / crate / 版本 | `raw` / `rupix-raw` / **0.5.5**（已发布，2026-11-25，见 `decoders.json`） |
 | name | `Camera RAW & Raw Pixel Data` |
 | 后缀 | 29 种相机 RAW（含 `.raw`）+ `rgb rgba gray gry bgra yuv i420 yv12 nv12 yuy2 uyvy`（11） |
 | is_vector / has_alpha | `0` / `0` |
-| 产物 | `raw_0.5.4.dll` |
+| 产物 | `raw_0.5.5.dll` |
 | 构建 | 纯 Rust；无 `build.rs`、无 C 源、无 `.3rd` 依赖 |
 | 许可证 | `rawler 0.7.2`（LGPL-2.1）+ `flashraw 0.1.1`（MIT/Apache-2.0）静态链接；ZIP 附许可证全文，重链接材料（rawler 上游 commit + crate 校验值）见本 README 末尾由打包器追加的「`raw` 的 LGPL 重链接材料」一节 |
 
